@@ -52,6 +52,11 @@ describe('Định tuyến — chuỗi quản lý lớp phải nối đủ', () =
     expect(paths).toContain('/app/join-class');
   });
 
+  it('có hai đầu của kênh hỏi đáp: học sinh hỏi và giáo viên trả lời', () => {
+    expect(paths).toContain('/app/chat');
+    expect(paths).toContain('/teacher/chat');
+  });
+
   it('vẫn giữ các trang cũ của học sinh', () => {
     for (const path of ['/app/profile', '/app/certificates', '/auth/register']) {
       expect(paths).toContain(path);

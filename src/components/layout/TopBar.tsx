@@ -6,6 +6,7 @@ import {
   LogOut,
   Map,
   Menu,
+  MessagesSquare,
   Sparkles,
   Ticket,
   User,
@@ -17,11 +18,22 @@ import { useUiStore } from '@/stores/uiStore';
 import { AvatarIcon } from '@/components/game/AvatarIcon';
 import { Button } from '@/components/ui/Button';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { useUnreadMessages } from '@/hooks/useUnreadMessages';
 import { getLevelProgress } from '@/utils/xp';
 import { cn } from '@/utils/cn';
 
-const NAV_ITEMS = [
+interface NavItem {
+  to: string;
+  label: string;
+  icon: typeof Map;
+  end: boolean;
+  /** Hiện số tin nhắn chưa đọc bên cạnh nhãn */
+  showsUnread?: boolean;
+}
+
+const NAV_ITEMS: NavItem[] = [
   { to: '/app', label: 'Bản đồ', icon: Map, end: true },
+  { to: '/app/chat', label: 'Hỏi thầy cô', icon: MessagesSquare, end: false, showsUnread: true },
   { to: '/app/handbook', label: 'Sổ tay lệnh', icon: BookOpen, end: false },
   { to: '/app/certificates', label: 'Chứng chỉ', icon: Sparkles, end: false },
   { to: '/app/profile', label: 'Hồ sơ', icon: User, end: false },
@@ -33,10 +45,28 @@ const NAV_ITEMS = [
  * Không có mục này thì tài khoản giáo viên bị kẹt hoàn toàn: đăng nhập xong
  * rơi vào dashboard học sinh, và không có chỗ nào bấm sang khu vực giáo viên.
  */
-const TEACHER_NAV_ITEMS = [
+const TEACHER_NAV_ITEMS: NavItem[] = [
   { to: '/teacher', label: 'Theo dõi', icon: GraduationCap, end: true },
   { to: '/teacher/classes', label: 'Lớp của tôi', icon: Ticket, end: false },
+  { to: '/teacher/chat', label: 'Hỏi đáp', icon: MessagesSquare, end: false, showsUnread: true },
 ];
+
+/**
+ * Chấm báo tin chưa đọc.
+ *
+ * Có kèm chữ đọc được cho trình đọc màn hình chứ không chỉ một con số trơ:
+ * "3" đứng một mình thì người dùng không biết 3 cái gì.
+ */
+function UnreadBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+
+  return (
+    <span className="ml-1 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-[10px] font-bold bg-alert-500 text-white">
+      <span aria-hidden="true">{count > 99 ? '99+' : count}</span>
+      <span className="sr-only">{count} tin nhắn chưa đọc</span>
+    </span>
+  );
+}
 
 export function TopBar() {
   const profile = useAuthStore((state) => state.profile);
@@ -44,6 +74,7 @@ export function TopBar() {
   const reducedMotion = useUiStore((state) => state.reducedMotion);
   const toggleReducedMotion = useUiStore((state) => state.toggleReducedMotion);
   const navigate = useNavigate();
+  const unreadCount = useUnreadMessages();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const level = getLevelProgress(profile?.total_xp ?? 0);
@@ -90,6 +121,7 @@ export function TopBar() {
             >
               <item.icon className="size-4" aria-hidden="true" />
               {item.label}
+              {item.showsUnread && <UnreadBadge count={unreadCount} />}
             </NavLink>
           ))}
         </nav>
@@ -171,6 +203,7 @@ export function TopBar() {
             >
               <item.icon className="size-4" aria-hidden="true" />
               {item.label}
+              {item.showsUnread && <UnreadBadge count={unreadCount} />}
             </NavLink>
           ))}
 

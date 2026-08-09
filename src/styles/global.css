@@ -45,7 +45,14 @@
 
   /* --- Do: CHI dung cho loi --- */
   --color-alert-400: #f87171;
-  --color-alert-500: #ef4444;
+  /*
+    Nen do dac, luon di kem chu TRANG: nut nguy hiem va cham bao tin chua doc.
+
+    #ef4444 cua Tailwind chi cho 3.76:1 voi chu trang — truot chuan AA. Do lai
+    bang canvas ngay tren trang chay that moi phat hien. #d92020 cho 5.03:1 ma
+    van do ro rang.
+  */
+  --color-alert-500: #d92020;
 
   /*
     Mau chu dat TREN nen mau dam (nut cyan, nut vang, huy hieu logo).

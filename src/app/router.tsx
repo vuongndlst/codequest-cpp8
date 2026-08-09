@@ -82,6 +82,14 @@ const TeacherClassDetailPage = lazy(() =>
 const JoinClassPage = lazy(() =>
   import('@/pages/app/JoinClassPage').then((module) => ({ default: module.JoinClassPage })),
 );
+const ChatPage = lazy(() =>
+  import('@/pages/app/ChatPage').then((module) => ({ default: module.ChatPage })),
+);
+const TeacherChatPage = lazy(() =>
+  import('@/pages/teacher/TeacherChatPage').then((module) => ({
+    default: module.TeacherChatPage,
+  })),
+);
 
 /**
  * Định tuyến ứng dụng.
@@ -174,6 +182,7 @@ export const router = createHashRouter([
       { path: 'prologue', element: <ProloguePage /> },
       { path: 'profile', element: <ProfilePage /> },
       { path: 'join-class', element: <JoinClassPage /> },
+      { path: 'chat', element: <ChatPage /> },
       { path: 'handbook', element: <HandbookPage /> },
       { path: 'lesson/:lessonId', element: <LessonPage /> },
       { path: 'lesson/:lessonId/guide', element: <LessonGuidePage /> },
@@ -196,6 +205,7 @@ export const router = createHashRouter([
     children: [
       { index: true, element: <TeacherDashboardPage /> },
       { path: 'classes', element: <TeacherClassesPage /> },
+      { path: 'chat', element: <TeacherChatPage /> },
       { path: 'classes/:classId', element: <TeacherClassDetailPage /> },
       { path: 'students/:userId', element: <TeacherStudentDetailPage /> },
       { path: 'settings', element: <TeacherSettingsPage /> },
