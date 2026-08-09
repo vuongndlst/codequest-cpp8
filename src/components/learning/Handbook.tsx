@@ -18,11 +18,21 @@ interface HandbookProps {
   /** Chỉ hiện thẻ đã học tới — tránh làm học sinh choáng ngợp */
   upToLessonId?: string;
   compact?: boolean;
+  /**
+   * Thẻ mà nhiệm vụ đang làm cần tới. Được tách lên đầu, mở sẵn thẻ thứ nhất.
+   *
+   * Không có phần này thì học sinh bấm "Xem lệnh" là nhận nguyên 12 thẻ và
+   * phải tự dò xem bài này liên quan thẻ nào — với học sinh lớp 8, bước dò đó
+   * đủ để em bỏ cuộc và quay ra hỏi một câu mà sổ tay đã trả lời sẵn.
+   */
+  focusCardIds?: string[];
 }
 
-export function Handbook({ upToLessonId, compact = false }: HandbookProps) {
+export function Handbook({ upToLessonId, compact = false, focusCardIds }: HandbookProps) {
   const [query, setQuery] = useState('');
-  const [openCardId, setOpenCardId] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  const focusIds = focusCardIds ?? [];
+  const [openCardId, setOpenCardId] = useState<string | null>(focusIds[0] ?? null);
   const searchId = useId();
 
   const lessonOrder = (lessonId: string) =>
@@ -34,8 +44,58 @@ export function Handbook({ upToLessonId, compact = false }: HandbookProps) {
     (card) => lessonOrder(card.introducedInLesson) <= maxOrder,
   );
 
+  const focusCards = focusIds
+    .map((id) => HANDBOOK_CARDS.find((card) => card.id === id))
+    .filter((card): card is HandbookCard => Boolean(card));
+
+  // Khi có thẻ trọng tâm và học sinh chưa tìm kiếm gì, phần còn lại nằm sau một
+  // nút bấm — em nào cần tra thêm mới mở, không thì không bị ngợp.
+  const hasFocus = focusCards.length > 0 && !query;
+
   return (
     <div className={cn('space-y-4', compact && 'text-sm')}>
+      {hasFocus && (
+        <section aria-labelledby="focus-cards-heading">
+          <h3 id="focus-cards-heading" className="text-sm font-bold text-slate-100 mb-1">
+            Lệnh cần cho nhiệm vụ này
+          </h3>
+          <p className="text-xs text-slate-500 mb-2">
+            Đây là những lệnh nhiệm vụ đang dùng tới. Tra cú pháp không tính là dùng gợi ý đâu nhé.
+          </p>
+
+          <ul className="space-y-2 list-none">
+            {focusCards.map((card) => (
+              <HandbookCardItem
+                key={card.id}
+                card={card}
+                isOpen={openCardId === card.id}
+                onToggle={() => setOpenCardId(openCardId === card.id ? null : card.id)}
+              />
+            ))}
+          </ul>
+
+          {!showAll && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-3"
+              onClick={() => setShowAll(true)}
+              leadingIcon={<BookOpen className="size-4" aria-hidden="true" />}
+            >
+              Xem toàn bộ sổ tay lệnh
+            </Button>
+          )}
+        </section>
+      )}
+
+      {hasFocus && !showAll ? null : (
+        <>
+          {hasFocus && (
+            <h3 className="text-sm font-bold text-slate-100 pt-2 border-t border-abyss-700">
+              Toàn bộ sổ tay lệnh
+            </h3>
+          )}
+
       <div>
         <label htmlFor={searchId} className="sr-only">
           Tìm lệnh trong sổ tay
@@ -75,6 +135,8 @@ export function Handbook({ upToLessonId, compact = false }: HandbookProps) {
           />
         ))}
       </ul>
+        </>
+      )}
     </div>
   );
 }
@@ -164,10 +226,12 @@ export function HandbookModal({
   open,
   onClose,
   upToLessonId,
+  focusCardIds,
 }: {
   open: boolean;
   onClose: () => void;
   upToLessonId?: string;
+  focusCardIds?: string[];
 }) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -208,7 +272,7 @@ export function HandbookModal({
         <div className="flex items-start justify-between gap-3 mb-4">
           <div>
             <h2 id="handbook-title" className="text-xl font-bold text-slate-100">
-              Sổ tay lệnh
+              Tra cứu lệnh
             </h2>
             <p className="text-sm text-slate-400">
               Tra cú pháp bất cứ lúc nào — không tính là dùng gợi ý đâu nhé.
@@ -225,7 +289,7 @@ export function HandbookModal({
           </Button>
         </div>
 
-        <Handbook upToLessonId={upToLessonId} compact />
+        <Handbook upToLessonId={upToLessonId} compact focusCardIds={focusCardIds} />
       </div>
     </div>
   );

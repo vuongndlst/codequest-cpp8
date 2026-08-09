@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { markGuideRead } from '@/utils/guideProgress';
 import { ArrowLeft, ArrowRight, Play } from 'lucide-react';
 import { getLesson } from '@/lessons';
 import { ConceptGuidePanel } from '@/components/learning/ConceptGuidePanel';
@@ -20,6 +22,11 @@ export function LessonGuidePage() {
   const { lessonId = '' } = useParams();
   const isSignedIn = useAuthStore((state) => state.status === 'authenticated');
   const lesson = getLesson(lessonId);
+
+  // Ghi nhớ là em đã mở phần lý thuyết, để trang khu vực thôi mời đọc nữa
+  useEffect(() => {
+    if (lesson) markGuideRead(lessonId);
+  }, [lesson, lessonId]);
 
   if (!lesson) return <NotFoundPage />;
 

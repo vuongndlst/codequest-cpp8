@@ -16,12 +16,21 @@ export interface LessonUnlockContext {
   progressByLesson: Record<string, LessonProgressRow | undefined>;
   /** Bài học được giáo viên mở thêm cho lớp */
   teacherUnlockedLessons?: string[];
+  /**
+   * Người đang xem là giáo viên.
+   *
+   * Giáo viên KHÔNG phải học để xem được nội dung. Trước đây tài khoản giáo
+   * viên bị khoá y hệt học sinh: muốn xem khu vực 4 dạy gì thì phải ngồi làm
+   * xong khu vực 1, 2, 3 — vô lý với người soạn bài và chấm bài.
+   */
+  isTeacher?: boolean;
 }
 
 /** Bài học đầu tiên luôn mở — học sinh mới vào phải có việc để làm ngay. */
 export const FIRST_LESSON_ID = 'l1';
 
 export function isLessonUnlocked(lessonId: string, ctx: LessonUnlockContext): boolean {
+  if (ctx.isTeacher) return true;
   if (lessonId === FIRST_LESSON_ID) return true;
   if (ctx.teacherUnlockedLessons?.includes(lessonId)) return true;
 
@@ -46,7 +55,10 @@ export function isChallengeUnlocked(
   challengeIds: string[],
   completedChallenges: string[],
   isOptional = false,
+  isTeacher = false,
 ): boolean {
+  // Giáo viên xem được mọi nhiệm vụ để soạn bài và kiểm tra đề
+  if (isTeacher) return true;
   if (challengeIndex === 0) return true;
   if (isOptional) return true;
 

@@ -137,6 +137,14 @@ export interface Challenge {
    */
   minCleanCodeScore?: number;
   xpReward: number;
+  /**
+   * Chỉ định tay các thẻ sổ tay lệnh liên quan tới nhiệm vụ.
+   *
+   * Bỏ trống thì hệ thống tự suy ra từ `requiredPatterns` — xem
+   * `src/data/challengeHandbook.ts`. Chỉ dùng khi cách suy ra tự động chưa
+   * trúng ý người soạn bài.
+   */
+  handbookCards?: string[];
   /** Node "Khám phá thêm" — không tính vào tiến trình, không đánh giá */
   optional?: boolean;
   world?: WorldSpec;

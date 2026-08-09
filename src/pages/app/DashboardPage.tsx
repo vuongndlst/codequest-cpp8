@@ -35,6 +35,7 @@ export function DashboardPage() {
   const unlockContext = {
     progressByLesson: data.progressByLesson,
     teacherUnlockedLessons: data.classSettings?.unlocked_lessons ?? [],
+    isTeacher: profile?.role === 'teacher',
   };
   const nextLessonId = getNextLessonId(unlockContext);
   const nextLesson = LESSONS_META.find((lesson) => lesson.id === nextLessonId);

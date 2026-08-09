@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { LESSONS_META } from '@/data/lessons.meta';
 import {
   calculateLessonPercent,
   getLessonLockState,
@@ -164,5 +165,32 @@ describe('getTotalStars', () => {
 
   it('tối đa 15 sao cho cả khoá (5 bài × 3 sao)', () => {
     expect(MAX_TOTAL_STARS).toBe(15);
+  });
+});
+
+/**
+ * Giáo viên KHÔNG phải học để xem được nội dung.
+ *
+ * Trước đây tài khoản giáo viên bị khoá y hệt học sinh: muốn xem khu vực 4 dạy
+ * gì thì phải ngồi làm xong khu vực 1, 2, 3. Vô lý với người soạn bài và chấm
+ * bài — thầy Vương phản ánh đúng chỗ này.
+ */
+describe('Giáo viên xem được mọi nội dung', () => {
+  it('mở khoá mọi khu vực, kể cả khi chưa học gì', () => {
+    for (const lesson of LESSONS_META) {
+      expect(isLessonUnlocked(lesson.id, { progressByLesson: {}, isTeacher: true })).toBe(true);
+    }
+  });
+
+  it('mở khoá mọi nhiệm vụ trong khu vực', () => {
+    const ids = ['a', 'b', 'c', 'd'];
+    for (let index = 0; index < ids.length; index += 1) {
+      expect(isChallengeUnlocked(index, ids, [], false, true)).toBe(true);
+    }
+  });
+
+  it('học sinh thì vẫn khoá như cũ — không nới lỏng nhầm cho cả lớp', () => {
+    expect(isLessonUnlocked('l4', { progressByLesson: {} })).toBe(false);
+    expect(isChallengeUnlocked(2, ['a', 'b', 'c'], [])).toBe(false);
   });
 });

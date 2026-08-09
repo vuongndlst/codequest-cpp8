@@ -154,6 +154,89 @@ export function computeLessonOverview(
   });
 }
 
+// ────────────────────────────────────────────────── Việc cần xử lý của giáo viên
+
+export type AttentionReason = 'chua-bat-dau' | 'lau-khong-hoc' | 'dang-vuong';
+
+export interface AttentionItem {
+  summary: StudentSummary;
+  reason: AttentionReason;
+  /** Câu mô tả ngắn để hiện thẳng lên màn hình */
+  detail: string;
+}
+
+export const ATTENTION_LABELS: Record<AttentionReason, string> = {
+  'chua-bat-dau': 'Chưa bắt đầu',
+  'lau-khong-hoc': 'Lâu không học',
+  'dang-vuong': 'Đang vướng',
+};
+
+const INACTIVE_DAYS = 7;
+/** Trên ngưỡng này nghĩa là em ấy phải thử rất nhiều lần mới qua được một nhiệm vụ. */
+const STRUGGLING_ATTEMPTS = 6;
+
+/**
+ * Những em giáo viên nên để mắt tới, xếp theo mức cần can thiệp.
+ *
+ * Đây là thứ dashboard giáo viên phải trả lời đầu tiên, và cũng là điểm khác
+ * biệt căn bản với dashboard học sinh: học sinh cần biết "mình đi tới đâu rồi",
+ * còn giáo viên cần biết "hôm nay phải để ý em nào". Bảng tiến trình trung bình
+ * không trả lời được câu đó — một lớp trung bình 70% có thể là cả lớp đều 70%,
+ * mà cũng có thể là nửa lớp xong hết còn nửa lớp chưa mở bài bao giờ.
+ */
+export function findStudentsNeedingAttention(
+  summaries: StudentSummary[],
+  now: number = Date.now(),
+): AttentionItem[] {
+  const items: AttentionItem[] = [];
+
+  for (const summary of summaries) {
+    if (summary.attemptCount === 0) {
+      items.push({
+        summary,
+        reason: 'chua-bat-dau',
+        detail: 'Chưa chạy code lần nào',
+      });
+      continue;
+    }
+
+    // Em đã xong cả khoá thì không cần nhắc nữa
+    const isFinished = summary.overallPercent >= 100;
+
+    if (!isFinished && summary.lastActiveAt) {
+      const days = Math.floor((now - new Date(summary.lastActiveAt).getTime()) / 86_400_000);
+      if (days >= INACTIVE_DAYS) {
+        items.push({
+          summary,
+          reason: 'lau-khong-hoc',
+          detail: `${days} ngày chưa vào học, mới đi được ${summary.overallPercent}%`,
+        });
+        continue;
+      }
+    }
+
+    if (!isFinished && summary.averageAttemptsPerSolved >= STRUGGLING_ATTEMPTS) {
+      const topError = summary.topErrors[0];
+      items.push({
+        summary,
+        reason: 'dang-vuong',
+        detail:
+          `Trung bình ${summary.averageAttemptsPerSolved} lần thử mỗi nhiệm vụ` +
+          (topError ? ` · hay vướng: ${topError.label}` : ''),
+      });
+    }
+  }
+
+  // Chưa bắt đầu là gấp nhất, rồi tới đang vướng, rồi lâu không học
+  const priority: Record<AttentionReason, number> = {
+    'chua-bat-dau': 0,
+    'dang-vuong': 1,
+    'lau-khong-hoc': 2,
+  };
+
+  return items.sort((a, b) => priority[a.reason] - priority[b.reason]);
+}
+
 /** Danh sách lớp có trong dữ liệu, đã sắp xếp. */
 export function listClassNames(students: StudentProfile[]): string[] {
   const names = new Set<string>();

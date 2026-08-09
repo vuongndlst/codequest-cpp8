@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
+  AlignLeft,
   ArrowLeft,
   ArrowRight,
   BookOpen,
@@ -13,9 +14,10 @@ import {
   Target,
 } from 'lucide-react';
 import { getChallenge, getChallengeIds, getLesson } from '@/lessons';
+import { relevantHandbookCards } from '@/data/challengeHandbook';
 import { useChallengeSession } from '@/hooks/useChallengeSession';
 import { useAuthStore } from '@/stores/authStore';
-import { CodeEditor } from '@/components/editor/CodeEditor';
+import { CodeEditor, type CodeEditorHandle } from '@/components/editor/CodeEditor';
 import { ResultPanel } from '@/components/editor/ResultPanel';
 import { HintPanel } from '@/components/learning/HintPanel';
 import { HandbookModal } from '@/components/learning/Handbook';
@@ -46,6 +48,7 @@ export function ChallengePage() {
 
   const [handbookOpen, setHandbookOpen] = useState(false);
   const [isEditorExpanded, setIsEditorExpanded] = useState(false);
+  const editorRef = useRef<CodeEditorHandle>(null);
 
   const lesson = getLesson(lessonId);
   const challenge = getChallenge(lessonId, challengeId);
@@ -100,6 +103,7 @@ export function ChallengePage() {
         <LoadingState label="Đang mở lại code em viết dở…" />
       ) : (
         <CodeEditor
+          handleRef={editorRef}
           value={session.code}
           onChange={session.setCode}
           highlightedLines={session.highlightedLines}
@@ -117,6 +121,18 @@ export function ChallengePage() {
         >
           Chạy code
         </Button>
+        {/*
+          Nút dọn thụt lề. Không có nó thì học sinh có code lộn xộn sẽ bị Clean
+          Code Coach nhắc mãi mà không biết sửa bằng cách nào.
+        */}
+        <Button
+          variant="secondary"
+          onClick={() => editorRef.current?.format()}
+          title="Phím tắt: Shift + Alt + F"
+          leadingIcon={<AlignLeft className="size-4" aria-hidden="true" />}
+        >
+          Thụt lề lại
+        </Button>
         <Button
           variant="secondary"
           onClick={session.reset}
@@ -129,7 +145,7 @@ export function ChallengePage() {
           onClick={() => setHandbookOpen(true)}
           leadingIcon={<BookOpen className="size-4" aria-hidden="true" />}
         >
-          Xem lệnh
+          Tra lệnh
         </Button>
       </div>
     </div>
@@ -354,6 +370,7 @@ export function ChallengePage() {
         open={handbookOpen}
         onClose={() => setHandbookOpen(false)}
         upToLessonId={lessonId}
+        focusCardIds={relevantHandbookCards(challenge).map((card) => card.id)}
       />
 
       <BadgeToast badges={session.newBadges} onDismiss={session.dismissBadges} />

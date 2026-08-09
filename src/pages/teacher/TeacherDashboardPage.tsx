@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
+  BookOpen,
   Download,
   GraduationCap,
   Settings,
   Ticket,
   TriangleAlert,
+  UserRoundSearch,
   Users,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
@@ -24,12 +26,14 @@ import {
   type ClassRow,
 } from '@/services/supabase/classes.repo';
 import {
+  ATTENTION_LABELS,
   buildCsvFileName,
   buildProgressCsv,
   buildStudentSummaries,
   computeErrorStats,
   computeLessonOverview,
   downloadCsv,
+  findStudentsNeedingAttention,
   type StudentSummary,
 } from '@/services/teacherAnalytics';
 import { LESSONS_META } from '@/data/lessons.meta';
@@ -167,6 +171,8 @@ export function TeacherDashboardPage() {
   );
 
   const errorStats = useMemo(() => computeErrorStats(filteredAttempts), [filteredAttempts]);
+
+  const attention = useMemo(() => findStudentsNeedingAttention(summaries), [summaries]);
 
   const lessonOverview = useMemo(
     () =>
@@ -310,6 +316,90 @@ export function TeacherDashboardPage() {
           tone="mage"
         />
       </section>
+
+      {/* --- Việc cần xử lý — phần khác biệt căn bản với dashboard học sinh --- */}
+      <Card>
+        <CardHeader
+          title={`Cần chú ý (${attention.length})`}
+          description="Học sinh nên hỏi thăm trước, xếp theo mức gấp"
+          icon={<UserRoundSearch className="size-5 text-treasure-400" aria-hidden="true" />}
+        />
+
+        {attention.length === 0 ? (
+          <EmptyState
+            title="Cả lớp đang đi đều"
+            description="Không em nào bỏ dở hay vướng bất thường. Thầy cô cứ dạy tiếp nhé."
+          />
+        ) : (
+          <ul className="space-y-2 list-none">
+            {attention.slice(0, 10).map((item) => (
+              <li key={item.summary.student.id}>
+                <Link
+                  to={`/teacher/students/${item.summary.student.id}`}
+                  className="flex items-center gap-3 cq-panel p-3 hover:border-quest-500/60 transition-colors"
+                >
+                  <AvatarIcon avatarId={item.summary.student.avatar_id} size={36} />
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-slate-100 truncate">
+                        {item.summary.student.full_name}
+                      </span>
+                      <span
+                        className={cn(
+                          'px-1.5 py-0.5 rounded text-[10px] font-bold',
+                          item.reason === 'chua-bat-dau'
+                            ? 'bg-alert-500/15 text-alert-400'
+                            : item.reason === 'dang-vuong'
+                              ? 'bg-treasure-400/15 text-treasure-300'
+                              : 'bg-abyss-700 text-slate-400',
+                        )}
+                      >
+                        {ATTENTION_LABELS[item.reason]}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400">{item.detail}</p>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      {/* --- Xem trước nội dung: giáo viên không phải học để đọc được bài --- */}
+      <Card>
+        <CardHeader
+          title="Xem trước nội dung bài học"
+          description="Mọi khu vực đều mở sẵn cho tài khoản giáo viên — không phải làm bài mới xem được"
+          icon={<BookOpen className="size-5 text-mage-300" aria-hidden="true" />}
+        />
+
+        <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 list-none">
+          {LESSONS_META.map((lesson) => (
+            <li key={lesson.id}>
+              <div className="cq-panel p-3 h-full flex flex-col gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs text-slate-500">Khu vực {lesson.order}</p>
+                  <p className="font-semibold text-slate-100 truncate">{lesson.zoneName}</p>
+                </div>
+                <div className="flex gap-2 mt-auto">
+                  <Link to={`/app/lesson/${lesson.id}/guide`} className="flex-1">
+                    <Button variant="secondary" size="sm" fullWidth>
+                      Lý thuyết
+                    </Button>
+                  </Link>
+                  <Link to={`/app/lesson/${lesson.id}`} className="flex-1">
+                    <Button variant="ghost" size="sm" fullWidth>
+                      Nhiệm vụ
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </Card>
 
       {/* --- Tiến trình theo khu vực --- */}
       <Card>

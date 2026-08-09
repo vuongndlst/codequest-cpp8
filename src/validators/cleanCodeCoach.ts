@@ -36,6 +36,26 @@ export interface CleanCodeReport {
 
 export const CLEAN_CODE_STAR_THRESHOLD = 80;
 
+/**
+ * Tên tiếng Việt của từng tiêu chí, để hiện bảng chấm cho học sinh xem.
+ *
+ * Trước đây màn hình chỉ hiện một con số ("65/100") kèm hai câu góp ý trôi nổi.
+ * Học sinh không biết 65 điểm đó từ đâu ra, cũng không biết còn thiếu gì —
+ * thầy Vương phản ánh đúng chỗ này. Có tên tiêu chí thì điểm số đọc được như
+ * một bảng kiểm, không còn là con số bí ẩn.
+ */
+export const CLEAN_CODE_RULE_LABELS: Record<CleanCodeRuleId, string> = {
+  indent: 'Thụt lề đúng cấp',
+  'one-statement-per-line': 'Mỗi dòng một câu lệnh',
+  'meaningful-var': 'Tên biến nói rõ nghĩa',
+  'action-verb-func': 'Tên hàm bắt đầu bằng động từ',
+  'unused-var': 'Không có biến thừa',
+  'no-duplication': 'Không lặp code giống nhau',
+  spacing: 'Có khoảng trắng quanh dấu phép tính',
+  'main-length': 'Hàm main() không quá dài',
+  'extract-function': 'Có tách việc thành hàm riêng',
+};
+
 /** Bộ quy tắc mặc định khi challenge không khai báo riêng. */
 export const DEFAULT_CLEAN_CODE_RULES: CleanCodeRule[] = [
   { rule: 'indent', weight: 20 },

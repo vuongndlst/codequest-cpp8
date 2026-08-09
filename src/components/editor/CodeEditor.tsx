@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
 import { useUiStore } from '@/stores/uiStore';
 import { Compartment, EditorState, type Extension } from '@codemirror/state';
 import {
@@ -19,6 +19,7 @@ import {
   defaultKeymap,
   history,
   historyKeymap,
+  indentSelection,
   indentWithTab,
   insertNewlineAndIndent,
 } from '@codemirror/commands';
@@ -221,6 +222,35 @@ function themeExtension(resolved: 'light' | 'dark'): Extension {
     : [byteLandTheme, syntaxHighlighting(byteLandHighlight)];
 }
 
+/**
+ * Thụt lề lại toàn bộ chương trình.
+ *
+ * Việc tự thụt lề LÚC GÕ đã chạy đúng: Enter sau `{` thì lùi vào một cấp, gõ
+ * `}` thì lùi ra. Thứ còn thiếu là cách sửa code ĐÃ lỡ lộn xộn — học sinh xoá
+ * dòng, sửa chỗ nọ chỗ kia, dán code từ phần hướng dẫn vào, và không có nút nào
+ * dọn lại. Không có công cụ này thì Clean Code Coach cứ nhắc "chưa thụt lề
+ * đúng" mãi mà em không biết phải làm sao.
+ *
+ * Con trỏ được đặt lại về cuối đúng dòng cũ — nếu để nhảy về đầu file thì mỗi
+ * lần bấm dọn dẹp em lại mất chỗ đang viết.
+ */
+export function formatDocument(view: EditorView): void {
+  const lineBefore = view.state.doc.lineAt(view.state.selection.main.head).number;
+
+  view.dispatch({ selection: { anchor: 0, head: view.state.doc.length } });
+  indentSelection(view);
+
+  const totalLines = view.state.doc.lines;
+  const line = view.state.doc.line(Math.min(lineBefore, totalLines));
+  view.dispatch({ selection: { anchor: line.to } });
+  view.focus();
+}
+
+export interface CodeEditorHandle {
+  /** Thụt lề lại cả chương trình */
+  format: () => void;
+}
+
 function buildExtensions(
   readOnly: boolean,
   resolvedTheme: 'light' | 'dark',
@@ -242,7 +272,25 @@ function buildExtensions(
     cpp(),
     errorLineField,
     themeCompartment.of(themeExtension(resolvedTheme)),
+    /*
+      Dán code vào thì thụt lề lại luôn.
+
+      Học sinh hay chép khung chương trình từ phần hướng dẫn hoặc từ sổ tay
+      lệnh. Chép qua lại giữa các ô có sẵn thụt lề khác nhau nên dán vào thường
+      lệch hết — và em không có cách nào tự sửa.
+
+      Trả về `false` để trình duyệt cứ dán bình thường; việc dọn dẹp làm ở nhịp
+      sau, khi nội dung đã nằm trong tài liệu.
+    */
+    EditorView.domEventHandlers({
+      paste: (_event, view) => {
+        window.setTimeout(() => formatDocument(view), 0);
+        return false;
+      },
+    }),
     keymap.of([
+      // Phím tắt quen thuộc của VS Code, để em nào biết rồi thì dùng được ngay
+      { key: 'Shift-Alt-f', run: (view) => (formatDocument(view), true) },
       ...defaultKeymap,
       ...historyKeymap,
       // Tab thụt lề thay vì nhảy khỏi ô nhập — quen thuộc với học sinh
@@ -264,7 +312,8 @@ export function CodeEditor({
   readOnly = false,
   minHeight = '320px',
   ariaLabel = 'Vùng viết code C++',
-}: CodeEditorProps) {
+  handleRef,
+}: CodeEditorProps & { handleRef?: Ref<CodeEditorHandle> }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -274,6 +323,17 @@ export function CodeEditor({
   // Giữ trong ref để effect khởi tạo không phải phụ thuộc vào giá trị này
   const themeRef = useRef(resolvedTheme);
   themeRef.current = resolvedTheme;
+
+  // Cho trang cha gọi được lệnh thụt lề lại mà không phải tự giữ EditorView
+  useImperativeHandle(
+    handleRef,
+    () => ({
+      format: () => {
+        if (viewRef.current) formatDocument(viewRef.current);
+      },
+    }),
+    [],
+  );
 
   // Khởi tạo editor một lần
   useEffect(() => {

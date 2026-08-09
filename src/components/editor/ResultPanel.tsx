@@ -3,6 +3,10 @@ import type { RunResult } from '@/types/runner';
 import type { Diagnostic } from '@/validators/tokens';
 import { Button } from '@/components/ui/Button';
 import { RichText } from '@/components/common/RichText';
+import {
+  CLEAN_CODE_RULE_LABELS,
+  CLEAN_CODE_STAR_THRESHOLD,
+} from '@/validators/cleanCodeCoach';
 import { cn } from '@/utils/cn';
 
 interface ResultPanelProps {
@@ -179,48 +183,98 @@ export function ResultPanel({
         </section>
       )}
 
-      {/* --- Clean Code Coach --- */}
-      {showCleanCode && result.ok && (
-        <section className="cq-panel p-4" aria-labelledby="cleancode-heading">
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <h3
-              id="cleancode-heading"
-              className="flex items-center gap-2 text-sm font-bold text-slate-200"
-            >
-              <Feather className="size-4 text-mage-300" aria-hidden="true" />
-              Clean Code Coach
-            </h3>
-            <span
-              className={cn(
-                'text-sm font-bold tabular-nums',
-                result.cleanCode.isClean ? 'text-verdant-400' : 'text-treasure-300',
-              )}
-            >
-              {result.cleanCode.score}/100
-            </span>
-          </div>
+      {/*
+        --- Clean Code Coach ---
 
-          {result.cleanCode.suggestions.length === 0 ? (
-            <p className="text-sm text-verdant-400">
-              Code của em vừa chạy đúng vừa dễ đọc. Tuyệt vời!
-            </p>
-          ) : (
-            <ul className="space-y-1.5">
-              {result.cleanCode.suggestions.slice(0, 2).map((suggestion, index) => (
-                <li key={index} className="text-sm text-slate-300 leading-relaxed">
-                  · {suggestion}
-                </li>
-              ))}
-            </ul>
-          )}
+        CHỈ hiện khi nhiệm vụ ĐÃ HOÀN THÀNH, không phải mỗi lần code chạy được.
 
-          <p className="text-xs text-slate-500 mt-2">
-            Điểm clean code chỉ để giúp em viết code đẹp hơn — không ảnh hưởng việc hoàn thành
-            nhiệm vụ.
-          </p>
-        </section>
+        Trước đây điều kiện là `result.ok` — nghĩa là chỉ cần code biên dịch
+        được là bảng này hiện ra. Học sinh chạy thử code đang viết dở mười lần
+        thì nhận mười lần góp ý "đổi tên biến", "thụt lề lại"… trên một chương
+        trình còn chưa xong. Vừa gây nhiễu, vừa sai về mặt sư phạm: không ai đi
+        gọt giũa một bài chưa chạy đúng.
+      */}
+      {showCleanCode && result.isCorrect && (
+        <CleanCodeCard report={result.cleanCode} />
       )}
     </div>
+  );
+}
+
+/**
+ * Bảng chấm Clean Code.
+ *
+ * Hiện TỪNG TIÊU CHÍ đạt hay chưa, kèm trọng số điểm. Con số tổng một mình
+ * không dạy được gì: học sinh nhìn "65/100" thì chỉ biết mình chưa giỏi, không
+ * biết phải sửa cái gì. Nhìn bảng thì thấy ngay "Thụt lề đúng cấp — chưa đạt,
+ * 20 điểm" và biết chính xác việc cần làm.
+ */
+function CleanCodeCard({ report }: { report: RunResult['cleanCode'] }) {
+  return (
+    <section className="cq-panel p-4" aria-labelledby="cleancode-heading">
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <h3
+          id="cleancode-heading"
+          className="flex items-center gap-2 text-sm font-bold text-slate-200"
+        >
+          <Feather className="size-4 text-mage-300" aria-hidden="true" />
+          Chấm code sạch
+        </h3>
+        <span
+          className={cn(
+            'text-sm font-bold tabular-nums',
+            report.isClean ? 'text-verdant-400' : 'text-treasure-300',
+          )}
+        >
+          {report.score}/100
+        </span>
+      </div>
+
+      <ul className="space-y-1.5 mb-3">
+        {report.checks.map((check) => (
+          <li key={check.rule} className="flex items-start gap-2 text-sm">
+            <span
+              className={cn(
+                'grid place-items-center size-5 rounded-md shrink-0 mt-0.5',
+                check.passed
+                  ? 'bg-verdant-500/20 text-verdant-400'
+                  : 'bg-treasure-400/20 text-treasure-300',
+              )}
+              aria-hidden="true"
+            >
+              {check.passed ? <Check className="size-3.5" /> : <CircleDashed className="size-3.5" />}
+            </span>
+
+            <span className="min-w-0 flex-1">
+              <span className={check.passed ? 'text-slate-400' : 'text-slate-200'}>
+                {CLEAN_CODE_RULE_LABELS[check.rule]}
+              </span>
+              <span className="sr-only">{check.passed ? ' — đạt' : ' — chưa đạt'}</span>
+              {!check.passed && check.message && (
+                <span className="block text-xs text-slate-400 leading-relaxed mt-0.5">
+                  {check.message}
+                </span>
+              )}
+            </span>
+
+            <span
+              className={cn(
+                'text-xs tabular-nums shrink-0 mt-0.5',
+                check.passed ? 'text-verdant-400' : 'text-slate-500',
+              )}
+            >
+              {check.earned}/{check.weight}
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      <p className="text-xs text-slate-500 leading-relaxed">
+        {report.isClean
+          ? 'Code của em vừa chạy đúng vừa dễ đọc — đủ điều kiện lấy ngôi sao thứ ba.'
+          : `Từ ${CLEAN_CODE_STAR_THRESHOLD} điểm là em được ngôi sao thứ ba. Nhiệm vụ thì em đã hoàn thành rồi, phần này chỉ để code đẹp hơn thôi.`}
+      </p>
+    </section>
   );
 }
 

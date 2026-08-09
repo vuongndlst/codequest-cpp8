@@ -8,6 +8,7 @@ import { fetchAllLessonProgress, indexProgressByLesson } from '@/services/supaba
 import { fetchClassSettings } from '@/services/supabase/gamification.repo';
 import { ensureLessonStarted } from '@/services/supabase/progress.repo';
 import { isChallengeUnlocked, isLessonUnlocked } from '@/utils/progression';
+import { hasReadGuide } from '@/utils/guideProgress';
 import { Button } from '@/components/ui/Button';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { StarRating } from '@/components/game/StarRating';
@@ -83,9 +84,13 @@ export function LessonPage() {
   if (isLoading) return <LoadingState label="Đang mở khu vực…" />;
   if (error) return <ErrorState description={error} onRetry={() => window.location.reload()} />;
 
+  const isTeacher = profile?.role === 'teacher';
+  const guideRead = hasReadGuide(lessonId) || isTeacher;
+
   const unlocked = isLessonUnlocked(lessonId, {
     progressByLesson,
     teacherUnlockedLessons: teacherUnlocked,
+    isTeacher,
   });
 
   if (!unlocked) {
@@ -154,14 +159,27 @@ export function LessonPage() {
             </div>
           </div>
 
+          {/*
+            Khi em CHƯA đọc lý thuyết, nút vào nhiệm vụ hạ xuống hàng phụ.
+
+            Trước đây nút "Bắt đầu" nổi bật nằm ngay đầu trang, còn phần lý
+            thuyết nằm bên dưới — nên gần như em nào cũng bấm Bắt đầu rồi mò
+            cú pháp bằng cách thử sai. Nay thứ tự phản ánh đúng thứ tự nên học:
+            hiểu vì sao cần lệnh trước, gõ lệnh sau.
+
+            Vẫn KHÔNG khoá nhiệm vụ: em nào nắm rồi thì vào thẳng vẫn được.
+          */}
           <div className="sm:text-right shrink-0 space-y-2">
             <StarRating stars={progress?.stars ?? 0} />
             <Link
               to={`/app/lesson/${lessonId}/challenge/${firstUnfinished.id}`}
               className="block"
             >
-              <Button leadingIcon={<Play className="size-4" aria-hidden="true" />}>
-                {completedChallenges.length === 0 ? 'Bắt đầu' : 'Tiếp tục'}
+              <Button
+                variant={guideRead || completedChallenges.length > 0 ? 'primary' : 'secondary'}
+                leadingIcon={<Play className="size-4" aria-hidden="true" />}
+              >
+                {completedChallenges.length === 0 ? 'Vào nhiệm vụ' : 'Tiếp tục'}
               </Button>
             </Link>
           </div>
@@ -169,7 +187,15 @@ export function LessonPage() {
       </section>
 
       {/* --- Học kiến thức trước khi làm --- */}
-      <section className="cq-card p-5 border-mage-400/40 bg-mage-500/5">
+      <section
+        className={cn(
+          'cq-card p-5',
+          guideRead
+            ? 'border-abyss-600'
+            : // Chưa đọc thì nổi bật lên: đây mới là bước đầu tiên nên làm
+              'border-mage-400/60 bg-mage-500/10 ring-1 ring-mage-400/20',
+        )}
+      >
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <span
             className="grid place-items-center size-12 rounded-2xl bg-mage-500/20 text-mage-300 shrink-0"
@@ -180,7 +206,7 @@ export function LessonPage() {
 
           <div className="min-w-0 flex-1">
             <p className="text-xs font-bold uppercase tracking-wide text-mage-300">
-              Học kiến thức trước
+              {guideRead ? 'Lý thuyết — em đã đọc rồi' : 'Bước 1 · Hiểu trước khi làm'}
             </p>
             <p className="text-base font-semibold text-slate-100 leading-snug mt-0.5">
               {lesson.conceptGuide.bigQuestion}
@@ -192,8 +218,11 @@ export function LessonPage() {
           </div>
 
           <Link to={`/app/lesson/${lessonId}/guide`} className="shrink-0">
-            <Button variant="secondary" leadingIcon={<Brain className="size-4" aria-hidden="true" />}>
-              Đọc hướng dẫn
+            <Button
+              variant={guideRead ? 'secondary' : 'primary'}
+              leadingIcon={<Brain className="size-4" aria-hidden="true" />}
+            >
+              {guideRead ? 'Đọc lại lý thuyết' : 'Đọc lý thuyết'}
             </Button>
           </Link>
         </div>
@@ -239,6 +268,7 @@ export function LessonPage() {
               challengeIds,
               completedChallenges,
               challenge.optional,
+              isTeacher,
             );
             const badge = KIND_BADGES[challenge.kind] ?? {
               label: challenge.kind,
