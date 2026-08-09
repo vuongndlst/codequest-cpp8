@@ -133,6 +133,13 @@ export const router = createHashRouter([
                 return { Component: module.CertificatePreviewDevPage };
               },
             },
+            {
+              path: 'dev/stage-preview',
+              lazy: async () => {
+                const module = await import('@/pages/dev/StagePreviewDevPage');
+                return { Component: module.StagePreviewDevPage };
+              },
+            },
           ]
         : []),
       // Phần kiến thức mở công khai: đây là nội dung học thuần tuý, không gắn

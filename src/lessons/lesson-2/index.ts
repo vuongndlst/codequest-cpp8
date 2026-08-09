@@ -329,6 +329,8 @@ int main() {
     ],
     cleanCodeRules: CLEAN_CODE_WITH_FUNCTIONS,
     xpReward: 25,
+    // Sân khấu Xưởng Rèn: mỗi hàm là một cỗ máy, gọi hàm thì máy mới chạy
+    world: { kind: 'workshop', cols: 0 },
     solution: `#include <iostream>
 using namespace std;
 

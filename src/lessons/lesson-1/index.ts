@@ -303,6 +303,8 @@ int main() {
     ],
     cleanCodeRules: STANDARD_CLEAN_CODE,
     xpReward: 25,
+    // Sân khấu Tháp Tín Hiệu: đèn sáng theo từng cout, tinh thể giữ giá trị biến
+    world: { kind: 'signal-tower', cols: 0 },
     solution: `#include <iostream>
 using namespace std;
 

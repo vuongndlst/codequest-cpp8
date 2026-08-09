@@ -22,7 +22,7 @@ import { ResultPanel } from '@/components/editor/ResultPanel';
 import { HintPanel } from '@/components/learning/HintPanel';
 import { HandbookModal } from '@/components/learning/Handbook';
 import { ThinkingPrompt } from '@/components/learning/ConceptGuidePanel';
-import { WorldStage } from '@/components/game/WorldStage';
+import { GameStage } from '@/components/game/GameStage';
 import { ByteMascot } from '@/components/game/ByteMascot';
 import { BadgeToast } from '@/components/game/BadgeToast';
 import { Button } from '@/components/ui/Button';
@@ -289,7 +289,7 @@ export function ChallengePage() {
         <div className="lg:col-span-3 space-y-4">
           {/* Sân khấu game: nằm trên ô code để em nhìn thấy ngay khi bấm Chạy */}
           {challenge.world && (
-            <WorldStage
+            <GameStage
               spec={challenge.world}
               events={session.result?.worldEvents ?? []}
               avatarId={profile?.avatar_id}

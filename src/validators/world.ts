@@ -26,6 +26,7 @@ export interface WorldState {
 }
 
 export type WorldEventType =
+  // --- Sân khấu đường đi (khu vực 3–5) ---
   | 'move'
   | 'blocked'
   | 'open-door'
@@ -35,7 +36,33 @@ export type WorldEventType =
   | 'collect-gem'
   | 'attack-bug'
   | 'reach-goal'
-  | 'out-of-energy';
+  | 'out-of-energy'
+  /*
+    --- Sân khấu Tháp Tín Hiệu và Xưởng Rèn (khu vực 1–2) ---
+
+    Khu vực 1 và 2 dạy `cout`, biến và hàm — không có nhân vật đi lại nên
+    không dùng được sân khấu đường đi. Nhóm sự kiện dưới đây cho phép dựng
+    hình cho chính những khái niệm đó.
+  */
+  | 'print'
+  | 'declare-var'
+  | 'assign-var'
+  | 'declare-func'
+  | 'call-func'
+  | 'return-func';
+
+/**
+ * Trần số sự kiện gửi về giao diện.
+ *
+ * Một vòng lặp `for` chạy 100 000 lần mà mỗi lần in ra một dòng sẽ đẻ ra
+ * 100 000 sự kiện. Chuỗi đó vừa nặng khi truyền từ Web Worker về, vừa đủ để
+ * treo trình duyệt lúc dựng hình.
+ *
+ * Cắt ở 300: nhiều hơn số bước một sân khấu vẽ nổi, mà vẫn thừa cho mọi
+ * nhiệm vụ trong khoá. Việc CHẠY code không bị dừng — chỉ ngừng ghi thêm sự
+ * kiện, nên kết quả chấm bài không đổi.
+ */
+export const MAX_WORLD_EVENTS = 300;
 
 export interface WorldEvent {
   type: WorldEventType;

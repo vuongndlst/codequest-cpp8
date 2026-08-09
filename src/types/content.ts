@@ -95,8 +95,22 @@ export interface TestCase {
 }
 
 /** Cau hinh san khau game 2D cho mot challenge. */
+/**
+ * Loai san khau.
+ *
+ *   · path          — con duong o luoi, nhan vat di tu trai sang (khu vuc 3-5)
+ *   · signal-tower  — thap tin hieu: den sang theo tung `cout`, tinh the giu
+ *                     gia tri bien (khu vuc 1)
+ *   · workshop      — xuong ren: moi ham la mot co may, goi ham thi may chay
+ *                     (khu vuc 2)
+ *
+ * Bo trong thi mac dinh `path`, nen 7 nhiem vu da co san khau khong doi gi.
+ */
+export type WorldKind = 'path' | 'signal-tower' | 'workshop';
+
 export interface WorldSpec {
-  /** So o cua con duong / kich thuoc luoi */
+  kind?: WorldKind;
+  /** So o cua con duong / kich thuoc luoi. San khau khac dung lam so cho trong. */
   cols: number;
   rows?: number;
   startCol?: number;

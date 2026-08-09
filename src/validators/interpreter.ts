@@ -9,6 +9,7 @@ import type {
 } from './ast';
 import type { TypeKeyword } from './tokens';
 import {
+  MAX_WORLD_EVENTS,
   createWorldState,
   isBlockedAhead,
   type WorldEvent,
@@ -251,6 +252,23 @@ class Interpreter {
     for (const node of this.program.body) {
       if (node.kind === 'FunctionDeclaration') {
         this.functions.set(node.name, node);
+
+        /*
+          Phát sự kiện ngay lúc ĐĂNG KÝ hàm, trước khi `main()` chạy.
+
+          Sân khấu Xưởng Rèn dựa vào đây để lắp cỗ máy lên bàn nhưng để nó
+          ĐỨNG IM. Học sinh viết hàm rồi thắc mắc "sao không thấy gì chạy" là
+          hiểu nhầm số một về hàm; nhìn cỗ máy nằm im trên bàn cho tới khi có
+          lệnh gọi thì hiểu ngay khai báo khác với chạy.
+        */
+        if (node.name !== 'main') {
+          this.pushEvent('declare-func', `Lắp máy ${node.name}`, {
+            name: node.name,
+            params: node.params.map((param) => param.name),
+            returnType: node.returnType,
+            line: node.line,
+          });
+        }
       }
     }
 
@@ -339,6 +357,10 @@ class Interpreter {
   }
 
   private pushEvent(type: WorldEventType, message: string, detail?: Record<string, unknown>): void {
+    // Ngừng ghi khi đã đủ trần. CỐ Ý không dừng chương trình: đây chỉ là dữ
+    // liệu để vẽ hình, cắt bớt không được phép làm đổi kết quả chấm bài.
+    if (this.events.length >= MAX_WORLD_EVENTS) return;
+
     this.events.push({
       type,
       index: this.events.length,
@@ -368,12 +390,31 @@ class Interpreter {
       scope.declare(param.name, coerceTo(param.paramType, args[index] ?? defaultValueFor(param.paramType)));
     });
 
+    if (fn.name !== 'main') {
+      this.pushEvent('call-func', `Chạy máy ${fn.name}`, {
+        name: fn.name,
+        // Tham số hiện thành "nguyên liệu bỏ vào phễu" trên sân khấu Xưởng Rèn
+        args: args.map(formatForOutput),
+        line: fn.line,
+      });
+    }
+
     try {
       this.executeBlock(fn.body.body, scope);
       return defaultValueFor(fn.returnType);
     } catch (error) {
       if (error instanceof ReturnSignal) {
-        return fn.returnType === 'void' ? VOID : coerceTo(fn.returnType, error.value);
+        const returned = fn.returnType === 'void' ? VOID : coerceTo(fn.returnType, error.value);
+
+        if (fn.name !== 'main' && fn.returnType !== 'void') {
+          this.pushEvent('return-func', `${fn.name} trả về ${formatForOutput(returned)}`, {
+            name: fn.name,
+            value: formatForOutput(returned),
+            line: fn.line,
+          });
+        }
+
+        return returned;
       }
       throw error;
     } finally {
@@ -567,13 +608,31 @@ class Interpreter {
         );
 
       case 'CoutStatement': {
+        /*
+          Gom cả câu lệnh thành MỘT sự kiện, không phải mỗi `<<` một sự kiện.
+
+          `cout << "Diem: " << diem << endl;` với học sinh là một hành động in,
+          nên trên sân khấu nó phải thắp đúng một ngọn đèn. Tách ra ba sự kiện
+          thì đèn nhấp nháy ba lần cho một dòng lệnh — dạy sai luôn cả cách đọc
+          code.
+        */
+        let printed = '';
         for (const part of statement.parts) {
           if (part.kind === 'EndlLiteral') {
             this.write('\n');
+            printed += '\n';
             continue;
           }
-          this.write(formatForOutput(this.evaluate(part, scope)));
+          const text = formatForOutput(this.evaluate(part, scope));
+          this.write(text);
+          printed += text;
         }
+
+        const shown = printed.replace(/\n/g, ' ').trim();
+        this.pushEvent('print', shown ? `In ra: ${shown}` : 'In ra một dòng trống', {
+          text: printed,
+          line: statement.line,
+        });
         return;
       }
 
@@ -604,7 +663,15 @@ class Interpreter {
       const initial = declarator.init
         ? this.evaluate(declarator.init, scope)
         : defaultValueFor(node.varType);
-      scope.declare(declarator.name, coerceTo(node.varType, initial));
+      const stored = coerceTo(node.varType, initial);
+      scope.declare(declarator.name, stored);
+
+      this.pushEvent('declare-var', `Tạo biến ${declarator.name}`, {
+        name: declarator.name,
+        varType: node.varType,
+        value: formatForOutput(stored),
+        line: declarator.line,
+      });
     }
   }
 
@@ -715,7 +782,23 @@ class Interpreter {
               );
 
         scope.assign(name, nextValue);
-        return scope.get(name) ?? nextValue;
+        const stored = scope.get(name) ?? nextValue;
+
+        /*
+          Gửi kèm CẢ giá trị cũ lẫn giá trị mới.
+
+          Sân khấu Tháp Tín Hiệu dùng cặp này để cho thấy giá trị cũ biến mất
+          khi gán lại — đó chính là hiểu nhầm phổ biến nhất về biến ở lứa tuổi
+          này ("gán thêm" chứ không phải "thay thế").
+        */
+        this.pushEvent('assign-var', `${name} = ${formatForOutput(stored)}`, {
+          name,
+          from: formatForOutput(current),
+          value: formatForOutput(stored),
+          line: expression.line,
+        });
+
+        return stored;
       }
 
       case 'CallExpression': {
