@@ -1,0 +1,237 @@
+@import 'tailwindcss';
+
+/* ============================================================================
+   CODEQUEST C++ 8 — Bang mau & token thiet ke
+   Phong cach: phieu luu · cong nghe · than thien voi hoc sinh THCS
+   Quy uoc mau (muc 17 cua de bai):
+     - Xanh dam  -> nen, chieu sau
+     - Cyan      -> hanh dong chinh, tien trinh
+     - Tim       -> nhan vat, phep thuat, khu vuc
+     - Vang      -> PHAN THUONG (XP, sao, huy hieu, chung chi)
+     - Do        -> CHI DUNG cho canh bao loi
+     - Xanh la   -> thanh cong (khong dung do/xanh la lam tin hieu DUY NHAT)
+   ========================================================================== */
+
+@theme {
+  /* --- Nen: xanh dam nhieu tang --- */
+  --color-abyss-950: #05080f;
+  --color-abyss-900: #070d1c;
+  --color-abyss-800: #0c1428;
+  --color-abyss-700: #131f3d;
+  --color-abyss-600: #1c2b52;
+  --color-abyss-500: #27396b;
+
+  /* --- Cyan: hanh dong chinh --- */
+  --color-quest-400: #67e8f9;
+  --color-quest-500: #22d3ee;
+  --color-quest-600: #06b6d4;
+  --color-quest-700: #0891b2;
+
+  /* --- Tim: nhan vat, khu vuc, phep thuat --- */
+  --color-mage-300: #c4b5fd;
+  --color-mage-400: #a78bfa;
+  --color-mage-500: #8b5cf6;
+  --color-mage-600: #7c3aed;
+
+  /* --- Vang: phan thuong --- */
+  --color-treasure-300: #fcd34d;
+  --color-treasure-400: #fbbf24;
+  --color-treasure-500: #f59e0b;
+
+  /* --- Xanh la: thanh cong --- */
+  --color-verdant-400: #34d399;
+  --color-verdant-500: #10b981;
+
+  /* --- Do: CHI dung cho loi --- */
+  --color-alert-400: #f87171;
+  --color-alert-500: #ef4444;
+
+  /* --- Chu --- */
+  --font-sans: 'Be Vietnam Pro', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
+
+  /* --- Bo goc --- */
+  --radius-card: 1rem;
+
+  /* --- Animation --- */
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-pulse-glow: pulse-glow 2.5s ease-in-out infinite;
+  --animate-slide-up: slide-up 0.35s ease-out;
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================================
+   Nen tang
+   ========================================================================== */
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-abyss-950 text-slate-100 font-sans antialiased;
+    /* Co chu co so 16px - de doc voi hoc sinh lop 8 (muc 18) */
+    font-size: 16px;
+    line-height: 1.6;
+    min-height: 100dvh;
+  }
+
+  /* Focus state ro rang - bat buoc cho dieu huong ban phim (muc 18) */
+  :focus-visible {
+    @apply outline-none ring-2 ring-quest-400 ring-offset-2 ring-offset-abyss-950 rounded-sm;
+  }
+
+  /* Khong bao gio bo focus outline ma khong thay the */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  code,
+  pre,
+  kbd {
+    @apply font-mono;
+  }
+
+  /* Thanh cuon hoa hop voi theme */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-abyss-900;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-abyss-600 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-abyss-500;
+  }
+}
+
+/* ============================================================================
+   Cac lop tien ich dung chung
+   ========================================================================== */
+
+@layer components {
+  .cq-card {
+    @apply bg-abyss-800/70 border border-abyss-600/60 rounded-card backdrop-blur-sm;
+  }
+
+  .cq-panel {
+    @apply bg-abyss-900/80 border border-abyss-700 rounded-card;
+  }
+
+  /* Vung "chi danh cho screen reader" - dung cho nhan an, thong bao live */
+  /* CodeMirror can duoc keo gian het khung chua */
+  .cq-editor .cm-editor {
+    height: 100%;
+  }
+  .cq-editor .cm-scroller {
+    min-height: inherit;
+  }
+
+  /*
+    Luoi an toan cho chung chi.
+    html2canvas KHONG phan tich duoc mau dang oklch() — ma Tailwind v4 sinh mau
+    o khong gian oklch. Neu mot phan tu trong vung bi chup anh dung mau thua ke
+    tu theme, ban PDF se hong. Quy tac nay ep moi phan tu con ve mau hex; cac
+    phan tu co dat mau inline van thang vi inline style co do uu tien cao hon.
+  */
+  .cq-certificate,
+  .cq-certificate * {
+    color: #334155;
+    border-color: transparent;
+  }
+
+  /* Xem truoc chung chi: co lai cho vua man hinh, giu nguyen kich thuoc goc ben trong */
+  .cq-cert-preview {
+    --cert-scale: 1;
+    height: calc(794px * var(--cert-scale));
+    overflow: hidden;
+  }
+  .cq-cert-preview__inner {
+    width: 1123px;
+    height: 794px;
+    transform: scale(var(--cert-scale));
+    transform-origin: top left;
+  }
+
+  @media (max-width: 1400px) {
+    .cq-cert-preview {
+      --cert-scale: 0.72;
+    }
+  }
+  @media (max-width: 1024px) {
+    .cq-cert-preview {
+      --cert-scale: 0.55;
+    }
+  }
+  @media (max-width: 700px) {
+    .cq-cert-preview {
+      --cert-scale: 0.36;
+    }
+  }
+
+  .sr-only-focusable:focus {
+    @apply not-sr-only fixed top-2 left-2 z-50 px-4 py-2 bg-quest-600 text-abyss-950 rounded-lg font-semibold;
+  }
+}
+
+/* ============================================================================
+   CHE DO GIAM CHUYEN DONG (muc 17 + 18)
+   Kich hoat theo 2 duong:
+     1. Cai dat he dieu hanh  -> @media (prefers-reduced-motion: reduce)
+     2. Nut bat/tat trong app -> <html data-reduced-motion="true">
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+html[data-reduced-motion='true'] *,
+html[data-reduced-motion='true'] *::before,
+html[data-reduced-motion='true'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}

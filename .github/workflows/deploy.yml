@@ -1,0 +1,78 @@
+name: Build và deploy GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  # Cho phép chạy tay từ tab Actions
+  workflow_dispatch:
+
+# Quyền tối thiểu cần để deploy Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Nếu có nhiều lần push liên tiếp, chỉ giữ lần deploy mới nhất
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Kiểm thử và build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Lấy mã nguồn
+        uses: actions/checkout@v4
+
+      - name: Cài Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Cài phụ thuộc
+        run: npm ci
+
+      - name: Kiểm tra kiểu dữ liệu
+        run: npm run typecheck
+
+      - name: Chạy test
+        run: npm test
+
+      - name: Build
+        env:
+          # Khoá publishable là khoá CÔNG KHAI — an toàn khi để trong repository
+          # secrets vì nó vốn được nhúng vào file JS mà ai cũng tải được.
+          # Bảo vệ dữ liệu thật sự nằm ở Row Level Security trong Postgres.
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          # vite.config.ts tự suy ra base path từ biến này:
+          #   · repo `user.github.io`        -> base '/'
+          #   · repo `user.github.io/abc`    -> base '/abc/'
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: npm run build
+
+      - name: Thêm .nojekyll
+        # Ngăn GitHub Pages bỏ qua thư mục bắt đầu bằng dấu gạch dưới (_assets…)
+        run: touch dist/.nojekyll
+
+      - name: Cài đặt Pages
+        uses: actions/configure-pages@v5
+
+      - name: Tải artifact lên
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy lên GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

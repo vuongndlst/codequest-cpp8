@@ -1,0 +1,11 @@
+# Chuẩn hoá ký tự xuống dòng: lưu LF trong repo, tự đổi sang CRLF khi checkout
+# trên Windows. Nhờ vậy diff không bị nhiễu khi thầy làm việc trên nhiều máy.
+* text=auto eol=lf
+
+# File nhị phân — không được đụng vào
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.pdf binary
