@@ -19,12 +19,18 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const VARIANTS: Record<ButtonVariant, string> = {
   primary:
-    'bg-quest-600 text-abyss-950 font-semibold hover:bg-quest-500 active:bg-quest-700 shadow-lg shadow-quest-600/20',
+    'bg-quest-600 text-onaccent font-semibold hover:bg-quest-500 active:bg-quest-700 shadow-lg shadow-quest-600/20',
   secondary:
     'bg-abyss-700 text-slate-100 font-medium hover:bg-abyss-600 border border-abyss-500',
   ghost: 'bg-transparent text-slate-300 hover:bg-abyss-700/60 hover:text-slate-100',
+  /*
+    Dùng `treasure-500` chứ không phải `treasure-400`: bậc 400 là MÀU CHỮ (XP,
+    sao, huy hiệu) nên ở giao diện sáng nó phải đậm lại thành nâu để đọc được.
+    Nút bấm cần nền vàng tươi, nên có bậc 500 dành riêng. Hiệu ứng di chuột
+    dùng `brightness` để không phải thêm một bậc màu nữa chỉ để làm hover.
+  */
   treasure:
-    'bg-treasure-400 text-abyss-950 font-semibold hover:bg-treasure-300 shadow-lg shadow-treasure-400/20',
+    'bg-treasure-500 text-onaccent font-semibold hover:brightness-110 shadow-lg shadow-treasure-500/20',
   // Chỉ dùng cho hành động phá huỷ (mục 17: đỏ chỉ dành cho cảnh báo)
   danger: 'bg-alert-500 text-white font-semibold hover:bg-alert-400',
 };

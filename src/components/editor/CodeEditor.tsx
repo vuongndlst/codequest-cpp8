@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { EditorState, type Extension } from '@codemirror/state';
+import { useUiStore } from '@/stores/uiStore';
+import { Compartment, EditorState, type Extension } from '@codemirror/state';
 import {
   EditorView,
   keymap,
@@ -125,6 +126,58 @@ const byteLandTheme = EditorView.theme(
   { dark: true },
 );
 
+/**
+ * Bản sáng của trình soạn code.
+ *
+ * KHÔNG dùng lại được biến CSS như phần còn lại của website: CodeMirror nhận
+ * màu qua đối tượng JavaScript rồi tự sinh stylesheet, nên phải viết riêng
+ * một bảng màu thứ hai.
+ *
+ * Mọi màu chữ ở đây đều đạt tương phản tối thiểu 4.5:1 trên nền trắng — code
+ * là thứ học sinh nhìn lâu nhất trong cả buổi học.
+ */
+const dayLightTheme = EditorView.theme(
+  {
+    '&': {
+      color: '#1b2740',
+      backgroundColor: '#ffffff',
+      fontSize: '15px',
+      borderRadius: '0.75rem',
+    },
+    '.cm-content': {
+      fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+      padding: '12px 0',
+      caretColor: '#0891b2',
+      lineHeight: '1.7',
+    },
+    '.cm-gutters': {
+      backgroundColor: '#f1f5f9',
+      color: '#94a3b8',
+      border: 'none',
+      borderTopLeftRadius: '0.75rem',
+      borderBottomLeftRadius: '0.75rem',
+      fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+    },
+    '.cm-activeLineGutter': { backgroundColor: '#e2e8f0', color: '#475569' },
+    '.cm-activeLine': { backgroundColor: 'rgba(6, 182, 212, 0.07)' },
+    '.cm-cursor, .cm-dropCursor': { borderLeftColor: '#0891b2', borderLeftWidth: '2px' },
+    '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': {
+      backgroundColor: 'rgba(6, 182, 212, 0.22)',
+    },
+    '.cm-errorLine': {
+      backgroundColor: 'rgba(220, 38, 38, 0.09)',
+      boxShadow: 'inset 3px 0 0 0 #dc2626',
+    },
+    '.cm-matchingBracket, &.cm-focused .cm-matchingBracket': {
+      backgroundColor: 'rgba(124, 58, 237, 0.22)',
+      outline: 'none',
+    },
+    '&.cm-focused': { outline: '2px solid #0891b2', outlineOffset: '2px' },
+    '.cm-scroller': { overflow: 'auto' },
+  },
+  { dark: false },
+);
+
 const byteLandHighlight = HighlightStyle.define([
   { tag: tags.keyword, color: '#c4b5fd', fontWeight: '600' },
   { tag: tags.typeName, color: '#67e8f9' },
@@ -139,7 +192,40 @@ const byteLandHighlight = HighlightStyle.define([
   { tag: tags.bool, color: '#fbbf24' },
 ]);
 
-function buildExtensions(readOnly: boolean, onChange: (value: string) => void): Extension[] {
+const dayLightHighlight = HighlightStyle.define([
+  { tag: tags.keyword, color: '#7c3aed', fontWeight: '600' },
+  { tag: tags.typeName, color: '#0e7490' },
+  { tag: tags.controlKeyword, color: '#a21caf', fontWeight: '600' },
+  { tag: tags.string, color: '#047857' },
+  { tag: tags.number, color: '#b45309' },
+  { tag: tags.comment, color: '#64748b', fontStyle: 'italic' },
+  { tag: tags.function(tags.variableName), color: '#0369a1' },
+  { tag: tags.variableName, color: '#1b2740' },
+  { tag: tags.operator, color: '#7c3aed' },
+  { tag: tags.processingInstruction, color: '#4a5b78' },
+  { tag: tags.bool, color: '#b45309' },
+]);
+
+/**
+ * Cho phép đổi bảng màu mà KHÔNG dựng lại cả editor.
+ *
+ * Dựng lại thì học sinh mất con trỏ, mất vùng đang chọn và mất cả lịch sử
+ * Ctrl+Z ngay giữa lúc đang viết dở. Compartment là cách CodeMirror cho phép
+ * thay một mảnh cấu hình tại chỗ.
+ */
+const themeCompartment = new Compartment();
+
+function themeExtension(resolved: 'light' | 'dark'): Extension {
+  return resolved === 'light'
+    ? [dayLightTheme, syntaxHighlighting(dayLightHighlight)]
+    : [byteLandTheme, syntaxHighlighting(byteLandHighlight)];
+}
+
+function buildExtensions(
+  readOnly: boolean,
+  resolvedTheme: 'light' | 'dark',
+  onChange: (value: string) => void,
+): Extension[] {
   return [
     lineNumbers(),
     highlightActiveLineGutter(),
@@ -154,9 +240,8 @@ function buildExtensions(readOnly: boolean, onChange: (value: string) => void): 
     indentUnit.of('    '),
     bracketMatching(),
     cpp(),
-    syntaxHighlighting(byteLandHighlight),
     errorLineField,
-    byteLandTheme,
+    themeCompartment.of(themeExtension(resolvedTheme)),
     keymap.of([
       ...defaultKeymap,
       ...historyKeymap,
@@ -185,6 +270,11 @@ export function CodeEditor({
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
+  const resolvedTheme = useUiStore((state) => state.resolvedTheme);
+  // Giữ trong ref để effect khởi tạo không phải phụ thuộc vào giá trị này
+  const themeRef = useRef(resolvedTheme);
+  themeRef.current = resolvedTheme;
+
   // Khởi tạo editor một lần
   useEffect(() => {
     if (!hostRef.current) return;
@@ -192,7 +282,9 @@ export function CodeEditor({
     const view = new EditorView({
       state: EditorState.create({
         doc: value,
-        extensions: buildExtensions(readOnly, (next) => onChangeRef.current(next)),
+        extensions: buildExtensions(readOnly, themeRef.current, (next) =>
+          onChangeRef.current(next),
+        ),
       }),
       parent: hostRef.current,
     });
@@ -224,6 +316,15 @@ export function CodeEditor({
     if (!view) return;
     view.dispatch({ effects: setErrorLines.of(highlightedLines) });
   }, [highlightedLines]);
+
+  // Đổi bảng màu tại chỗ, giữ nguyên con trỏ và lịch sử Ctrl+Z
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: themeCompartment.reconfigure(themeExtension(resolvedTheme)),
+    });
+  }, [resolvedTheme]);
 
   return (
     <div

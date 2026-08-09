@@ -46,7 +46,9 @@ export function HintPanel({
   const nextHint = sortedHints[unlockedLevel];
 
   return (
-    <section className="cq-panel p-4" aria-labelledby="hints-heading">
+    // `data-panel` để test bố cục bám được vào khối này mà không phụ thuộc
+    // vào lớp CSS — lớp CSS đổi luôn, vị trí trên trang thì không được đổi
+    <section className="cq-panel p-4" aria-labelledby="hints-heading" data-panel="hints">
       <div className="flex items-center gap-2 mb-3">
         <ByteMascot size={36} animated={false} mood="thinking" />
         <h3 id="hints-heading" className="text-sm font-bold text-slate-200">

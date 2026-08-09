@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="dark" />
+    <meta name="color-scheme" content="dark light" />
     <meta
       name="description"
       content="CodeQuest C++ 8 — Hành trình giải cứu ByteLand. Học lập trình C++ tương tác dành cho học sinh lớp 8."
@@ -19,6 +19,33 @@
     />
 
     <title>CodeQuest C++ 8 — Hành trình giải cứu ByteLand</title>
+
+    <!--
+      Đặt giao diện TRƯỚC khi trình duyệt vẽ khung hình đầu tiên.
+
+      Nếu để React làm việc này thì trang luôn chớp một nhịp màu tối rồi mới
+      chuyển sang màu sáng — trên máy phòng ICT chạy chậm, cú chớp đó kéo dài
+      nửa giây và nhìn như website bị lỗi.
+
+      Đoạn script cố ý viết thẳng ở đây, không tách file: nó phải chạy đồng bộ
+      và xong trước mọi thứ khác. Khoá lưu trữ phải khớp `src/utils/theme.ts`.
+    -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('cq8:theme');
+          var theme =
+            saved === 'light' || saved === 'dark'
+              ? saved
+              : window.matchMedia('(prefers-color-scheme: light)').matches
+                ? 'light'
+                : 'dark';
+          document.documentElement.dataset.theme = theme;
+        } catch (error) {
+          document.documentElement.dataset.theme = 'dark';
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

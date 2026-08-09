@@ -16,6 +16,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useUiStore } from '@/stores/uiStore';
 import { AvatarIcon } from '@/components/game/AvatarIcon';
 import { Button } from '@/components/ui/Button';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { getLevelProgress } from '@/utils/xp';
 import { cn } from '@/utils/cn';
 
@@ -63,7 +64,7 @@ export function TopBar() {
           to="/app"
           className="flex items-center gap-2 font-extrabold text-slate-100 shrink-0"
         >
-          <span className="grid place-items-center size-9 rounded-xl bg-quest-600 text-abyss-950">
+          <span className="grid place-items-center size-9 rounded-xl bg-quest-600 text-onaccent">
             <Zap className="size-5" aria-hidden="true" />
           </span>
           <span className="hidden sm:inline">
@@ -105,11 +106,18 @@ export function TopBar() {
             </span>
           </div>
 
+          <ThemeToggle className="hidden sm:inline-flex" />
+
+          {/*
+            Nút giảm chuyển động chiếm nhiều chỗ vì là chữ. Ẩn ở màn hình vừa
+            để thanh trên cùng không bị chật; ở đó học sinh vẫn bật được qua
+            menu ba gạch.
+          */}
           <button
             type="button"
             onClick={toggleReducedMotion}
             aria-pressed={reducedMotion}
-            className="hidden sm:inline-flex items-center h-9 px-3 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-abyss-700 transition-colors"
+            className="hidden lg:inline-flex items-center h-9 px-3 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-abyss-700 transition-colors"
           >
             {reducedMotion ? 'Bật hiệu ứng' : 'Giảm chuyển động'}
           </button>
@@ -165,6 +173,11 @@ export function TopBar() {
               {item.label}
             </NavLink>
           ))}
+
+          <div className="flex items-center justify-between gap-3 px-3 h-11">
+            <span className="text-sm text-slate-300">Giao diện</span>
+            <ThemeToggle />
+          </div>
 
           <button
             type="button"

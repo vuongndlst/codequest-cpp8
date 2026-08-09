@@ -188,9 +188,31 @@ export function ChallengePage() {
         <h1 className="text-2xl font-extrabold text-slate-100">{challenge.title}</h1>
       </div>
 
-      <div className="grid lg:grid-cols-5 gap-4">
-        {/* ============ CỘT TRÁI ============ */}
-        <div className="lg:col-span-2 space-y-4">
+      {/*
+        BỐ CỤC HAI CỘT — sắp lại tháng 8/2026.
+
+        Trước đây bảng gợi ý nằm cuối cột TRÁI, dưới đề bài và sân khấu game,
+        còn ô viết code ở cột PHẢI. Học sinh đang gõ dở mà cần gợi ý thì phải
+        cuộn xuống, liếc sang trái, đọc, rồi cuộn ngược lên tìm lại chỗ đang
+        viết. Thầy Vương phản ánh đúng chỗ này.
+
+        Nay chia theo VIỆC chứ không theo loại nội dung:
+          · Cột trái  = đọc hiểu đề  (đứng yên khi cuộn, không cần đọc lại)
+          · Cột phải  = chỗ làm việc (viết → chạy → xem kết quả → xem gợi ý)
+
+        Sân khấu game cũng chuyển sang phải: nó là KẾT QUẢ của việc chạy code,
+        nên phải nằm cạnh nút Chạy, không nằm lẫn trong phần đề bài.
+      */}
+      <div className="grid lg:grid-cols-5 gap-4 items-start">
+        {/* ============ CỘT TRÁI — ĐỀ BÀI ============ */}
+        <div
+          className={cn(
+            'lg:col-span-2 space-y-4',
+            // Đề bài dính theo màn hình để em không phải cuộn ngược lên đọc lại.
+            // Chiều cao giới hạn theo khung nhìn, trừ chiều cao thanh trên cùng.
+            'lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:pr-1',
+          )}
+        >
           {/* Tình huống */}
           <section className="cq-panel p-4" aria-labelledby="story-heading">
             <h2 id="story-heading" className="sr-only">
@@ -245,7 +267,11 @@ export function ChallengePage() {
             </ul>
           </section>
 
-          {/* Sân khấu game */}
+        </div>
+
+        {/* ============ CỘT PHẢI — CHỖ LÀM VIỆC ============ */}
+        <div className="lg:col-span-3 space-y-4">
+          {/* Sân khấu game: nằm trên ô code để em nhìn thấy ngay khi bấm Chạy */}
           {challenge.world && (
             <WorldStage
               spec={challenge.world}
@@ -255,7 +281,17 @@ export function ChallengePage() {
             />
           )}
 
-          {/* Gợi ý */}
+          {editorPanel}
+
+          <ResultPanel
+            result={session.result}
+            isRunning={session.isRunning}
+            onRequestHint={session.unlockNextHint}
+            hintsAvailable={session.hintLevel < challenge.hints.length}
+            showCleanCode={challenge.kind !== 'story'}
+          />
+
+          {/* Gợi ý — ngay dưới kết quả chạy, đúng lúc em cần tới nó nhất */}
           <HintPanel
             hints={challenge.hints}
             unlockedLevel={session.hintLevel}
@@ -265,19 +301,6 @@ export function ChallengePage() {
             onViewSolution={session.showSolution}
             solutionVisible={session.solutionVisible}
             attemptCount={session.attemptCount}
-          />
-        </div>
-
-        {/* ============ CỘT PHẢI ============ */}
-        <div className="lg:col-span-3 space-y-4">
-          {editorPanel}
-
-          <ResultPanel
-            result={session.result}
-            isRunning={session.isRunning}
-            onRequestHint={session.unlockNextHint}
-            hintsAvailable={session.hintLevel < challenge.hints.length}
-            showCleanCode={challenge.kind !== 'story'}
           />
 
           {/* Hoàn thành -> mời sang nhiệm vụ tiếp theo */}
