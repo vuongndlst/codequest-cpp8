@@ -69,6 +69,19 @@ const TeacherSettingsPage = lazy(() =>
     default: module.TeacherSettingsPage,
   })),
 );
+const TeacherClassesPage = lazy(() =>
+  import('@/pages/teacher/TeacherClassesPage').then((module) => ({
+    default: module.TeacherClassesPage,
+  })),
+);
+const TeacherClassDetailPage = lazy(() =>
+  import('@/pages/teacher/TeacherClassDetailPage').then((module) => ({
+    default: module.TeacherClassDetailPage,
+  })),
+);
+const JoinClassPage = lazy(() =>
+  import('@/pages/app/JoinClassPage').then((module) => ({ default: module.JoinClassPage })),
+);
 
 /**
  * Định tuyến ứng dụng.
@@ -160,6 +173,7 @@ export const router = createHashRouter([
       { path: 'map', element: <Navigate to="/app" replace /> },
       { path: 'prologue', element: <ProloguePage /> },
       { path: 'profile', element: <ProfilePage /> },
+      { path: 'join-class', element: <JoinClassPage /> },
       { path: 'handbook', element: <HandbookPage /> },
       { path: 'lesson/:lessonId', element: <LessonPage /> },
       { path: 'lesson/:lessonId/guide', element: <LessonGuidePage /> },
@@ -181,6 +195,8 @@ export const router = createHashRouter([
     errorElement: <RouteErrorPage />,
     children: [
       { index: true, element: <TeacherDashboardPage /> },
+      { path: 'classes', element: <TeacherClassesPage /> },
+      { path: 'classes/:classId', element: <TeacherClassDetailPage /> },
       { path: 'students/:userId', element: <TeacherStudentDetailPage /> },
       { path: 'settings', element: <TeacherSettingsPage /> },
     ],

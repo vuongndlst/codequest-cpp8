@@ -5,6 +5,7 @@ import {
   Download,
   GraduationCap,
   Settings,
+  Ticket,
   TriangleAlert,
   Users,
 } from 'lucide-react';
@@ -17,24 +18,39 @@ import {
   type StudentProfile,
 } from '@/services/supabase/teacher.repo';
 import {
+  fetchAllClassMembers,
+  fetchMyClasses,
+  type ClassMemberRow,
+  type ClassRow,
+} from '@/services/supabase/classes.repo';
+import {
   buildCsvFileName,
   buildProgressCsv,
   buildStudentSummaries,
   computeErrorStats,
   computeLessonOverview,
   downloadCsv,
-  listClassNames,
   type StudentSummary,
 } from '@/services/teacherAnalytics';
 import { LESSONS_META } from '@/data/lessons.meta';
 import { AvatarIcon } from '@/components/game/AvatarIcon';
 import { Button } from '@/components/ui/Button';
+import { Alert } from '@/components/ui/Alert';
 import { Card, CardHeader, StatTile } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateViews';
 import { formatRelativeTime } from '@/utils/format';
 import { cn } from '@/utils/cn';
 import type { CertificateRow, ChallengeAttemptRow, LessonProgressRow } from '@/types/database';
+
+/**
+ * Phạm vi đang xem: một lớp cụ thể, nhóm chưa vào lớp, hay tất cả.
+ *
+ * `'unassigned'` là nhóm cần nhìn thấy nhất chứ không phải nhóm phụ: đó là
+ * những em đăng ký trước khi có mã lớp, hoặc gõ sai mã. Không có nhóm này thì
+ * các em biến mất khỏi mọi bộ lọc mà không ai để ý.
+ */
+type ClassScope = string | 'unassigned' | null;
 
 /** Dashboard giáo viên — danh sách lớp, tiến trình, lỗi phổ biến, xuất CSV. */
 export function TeacherDashboardPage() {
@@ -44,7 +60,9 @@ export function TeacherDashboardPage() {
   const [progress, setProgress] = useState<LessonProgressRow[]>([]);
   const [certificates, setCertificates] = useState<CertificateRow[]>([]);
   const [attempts, setAttempts] = useState<ChallengeAttemptRow[]>([]);
-  const [selectedClass, setSelectedClass] = useState<string | null>(null);
+  const [classes, setClasses] = useState<ClassRow[]>([]);
+  const [members, setMembers] = useState<ClassMemberRow[]>([]);
+  const [selectedClass, setSelectedClass] = useState<ClassScope>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,17 +73,22 @@ export function TeacherDashboardPage() {
       setIsLoading(true);
       setError(null);
       try {
-        const [studentRows, progressRows, certificateRows, attemptRows] = await Promise.all([
-          fetchStudents(),
-          fetchAllProgress(),
-          fetchAllCertificates(),
-          fetchRecentAttempts(),
-        ]);
+        const [studentRows, progressRows, certificateRows, attemptRows, classRows, memberRows] =
+          await Promise.all([
+            fetchStudents(),
+            fetchAllProgress(),
+            fetchAllCertificates(),
+            fetchRecentAttempts(),
+            fetchMyClasses(),
+            fetchAllClassMembers(),
+          ]);
         if (cancelled) return;
         setStudents(studentRows);
         setProgress(progressRows);
         setCertificates(certificateRows);
         setAttempts(attemptRows);
+        setClasses(classRows);
+        setMembers(memberRows);
       } catch (loadError) {
         if (!cancelled) {
           setError(loadError instanceof Error ? loadError.message : 'Không tải được dữ liệu.');
@@ -80,13 +103,47 @@ export function TeacherDashboardPage() {
     };
   }, []);
 
-  const classNames = useMemo(() => listClassNames(students), [students]);
-
-  const filteredStudents = useMemo(
-    () =>
-      selectedClass ? students.filter((student) => student.class_name === selectedClass) : students,
-    [students, selectedClass],
+  const classById = useMemo(
+    () => new Map(classes.map((classRow) => [classRow.id, classRow])),
+    [classes],
   );
+
+  const classIdByStudent = useMemo(
+    () => new Map(members.map((member) => [member.student_id, member.class_id])),
+    [members],
+  );
+
+  /**
+   * Lấy tên lớp THẬT thay cho ô chữ tự do trong hồ sơ.
+   *
+   * Trước đây `profiles.class_name` do học sinh tự gõ, nên "8A1", "8a1" và
+   * "8 A1" là ba lớp khác nhau trong mọi thống kê. Nay bảng `class_members`
+   * mới là nguồn sự thật; ô chữ cũ chỉ còn dùng cho em chưa vào lớp nào.
+   */
+  const normalizedStudents = useMemo(
+    () =>
+      students.map((student) => {
+        const classId = classIdByStudent.get(student.id);
+        const realClass = classId ? classById.get(classId) : undefined;
+        return realClass ? { ...student, class_name: realClass.name } : student;
+      }),
+    [students, classIdByStudent, classById],
+  );
+
+  const unassignedCount = useMemo(
+    () => normalizedStudents.filter((student) => !classIdByStudent.has(student.id)).length,
+    [normalizedStudents, classIdByStudent],
+  );
+
+  const filteredStudents = useMemo(() => {
+    if (selectedClass === null) return normalizedStudents;
+    if (selectedClass === 'unassigned') {
+      return normalizedStudents.filter((student) => !classIdByStudent.has(student.id));
+    }
+    return normalizedStudents.filter(
+      (student) => classIdByStudent.get(student.id) === selectedClass,
+    );
+  }, [normalizedStudents, classIdByStudent, selectedClass]);
 
   const studentIds = useMemo(
     () => new Set(filteredStudents.map((student) => student.id)),
@@ -123,6 +180,14 @@ export function TeacherDashboardPage() {
   if (isLoading) return <LoadingState label="Đang tải dữ liệu lớp học…" />;
   if (error) return <ErrorState description={error} onRetry={() => window.location.reload()} />;
 
+  /** Tên phạm vi đang chọn — dùng đặt tên file CSV cho khỏi lẫn khi tải nhiều lần. */
+  const selectedClassName =
+    selectedClass === null
+      ? null
+      : selectedClass === 'unassigned'
+        ? 'ChuaVaoLop'
+        : (classById.get(selectedClass)?.name ?? null);
+
   const totalCertificates = summaries.reduce((sum, item) => sum + item.certificatesCount, 0);
   const activeToday = summaries.filter(
     (item) =>
@@ -140,6 +205,14 @@ export function TeacherDashboardPage() {
         </div>
 
         <div className="flex flex-wrap gap-2">
+          <Link to="/teacher/classes">
+            <Button
+              variant="secondary"
+              leadingIcon={<Ticket className="size-4" aria-hidden="true" />}
+            >
+              Lớp của tôi
+            </Button>
+          </Link>
           <Link to="/teacher/settings">
             <Button
               variant="secondary"
@@ -149,7 +222,9 @@ export function TeacherDashboardPage() {
             </Button>
           </Link>
           <Button
-            onClick={() => downloadCsv(buildProgressCsv(summaries), buildCsvFileName(selectedClass))}
+            onClick={() =>
+              downloadCsv(buildProgressCsv(summaries), buildCsvFileName(selectedClassName))
+            }
             disabled={summaries.length === 0}
             leadingIcon={<Download className="size-4" aria-hidden="true" />}
           >
@@ -158,7 +233,7 @@ export function TeacherDashboardPage() {
         </div>
       </header>
 
-      {/* --- Lọc theo lớp --- */}
+      {/* --- Lọc theo lớp thật (bảng class_members), không phải ô chữ tự do --- */}
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm text-slate-400">Lớp:</span>
         <FilterChip
@@ -166,15 +241,48 @@ export function TeacherDashboardPage() {
           active={selectedClass === null}
           onClick={() => setSelectedClass(null)}
         />
-        {classNames.map((className) => (
+        {classes.map((classRow) => {
+          const count = members.filter((member) => member.class_id === classRow.id).length;
+          return (
+            <FilterChip
+              key={classRow.id}
+              label={`${classRow.name} (${count})`}
+              active={selectedClass === classRow.id}
+              onClick={() => setSelectedClass(classRow.id)}
+            />
+          );
+        })}
+        {unassignedCount > 0 && (
           <FilterChip
-            key={className}
-            label={`${className} (${students.filter((s) => s.class_name === className).length})`}
-            active={selectedClass === className}
-            onClick={() => setSelectedClass(className)}
+            label={`Chưa vào lớp (${unassignedCount})`}
+            active={selectedClass === 'unassigned'}
+            onClick={() => setSelectedClass('unassigned')}
           />
-        ))}
+        )}
       </div>
+
+      {classes.length === 0 && (
+        <Alert tone="tip" title="Thầy cô chưa tạo lớp nào">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="leading-relaxed">
+              Tạo lớp để có mã cho học sinh nhập. Khi đó bảng theo dõi sẽ tách đúng từng lớp thay
+              vì gộp chung toàn trường.
+            </p>
+            <Link to="/teacher/classes" className="shrink-0">
+              <Button size="sm" leadingIcon={<Ticket className="size-4" aria-hidden="true" />}>
+                Tạo lớp đầu tiên
+              </Button>
+            </Link>
+          </div>
+        </Alert>
+      )}
+
+      {selectedClass === 'unassigned' && (
+        <Alert tone="warning">
+          Những em này chưa nhập mã lớp nào. Thầy cô gửi lại mã lớp cho các em — em vào mục Hồ sơ
+          rồi bấm "Nhập mã lớp" là xong.
+        </Alert>
+      )}
 
       {/* --- Chỉ số tổng quan --- */}
       <section aria-label="Tổng quan" className="grid grid-cols-2 lg:grid-cols-4 gap-3">

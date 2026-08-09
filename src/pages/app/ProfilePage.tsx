@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { GraduationCap, Hash, Save, UserRound } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { GraduationCap, Hash, Save, Ticket, UserRound } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { updateProfile } from '@/services/supabase/profiles.repo';
 import { fetchAllBadges, fetchUserBadges } from '@/services/supabase/gamification.repo';
@@ -10,7 +11,7 @@ import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { LoadingState } from '@/components/common/StateViews';
-import { validateClassName, validateFullName } from '@/services/supabase/auth.service';
+import { validateFullName } from '@/services/supabase/auth.service';
 import { getLevelProgress, getLevelTitle } from '@/utils/xp';
 import { getIcon } from '@/utils/icons';
 import { formatDate } from '@/utils/format';
@@ -22,11 +23,10 @@ export function ProfilePage() {
   const setProfile = useAuthStore((state) => state.setProfile);
 
   const [fullName, setFullName] = useState('');
-  const [className, setClassName] = useState('');
   const [studentCode, setStudentCode] = useState('');
   const [avatarId, setAvatarId] = useState('guardian-cyan');
 
-  const [fieldErrors, setFieldErrors] = useState<{ fullName?: string; className?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<{ fullName?: string }>({});
   const [status, setStatus] = useState<{ tone: 'success' | 'error'; message: string } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -37,7 +37,6 @@ export function ProfilePage() {
   useEffect(() => {
     if (!profile) return;
     setFullName(profile.full_name);
-    setClassName(profile.class_name ?? '');
     setStudentCode(profile.student_code ?? '');
     setAvatarId(profile.avatar_id);
   }, [profile]);
@@ -73,12 +72,8 @@ export function ProfilePage() {
     setStatus(null);
 
     const fullNameError = validateFullName(fullName);
-    const classNameError = validateClassName(className);
-    if (fullNameError || classNameError) {
-      setFieldErrors({
-        fullName: fullNameError ?? undefined,
-        className: classNameError ?? undefined,
-      });
+    if (fullNameError) {
+      setFieldErrors({ fullName: fullNameError });
       return;
     }
 
@@ -86,9 +81,9 @@ export function ProfilePage() {
     setIsSaving(true);
 
     try {
+      // KHÔNG gửi `class_name`: cột đó nay do `join_class_by_code()` quản lý.
       const updated = await updateProfile(profile.id, {
         full_name: fullName.trim(),
-        class_name: className.trim(),
         student_code: studentCode.trim() || null,
         avatar_id: avatarId,
       });
@@ -153,22 +148,47 @@ export function ProfilePage() {
               leadingIcon={<UserRound className="size-4" />}
             />
 
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Input
-                label="Lớp"
-                required
-                value={className}
-                onChange={(event) => setClassName(event.target.value)}
-                error={fieldErrors.className}
-                leadingIcon={<GraduationCap className="size-4" />}
-              />
-              <Input
-                label="Mã học sinh"
-                value={studentCode}
-                onChange={(event) => setStudentCode(event.target.value)}
-                hint="Không bắt buộc"
-                leadingIcon={<Hash className="size-4" />}
-              />
+            <Input
+              label="Mã học sinh"
+              value={studentCode}
+              onChange={(event) => setStudentCode(event.target.value)}
+              hint="Không bắt buộc"
+              leadingIcon={<Hash className="size-4" />}
+            />
+
+            {/*
+              Lớp CỐ Ý không còn là ô chữ tự do.
+
+              Trước đây em tự gõ tên lớp, nên "8A1", "8a1" và "8 A1" thành ba
+              lớp khác nhau trong bảng theo dõi của thầy cô — và em gõ nhầm thì
+              biến mất khỏi lớp của mình mà không ai biết. Nay lớp chỉ đổi được
+              bằng mã lớp do thầy cô cấp.
+            */}
+            <div className="space-y-1.5">
+              <span className="block text-sm font-medium text-slate-200">Lớp của em</span>
+              <div className="flex flex-wrap items-center justify-between gap-3 cq-panel p-3">
+                <span className="flex items-center gap-2 text-sm">
+                  <GraduationCap className="size-4 text-slate-400" aria-hidden="true" />
+                  {profile.class_name ? (
+                    <strong className="text-slate-100">{profile.class_name}</strong>
+                  ) : (
+                    <span className="text-slate-400">Em chưa vào lớp nào</span>
+                  )}
+                </span>
+                <Link to="/app/join-class">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    leadingIcon={<Ticket className="size-4" aria-hidden="true" />}
+                  >
+                    {profile.class_name ? 'Đổi lớp bằng mã' : 'Nhập mã lớp'}
+                  </Button>
+                </Link>
+              </div>
+              <p className="text-xs text-slate-500">
+                Lớp chỉ đổi được bằng mã lớp thầy cô cho em, để tránh vào nhầm lớp.
+              </p>
             </div>
 
             <fieldset>

@@ -1,6 +1,17 @@
 ﻿import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { BookOpen, GraduationCap, LogOut, Map, Menu, Sparkles, User, X, Zap } from 'lucide-react';
+import {
+  BookOpen,
+  GraduationCap,
+  LogOut,
+  Map,
+  Menu,
+  Sparkles,
+  Ticket,
+  User,
+  X,
+  Zap,
+} from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useUiStore } from '@/stores/uiStore';
 import { AvatarIcon } from '@/components/game/AvatarIcon';
@@ -21,12 +32,10 @@ const NAV_ITEMS = [
  * Không có mục này thì tài khoản giáo viên bị kẹt hoàn toàn: đăng nhập xong
  * rơi vào dashboard học sinh, và không có chỗ nào bấm sang khu vực giáo viên.
  */
-const TEACHER_NAV_ITEM = {
-  to: '/teacher',
-  label: 'Lớp học',
-  icon: GraduationCap,
-  end: true,
-};
+const TEACHER_NAV_ITEMS = [
+  { to: '/teacher', label: 'Theo dõi', icon: GraduationCap, end: true },
+  { to: '/teacher/classes', label: 'Lớp của tôi', icon: Ticket, end: false },
+];
 
 export function TopBar() {
   const profile = useAuthStore((state) => state.profile);
@@ -38,9 +47,9 @@ export function TopBar() {
 
   const level = getLevelProgress(profile?.total_xp ?? 0);
 
-  // Giáo viên thấy thêm mục "Lớp học"; học sinh thì không
+  // Giáo viên thấy thêm khu vực quản lý; học sinh thì không
   const navItems =
-    profile?.role === 'teacher' ? [TEACHER_NAV_ITEM, ...NAV_ITEMS] : NAV_ITEMS;
+    profile?.role === 'teacher' ? [...TEACHER_NAV_ITEMS, ...NAV_ITEMS] : NAV_ITEMS;
 
   const handleSignOut = async () => {
     await signOut();

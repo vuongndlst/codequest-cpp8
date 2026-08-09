@@ -5,6 +5,7 @@ import { useDashboardData } from '@/hooks/useDashboardData';
 import { LESSONS_META } from '@/data/lessons.meta';
 import { AvatarIcon } from '@/components/game/AvatarIcon';
 import { ZoneCard } from '@/components/game/ZoneCard';
+import { ClassBanner } from '@/components/game/ClassBanner';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, StatTile } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
@@ -51,6 +52,8 @@ export function DashboardPage() {
           {profileError}
         </Alert>
       )}
+
+      <ClassBanner />
 
       {/* --- Lời chào --- */}
       <section className="cq-card p-5 sm:p-6">

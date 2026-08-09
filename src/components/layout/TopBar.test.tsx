@@ -60,7 +60,24 @@ describe('Thanh điều hướng — phân biệt giáo viên và học sinh', (
       .filter((link) => link.getAttribute('href')?.endsWith('/teacher'));
 
     expect(teacherLinks.length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Lớp học').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Theo dõi').length).toBeGreaterThan(0);
+  });
+
+  /**
+   * Cùng loại lỗi như trên, một tầng sâu hơn: trang quản lý lớp có tồn tại
+   * nhưng nếu không có mục điều hướng thì thầy cô không tạo lớp được, và học
+   * sinh sẽ không bao giờ có mã lớp để nhập.
+   */
+  it('giáo viên PHẢI có đường dẫn sang trang quản lý lớp', () => {
+    useAuthStore.setState({ profile: makeProfile('teacher') });
+    renderTopBar();
+
+    const classLinks = screen
+      .getAllByRole('link')
+      .filter((link) => link.getAttribute('href')?.endsWith('/teacher/classes'));
+
+    expect(classLinks.length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Lớp của tôi').length).toBeGreaterThan(0);
   });
 
   it('học sinh KHÔNG thấy đường dẫn tới khu vực giáo viên', () => {
@@ -69,17 +86,19 @@ describe('Thanh điều hướng — phân biệt giáo viên và học sinh', (
 
     const teacherLinks = screen
       .getAllByRole('link')
-      .filter((link) => link.getAttribute('href')?.endsWith('/teacher'));
+      .filter((link) => link.getAttribute('href')?.includes('/teacher'));
 
     expect(teacherLinks).toHaveLength(0);
-    expect(screen.queryByText('Lớp học')).not.toBeInTheDocument();
+    expect(screen.queryByText('Theo dõi')).not.toBeInTheDocument();
+    expect(screen.queryByText('Lớp của tôi')).not.toBeInTheDocument();
   });
 
   it('chưa tải xong hồ sơ thì chưa hiện mục giáo viên', () => {
     useAuthStore.setState({ profile: null });
     renderTopBar();
 
-    expect(screen.queryByText('Lớp học')).not.toBeInTheDocument();
+    expect(screen.queryByText('Theo dõi')).not.toBeInTheDocument();
+    expect(screen.queryByText('Lớp của tôi')).not.toBeInTheDocument();
   });
 
   it('giáo viên vẫn vào được mọi khu vực của học sinh', () => {

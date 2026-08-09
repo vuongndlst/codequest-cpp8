@@ -39,6 +39,39 @@ export interface ClassTeacherRow {
   added_at: string;
 }
 
+/** Giáo viên trong danh sách chọn thêm người cùng dạy. */
+export interface TeacherProfile {
+  id: string;
+  full_name: string;
+  avatar_id: string;
+}
+
+/**
+ * Kiểm tra tên lớp trước khi gửi lên.
+ *
+ * Giới hạn 40 ký tự khớp đúng ràng buộc `check` của cột `classes.name` — bắt ở
+ * đây để giáo viên thấy lỗi tiếng Việt ngay, thay vì một thông báo constraint
+ * khó hiểu từ Postgres.
+ */
+export function validateNewClassName(name: string): string | null {
+  const value = name.trim();
+  if (!value) return 'Thầy cô chưa đặt tên lớp.';
+  if (value.length > 40) return 'Tên lớp dài tối đa 40 ký tự.';
+  return null;
+}
+
+export function validateSchoolYear(schoolYear: string): string | null {
+  const value = schoolYear.trim();
+  if (value.length > 20) return 'Năm học dài tối đa 20 ký tự.';
+  return null;
+}
+
+export function validateClassNote(note: string): string | null {
+  const value = note.trim();
+  if (value.length > 200) return 'Ghi chú dài tối đa 200 ký tự.';
+  return null;
+}
+
 /** Thông báo tiếng Việt cho các lỗi RPC trả về. */
 function translateClassError(error: unknown): string {
   const raw = error instanceof Error ? error.message : String(error ?? '');
@@ -120,6 +153,69 @@ export async function fetchMyClass(): Promise<ClassRow | null> {
     return (data as ClassRow | null) ?? null;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Một lớp cụ thể.
+ *
+ * Không cần kiểm tra quyền ở đây: RLS chỉ cho giáo viên thấy lớp mình dạy, nên
+ * mở nhầm id lớp của người khác sẽ nhận `null` chứ không lộ gì.
+ */
+export async function fetchClassById(classId: string): Promise<ClassRow | null> {
+  try {
+    const supabase = requireSupabase();
+    const { data, error } = await supabase
+      .from('classes')
+      .select('*')
+      .eq('id', classId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return (data as ClassRow | null) ?? null;
+  } catch (error) {
+    throw toRepositoryError(error, 'Không tải được thông tin lớp.');
+  }
+}
+
+/** Sửa tên lớp, năm học, ghi chú. Mã lớp KHÔNG đổi để link đã phát vẫn dùng được. */
+export async function updateClass(
+  classId: string,
+  patch: { name?: string; schoolYear?: string | null; note?: string | null },
+): Promise<void> {
+  try {
+    const supabase = requireSupabase();
+    const payload: Record<string, unknown> = {};
+    if (patch.name !== undefined) payload.name = patch.name.trim();
+    if (patch.schoolYear !== undefined) payload.school_year = patch.schoolYear || null;
+    if (patch.note !== undefined) payload.note = patch.note || null;
+
+    const { error } = await supabase.from('classes').update(payload).eq('id', classId);
+    if (error) throw error;
+  } catch (error) {
+    throw toRepositoryError(error, 'Không lưu được thay đổi của lớp.');
+  }
+}
+
+/**
+ * Danh sách tài khoản giáo viên, để chọn người cùng dạy.
+ *
+ * Chỉ lấy ba cột cần cho việc hiển thị. Không lấy XP, không lấy ngày hoạt động
+ * — giáo viên không cần biết những thứ đó về đồng nghiệp.
+ */
+export async function fetchTeacherProfiles(): Promise<TeacherProfile[]> {
+  try {
+    const supabase = requireSupabase();
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, full_name, avatar_id')
+      .eq('role', 'teacher')
+      .order('full_name', { ascending: true });
+
+    if (error) throw error;
+    return (data as TeacherProfile[]) ?? [];
+  } catch (error) {
+    throw toRepositoryError(error, 'Không tải được danh sách giáo viên.');
   }
 }
 
