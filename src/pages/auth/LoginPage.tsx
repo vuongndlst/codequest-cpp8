@@ -6,12 +6,15 @@ import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
 import { ByteMascot } from '@/components/game/ByteMascot';
 import { signIn, validateEmail } from '@/services/supabase/auth.service';
+import { fetchProfile } from '@/services/supabase/profiles.repo';
 import { isSupabaseConfigured } from '@/lib/env';
 
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const redirectTo = (location.state as { from?: string } | null)?.from ?? '/app';
+  // Học sinh bấm vào một trang cần đăng nhập -> nhớ trang đó để quay lại sau
+  const explicitRedirect = (location.state as { from?: string } | null)?.from;
+  const redirectTo = explicitRedirect ?? '/app';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -36,13 +39,39 @@ export function LoginPage() {
     setIsSubmitting(true);
 
     const { data, error } = await signIn(email, password);
-    setIsSubmitting(false);
 
     if (error) {
+      setIsSubmitting(false);
       setFormError(error);
       return;
     }
-    if (data) navigate(redirectTo, { replace: true });
+
+    if (!data) {
+      setIsSubmitting(false);
+      return;
+    }
+
+    /*
+      Đưa giáo viên thẳng vào khu vực giáo viên.
+
+      Phải TỰ ĐỌC hồ sơ ở đây chứ không đọc từ store: lúc `signIn` vừa xong,
+      store mới có phiên đăng nhập, còn hồ sơ (nơi chứa vai trò) vẫn đang được
+      tải bất đồng bộ. Đọc từ store lúc này sẽ luôn thấy `null` và giáo viên bị
+      đẩy về dashboard học sinh.
+    */
+    let destination = redirectTo;
+    if (!explicitRedirect) {
+      try {
+        const profile = await fetchProfile(data.user.id);
+        if (profile?.role === 'teacher') destination = '/teacher';
+      } catch {
+        // Không đọc được hồ sơ thì cứ vào dashboard học sinh; thanh điều hướng
+        // vẫn hiện mục "Lớp học" ngay khi hồ sơ tải xong.
+      }
+    }
+
+    setIsSubmitting(false);
+    navigate(destination, { replace: true });
   };
 
   return (

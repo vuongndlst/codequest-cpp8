@@ -1,6 +1,6 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { BookOpen, LogOut, Map, Menu, Sparkles, User, X, Zap } from 'lucide-react';
+import { BookOpen, GraduationCap, LogOut, Map, Menu, Sparkles, User, X, Zap } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useUiStore } from '@/stores/uiStore';
 import { AvatarIcon } from '@/components/game/AvatarIcon';
@@ -15,6 +15,19 @@ const NAV_ITEMS = [
   { to: '/app/profile', label: 'Hồ sơ', icon: User, end: false },
 ];
 
+/**
+ * Mục điều hướng chỉ hiện với giáo viên.
+ *
+ * Không có mục này thì tài khoản giáo viên bị kẹt hoàn toàn: đăng nhập xong
+ * rơi vào dashboard học sinh, và không có chỗ nào bấm sang khu vực giáo viên.
+ */
+const TEACHER_NAV_ITEM = {
+  to: '/teacher',
+  label: 'Lớp học',
+  icon: GraduationCap,
+  end: true,
+};
+
 export function TopBar() {
   const profile = useAuthStore((state) => state.profile);
   const signOut = useAuthStore((state) => state.signOut);
@@ -24,6 +37,10 @@ export function TopBar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const level = getLevelProgress(profile?.total_xp ?? 0);
+
+  // Giáo viên thấy thêm mục "Lớp học"; học sinh thì không
+  const navItems =
+    profile?.role === 'teacher' ? [TEACHER_NAV_ITEM, ...NAV_ITEMS] : NAV_ITEMS;
 
   const handleSignOut = async () => {
     await signOut();
@@ -47,7 +64,7 @@ export function TopBar() {
 
         {/* Điều hướng chính — máy tính để bàn */}
         <nav aria-label="Điều hướng chính" className="hidden md:flex items-center gap-1 flex-1">
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -122,7 +139,7 @@ export function TopBar() {
           aria-label="Điều hướng trên thiết bị nhỏ"
           className="md:hidden border-t border-abyss-700 px-4 py-3 space-y-1"
         >
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
