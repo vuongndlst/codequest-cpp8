@@ -227,11 +227,19 @@ Thiếu bước này thì đường dẫn đặt lại mật khẩu trong email 
 
 ## 7. Chạy migration
 
-Vào **SQL Editor → New query**, chạy lần lượt **đúng thứ tự**, mỗi file một lần:
+### Cách nhanh nhất — dán một lần
+
+Mở **SQL Editor → New query**, dán toàn bộ [supabase/setup/chay-tat-ca.sql](supabase/setup/chay-tat-ca.sql) rồi Run.
+
+File này gộp cả ba file bên dưới theo đúng thứ tự. Chạy lại nhiều lần cũng không sao — mọi lệnh đều dùng `if not exists` / `on conflict`.
+
+### Hoặc chạy từng file
 
 1. `supabase/migrations/0001_init_schema.sql` — tạo bảng, hàm, trigger, index
 2. `supabase/migrations/0002_rls_policies.sql` — bật RLS và tạo policy
 3. `supabase/seed.sql` — nạp 10 huy hiệu và cài đặt lớp mẫu
+
+> Sửa schema về sau thì sửa vào **file gốc trong `migrations/`**, rồi tạo lại file gộp. File gộp chỉ là bản tiện dụng cho lần cài đặt đầu tiên.
 
 Kiểm tra lại: **Table Editor** phải thấy 11 bảng, mỗi bảng có nhãn **RLS enabled**.
 
