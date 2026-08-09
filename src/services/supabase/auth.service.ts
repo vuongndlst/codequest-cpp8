@@ -24,7 +24,121 @@ export interface SignUpInput {
   avatarId?: string;
 }
 
-export const MIN_PASSWORD_LENGTH = 8;
+export const MIN_PASSWORD_LENGTH = 10;
+
+/**
+ * Đánh giá độ mạnh mật khẩu.
+ *
+ * Quy tắc chọn theo hướng dẫn hiện hành của NIST: ĐỘ DÀI quan trọng hơn việc
+ * bắt buộc đủ loại ký tự. Bắt học sinh lớp 8 phải có ký tự đặc biệt thường dẫn
+ * tới `Abc@1234` — dài 8, đủ loại, nhưng nằm trong mọi từ điển dò mật khẩu.
+ *
+ * Ở đây yêu cầu tối thiểu 10 ký tự và ít nhất hai nhóm ký tự, đồng thời chặn
+ * những mật khẩu quá dễ đoán.
+ */
+export type PasswordStrength = 'weak' | 'fair' | 'strong';
+
+/**
+ * Những mật khẩu bị dò đầu tiên trong mọi cuộc tấn công.
+ *
+ * So khớp theo PHẦN LÕI chứ không theo chuỗi con: `Abc1234567` có chứa "abc123"
+ * nhưng là mật khẩu hoàn toàn hợp lệ, chặn nó đi thì học sinh bực mà chẳng an
+ * toàn hơn. Ngược lại `password123` phải bị chặn vì lõi của nó đúng là
+ * "password".
+ */
+const COMMON_PASSWORDS = [
+  'password', 'matkhau', 'qwerty', 'qwertyuiop', 'asdfghjkl', 'iloveyou',
+  'admin', 'welcome', 'letmein', 'codequest', 'byteland', 'hocsinh',
+  'giaovien', 'vietnam', 'abcdef', 'abcxyz',
+];
+
+/** Lõi chữ cái của mật khẩu: bỏ hết chữ số và ký tự đặc biệt. */
+function passwordCore(password: string): string {
+  return password.toLowerCase().replace(/[^a-z]/g, '');
+}
+
+export interface PasswordCheck {
+  error: string | null;
+  strength: PasswordStrength;
+  /** Gợi ý để mạnh hơn — hiển thị cả khi mật khẩu đã hợp lệ */
+  advice: string[];
+}
+
+export function checkPassword(password: string, context: { email?: string; fullName?: string } = {}): PasswordCheck {
+  const advice: string[] = [];
+
+  if (!password) {
+    return { error: 'Em chưa nhập mật khẩu.', strength: 'weak', advice: [] };
+  }
+
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return {
+      error: `Mật khẩu cần ít nhất ${MIN_PASSWORD_LENGTH} ký tự (hiện có ${password.length}).`,
+      strength: 'weak',
+      advice: ['Một câu ngắn dễ nhớ thường vừa dài vừa khó đoán, ví dụ: MeoCuaEmTen4Chan'],
+    };
+  }
+
+  if (password.length > 72) {
+    return { error: 'Mật khẩu dài tối đa 72 ký tự.', strength: 'weak', advice: [] };
+  }
+
+  const lower = password.toLowerCase();
+
+  /*
+    Thứ tự kiểm tra được chọn theo mức HỮU ÍCH của thông báo, không phải theo
+    mức nghiêm trọng. "Mật khẩu toàn chữ số" nói rõ phải sửa gì; "nằm trong
+    danh sách bị đoán" thì mơ hồ hơn. Nên cái cụ thể được kiểm tra trước.
+  */
+  if (/^\d+$/.test(password)) {
+    return {
+      error: 'Mật khẩu toàn chữ số rất dễ đoán. Em thêm chữ cái vào nhé.',
+      strength: 'weak',
+      advice: [],
+    };
+  }
+
+  if (/^(.)\1+$/.test(password)) {
+    return { error: 'Mật khẩu không nên chỉ gồm một ký tự lặp lại.', strength: 'weak', advice: [] };
+  }
+
+  const core = passwordCore(password);
+  if (core.length >= 4 && COMMON_PASSWORDS.includes(core)) {
+    return {
+      error: 'Mật khẩu này nằm trong danh sách bị đoán đầu tiên. Em chọn mật khẩu khác nhé.',
+      strength: 'weak',
+      advice: [],
+    };
+  }
+
+  // Không được chứa chính email hoặc tên của mình
+  const emailName = context.email?.split('@')[0]?.toLowerCase();
+  if (emailName && emailName.length >= 4 && lower.includes(emailName)) {
+    return {
+      error: 'Mật khẩu không nên chứa tên email của em — người khác đoán ra ngay.',
+      strength: 'weak',
+      advice: [],
+    };
+  }
+
+  const groups = [/[a-z]/, /[A-Z]/, /\d/, /[^A-Za-z0-9]/].filter((re) => re.test(password)).length;
+
+  if (groups < 2) {
+    return {
+      error: 'Mật khẩu cần ít nhất hai loại ký tự, ví dụ chữ và số.',
+      strength: 'weak',
+      advice: [],
+    };
+  }
+
+  if (password.length < 14) advice.push('Mật khẩu dài hơn 14 ký tự sẽ an toàn hơn nhiều');
+  if (groups < 3) advice.push('Thêm chữ hoa hoặc ký tự đặc biệt để mạnh hơn');
+
+  const strength: PasswordStrength =
+    password.length >= 14 && groups >= 3 ? 'strong' : 'fair';
+
+  return { error: null, strength, advice };
+}
 
 /**
  * Đăng ký tài khoản học sinh.
@@ -130,12 +244,28 @@ export function validateEmail(email: string): string | null {
   return null;
 }
 
-export function validatePassword(password: string): string | null {
-  if (!password) return 'Em chưa nhập mật khẩu.';
-  if (password.length < MIN_PASSWORD_LENGTH) {
-    return `Mật khẩu cần ít nhất ${MIN_PASSWORD_LENGTH} ký tự.`;
+export function validatePassword(
+  password: string,
+  context: { email?: string; fullName?: string } = {},
+): string | null {
+  return checkPassword(password, context).error;
+}
+
+/** Hai ô mật khẩu phải trùng nhau — chống gõ nhầm rồi không đăng nhập lại được. */
+export function validatePasswordConfirm(password: string, confirm: string): string | null {
+  if (!confirm) return 'Em chưa nhập lại mật khẩu.';
+  if (password !== confirm) return 'Hai ô mật khẩu chưa giống nhau. Em kiểm tra lại nhé.';
+  return null;
+}
+
+/** Mã lớp do giáo viên cung cấp, dạng `8A1-K7M2`. */
+export function validateClassCode(code: string): string | null {
+  const value = code.trim();
+  if (!value) return 'Em chưa nhập mã lớp. Mã này thầy cô cho em nhé.';
+  if (value.length < 4 || value.length > 20) return 'Mã lớp chưa đúng định dạng.';
+  if (!/^[A-Za-z0-9-]+$/.test(value)) {
+    return 'Mã lớp chỉ gồm chữ, số và dấu gạch ngang.';
   }
-  if (password.length > 72) return 'Mật khẩu dài tối đa 72 ký tự.';
   return null;
 }
 

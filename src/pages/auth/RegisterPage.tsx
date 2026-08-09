@@ -1,41 +1,53 @@
-import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, GraduationCap, Hash, KeyRound, Mail, UserRound } from 'lucide-react';
+import { useMemo, useState, type FormEvent } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Eye, EyeOff, Hash, KeyRound, Mail, Ticket, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
 import { AvatarIcon } from '@/components/game/AvatarIcon';
+import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter';
 import { AVATARS, DEFAULT_AVATAR_ID } from '@/data/avatars';
 import {
   MIN_PASSWORD_LENGTH,
+  checkPassword,
   signUp,
-  validateClassName,
+  validateClassCode,
   validateEmail,
   validateFullName,
-  validatePassword,
+  validatePasswordConfirm,
 } from '@/services/supabase/auth.service';
+import { joinClassByCode } from '@/services/supabase/classes.repo';
 import { isSupabaseConfigured } from '@/lib/env';
 import { cn } from '@/utils/cn';
 
-type FieldName = 'fullName' | 'className' | 'email' | 'password';
+type FieldName = 'fullName' | 'classCode' | 'email' | 'password' | 'passwordConfirm';
 
 export function RegisterPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Giáo viên gửi link kèm mã lớp -> điền sẵn để học sinh khỏi gõ nhầm
+  const prefilledCode = searchParams.get('lop') ?? '';
 
   const [form, setForm] = useState({
     fullName: '',
-    className: '',
+    classCode: prefilledCode,
     studentCode: '',
     email: '',
     password: '',
+    passwordConfirm: '',
   });
   const [avatarId, setAvatarId] = useState(DEFAULT_AVATAR_ID);
   const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldName, string>>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  /** Hiện khi Supabase bật xác nhận email — dự phòng nếu thầy đổi cài đặt */
   const [needsEmailConfirm, setNeedsEmailConfirm] = useState(false);
+
+  const passwordCheck = useMemo(
+    () => checkPassword(form.password, { email: form.email, fullName: form.fullName }),
+    [form.password, form.email, form.fullName],
+  );
 
   const setField = (name: keyof typeof form) => (value: string) =>
     setForm((current) => ({ ...current, [name]: value }));
@@ -46,14 +58,15 @@ export function RegisterPage() {
 
     const errors: Partial<Record<FieldName, string>> = {};
     const fullNameError = validateFullName(form.fullName);
-    const classNameError = validateClassName(form.className);
+    const classCodeError = validateClassCode(form.classCode);
     const emailError = validateEmail(form.email);
-    const passwordError = validatePassword(form.password);
+    const confirmError = validatePasswordConfirm(form.password, form.passwordConfirm);
 
     if (fullNameError) errors.fullName = fullNameError;
-    if (classNameError) errors.className = classNameError;
+    if (classCodeError) errors.classCode = classCodeError;
     if (emailError) errors.email = emailError;
-    if (passwordError) errors.password = passwordError;
+    if (passwordCheck.error) errors.password = passwordCheck.error;
+    if (confirmError) errors.passwordConfirm = confirmError;
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -67,20 +80,36 @@ export function RegisterPage() {
       email: form.email,
       password: form.password,
       fullName: form.fullName,
-      className: form.className,
+      // Tên lớp thật sẽ được ghi đè sau khi vào lớp bằng mã
+      className: '',
       studentCode: form.studentCode,
       avatarId,
     });
 
-    setIsSubmitting(false);
-
     if (error) {
+      setIsSubmitting(false);
       setFormError(error);
       return;
     }
 
-    // Khi tắt xác nhận email, Supabase trả về phiên đăng nhập ngay -> vào thẳng bản đồ.
-    // Nếu thầy bật lại xác nhận email, `data.identities` rỗng hoặc chưa có phiên -> hiện màn hình chờ.
+    // Tài khoản đã tạo. Giờ đưa em vào đúng lớp bằng mã.
+    try {
+      await joinClassByCode(form.classCode);
+    } catch (joinError) {
+      setIsSubmitting(false);
+      setFieldErrors({
+        classCode:
+          joinError instanceof Error ? joinError.message : 'Không vào được lớp với mã này.',
+      });
+      setFormError(
+        'Tài khoản của em đã được tạo. Em chỉ cần nhập đúng mã lớp là vào học được ngay — ' +
+          'hoặc đăng nhập rồi nhập mã sau cũng được.',
+      );
+      return;
+    }
+
+    setIsSubmitting(false);
+
     if (data && !data.confirmed_at && !data.email_confirmed_at) {
       setNeedsEmailConfirm(true);
       return;
@@ -121,6 +150,12 @@ export function RegisterPage() {
         </Alert>
       )}
 
+      {prefilledCode && (
+        <Alert tone="success" className="mb-4">
+          Em đang vào lớp có mã <strong>{prefilledCode}</strong> — mã đã điền sẵn giúp em rồi.
+        </Alert>
+      )}
+
       <form onSubmit={handleSubmit} noValidate className="cq-card p-6 space-y-4">
         {formError && <Alert tone="error">{formError}</Alert>}
 
@@ -137,13 +172,15 @@ export function RegisterPage() {
 
         <div className="grid sm:grid-cols-2 gap-4">
           <Input
-            label="Lớp"
+            label="Mã lớp"
             required
-            value={form.className}
-            onChange={(event) => setField('className')(event.target.value)}
-            error={fieldErrors.className}
-            leadingIcon={<GraduationCap className="size-4" />}
-            placeholder="8A1"
+            value={form.classCode}
+            onChange={(event) => setField('classCode')(event.target.value.toUpperCase())}
+            error={fieldErrors.classCode}
+            hint="Thầy cô cho em mã này"
+            leadingIcon={<Ticket className="size-4" />}
+            placeholder="8A1-K7MQ"
+            autoCapitalize="characters"
           />
           <Input
             label="Mã học sinh"
@@ -167,25 +204,43 @@ export function RegisterPage() {
           placeholder="tenem@gmail.com"
         />
 
+        <div className="space-y-2">
+          <Input
+            label="Mật khẩu"
+            type={showPassword ? 'text' : 'password'}
+            required
+            autoComplete="new-password"
+            value={form.password}
+            onChange={(event) => setField('password')(event.target.value)}
+            error={fieldErrors.password}
+            leadingIcon={<KeyRound className="size-4" />}
+            trailingSlot={
+              <button
+                type="button"
+                onClick={() => setShowPassword((visible) => !visible)}
+                aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                className="grid place-items-center size-8 rounded-lg text-slate-400 hover:text-slate-200"
+              >
+                {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            }
+          />
+          <PasswordStrengthMeter password={form.password} check={passwordCheck} />
+        </div>
+
         <Input
-          label="Mật khẩu"
+          label="Nhập lại mật khẩu"
           type={showPassword ? 'text' : 'password'}
           required
           autoComplete="new-password"
-          value={form.password}
-          onChange={(event) => setField('password')(event.target.value)}
-          error={fieldErrors.password}
-          hint={`Ít nhất ${MIN_PASSWORD_LENGTH} ký tự. Em nên thêm cả số cho an toàn.`}
+          value={form.passwordConfirm}
+          onChange={(event) => setField('passwordConfirm')(event.target.value)}
+          error={fieldErrors.passwordConfirm}
           leadingIcon={<KeyRound className="size-4" />}
-          trailingSlot={
-            <button
-              type="button"
-              onClick={() => setShowPassword((visible) => !visible)}
-              aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-              className="grid place-items-center size-8 rounded-lg text-slate-400 hover:text-slate-200"
-            >
-              {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-            </button>
+          hint={
+            form.passwordConfirm && form.password === form.passwordConfirm
+              ? 'Hai ô khớp nhau rồi'
+              : undefined
           }
         />
 
@@ -234,7 +289,7 @@ export function RegisterPage() {
 
       <p className="text-xs text-slate-500 mt-4 text-center leading-relaxed">
         Website chỉ lưu họ tên, lớp, mã học sinh và email của em để phục vụ việc học. Không cần
-        ảnh thật, không cần số điện thoại.
+        ảnh thật, không cần số điện thoại. Mật khẩu cần ít nhất {MIN_PASSWORD_LENGTH} ký tự.
       </p>
     </div>
   );
