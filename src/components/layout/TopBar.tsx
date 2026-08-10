@@ -10,6 +10,8 @@ import {
   Sparkles,
   Ticket,
   User,
+  Volume2,
+  VolumeX,
   X,
   Zap,
 } from 'lucide-react';
@@ -73,6 +75,8 @@ export function TopBar() {
   const signOut = useAuthStore((state) => state.signOut);
   const reducedMotion = useUiStore((state) => state.reducedMotion);
   const toggleReducedMotion = useUiStore((state) => state.toggleReducedMotion);
+  const soundEnabled = useUiStore((state) => state.soundEnabled);
+  const toggleSound = useUiStore((state) => state.toggleSound);
   const navigate = useNavigate();
   const unreadCount = useUnreadMessages();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -137,6 +141,23 @@ export function TopBar() {
               {profile?.total_xp ?? 0} XP
             </span>
           </div>
+
+          <button
+            type="button"
+            onClick={toggleSound}
+            aria-pressed={soundEnabled}
+            title={soundEnabled ? 'Tắt tiếng' : 'Bật tiếng'}
+            className="hidden sm:grid place-items-center size-9 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-abyss-700 transition-colors"
+          >
+            {soundEnabled ? (
+              <Volume2 className="size-4" aria-hidden="true" />
+            ) : (
+              <VolumeX className="size-4" aria-hidden="true" />
+            )}
+            <span className="sr-only">
+              {soundEnabled ? 'Âm thanh đang bật' : 'Âm thanh đang tắt'}
+            </span>
+          </button>
 
           <ThemeToggle className="hidden sm:inline-flex" />
 

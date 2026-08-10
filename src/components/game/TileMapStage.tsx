@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
+import { playSound, type SoundName } from '@/services/audio';
 import type { WorldSpec } from '@/types/content';
 import {
   FACING_DELTA,
@@ -81,9 +82,38 @@ function replay(spec: WorldSpec, events: WorldEvent[]) {
   return { state, collected, opened };
 }
 
+/** Sự kiện nào kêu tiếng gì. Sự kiện không có trong bảng thì im lặng. */
+const EVENT_SOUNDS: Partial<Record<WorldEvent['type'], SoundName>> = {
+  move: 'step',
+  blocked: 'bump',
+  'collect-gem': 'gem',
+  'collect-key': 'gem',
+  'open-door': 'door',
+  'activate-bridge': 'door',
+  'reach-goal': 'goal',
+};
+
 export function TileMapStage({ spec, events, avatarId, playKey }: TileMapStageProps) {
   const reducedMotion = useUiStore((state) => state.reducedMotion);
   const playedCount = useStageReplay(events, playKey);
+
+  /*
+    Kêu tiếng theo ĐÚNG NHỊP animation, không phải kêu hết một lượt lúc chạy
+    xong. Tiếng bước chân phải trùng với lúc nhân vật nhấc chân thì mới ra cảm
+    giác trò chơi; kêu dồn một cục thì chỉ là tiếng ồn.
+  */
+  const lastPlayedRef = useRef(-1);
+  useEffect(() => {
+    if (playedCount === 0) {
+      lastPlayedRef.current = -1;
+      return;
+    }
+    if (playedCount - 1 <= lastPlayedRef.current) return;
+
+    lastPlayedRef.current = playedCount - 1;
+    const sound = EVENT_SOUNDS[events[playedCount - 1]?.type];
+    if (sound) playSound(sound);
+  }, [playedCount, events]);
 
   const cols = spec.cols;
   const rows = spec.rows ?? 1;

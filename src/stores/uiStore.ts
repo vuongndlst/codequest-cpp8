@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { preloadSounds, setSoundEnabled, unlockAudio } from '@/services/audio';
 import {
   THEME_STORAGE_KEY,
   applyTheme,
@@ -9,6 +10,23 @@ import {
 } from '@/utils/theme';
 
 const REDUCED_MOTION_KEY = 'cq8:reduced-motion';
+const SOUND_KEY = 'cq8:sound';
+
+/**
+ * Hiệu ứng âm thanh BẬT sẵn, nhưng âm lượng nhỏ.
+ *
+ * Bối cảnh là phòng máy 40 học sinh ngồi cạnh nhau. Tiếng động ngắn thì tạo
+ * phản hồi tức thì mà không phá tiết học; nhạc nền dài thì có nút riêng và
+ * TẮT sẵn — em nào đeo tai nghe mới bật.
+ */
+function readStoredSound(): boolean {
+  try {
+    const stored = localStorage.getItem(SOUND_KEY);
+    return stored === null ? true : stored === 'true';
+  } catch {
+    return true;
+  }
+}
 
 function readStoredPreference(): boolean {
   try {
@@ -25,6 +43,8 @@ interface UiState {
   theme: ThemePreference;
   /** Giao diện đang thực sự hiển thị — `theme: 'system'` đã được quy đổi */
   resolvedTheme: ResolvedTheme;
+  /** Hiệu ứng âm thanh của trò chơi */
+  soundEnabled: boolean;
   /** Sổ tay lệnh đang mở dạng modal */
   handbookOpen: boolean;
   /** Trạng thái kết nối mạng */
@@ -33,6 +53,7 @@ interface UiState {
   setReducedMotion: (value: boolean) => void;
   toggleReducedMotion: () => void;
   setTheme: (value: ThemePreference) => void;
+  toggleSound: () => void;
   setHandbookOpen: (value: boolean) => void;
   setOnline: (value: boolean) => void;
   initialize: () => void;
@@ -42,6 +63,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   reducedMotion: false,
   theme: 'system',
   resolvedTheme: 'dark',
+  soundEnabled: true,
   handbookOpen: false,
   isOnline: true,
 
@@ -67,6 +89,17 @@ export const useUiStore = create<UiState>((set, get) => ({
     }
   },
 
+  toggleSound: () => {
+    const next = !get().soundEnabled;
+    set({ soundEnabled: next });
+    setSoundEnabled(next);
+    try {
+      localStorage.setItem(SOUND_KEY, String(next));
+    } catch {
+      // localStorage bị chặn — vẫn tắt/bật được trong phiên này
+    }
+  },
+
   setHandbookOpen: (value) => set({ handbookOpen: value }),
   setOnline: (value) => set({ isOnline: value }),
 
@@ -74,13 +107,30 @@ export const useUiStore = create<UiState>((set, get) => ({
   initialize: () => {
     const stored = readStoredPreference();
     const theme = readStoredTheme();
+    const sound = readStoredSound();
 
     set({
       reducedMotion: stored,
       isOnline: navigator.onLine,
       theme,
       resolvedTheme: applyTheme(theme),
+      soundEnabled: sound,
     });
+    setSoundEnabled(sound);
+
+    /*
+      Trình duyệt chỉ cho phát âm thanh sau lần bấm đầu tiên của người dùng.
+      Mở khoá ngay lần tương tác đầu, rồi tự gỡ người nghe — không cần theo dõi
+      tiếp và cũng không giữ lại tham chiếu thừa.
+    */
+    const unlock = () => {
+      unlockAudio();
+      preloadSounds();
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+    window.addEventListener('pointerdown', unlock, { once: false });
+    window.addEventListener('keydown', unlock, { once: false });
     document.documentElement.dataset.reducedMotion = String(stored);
 
     window.addEventListener('online', () => set({ isOnline: true }));
