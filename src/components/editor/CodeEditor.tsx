@@ -249,6 +249,38 @@ export function formatDocument(view: EditorView): void {
 export interface CodeEditorHandle {
   /** Thụt lề lại cả chương trình */
   format: () => void;
+  /** Chèn một đoạn code tại vị trí con trỏ */
+  insert: (text: string) => void;
+}
+
+/**
+ * Chèn code tại con trỏ, tự thụt lề cho khớp dòng hiện tại.
+ *
+ * Học sinh bấm nút `moveForward();` thì đoạn code phải rơi vào đúng chỗ đang
+ * đứng và thẳng hàng với các dòng xung quanh. Chèn thô thì dòng mới dính sát
+ * lề trái, nhìn như code hỏng — mà lỗi thụt lề chính là thứ Clean Code Coach
+ * sẽ nhắc ngay sau đó.
+ *
+ * Con trỏ được đặt sau đoạn vừa chèn để em gõ tiếp được luôn.
+ */
+function insertAtCursor(view: EditorView, text: string): void {
+  const { from, to } = view.state.selection.main;
+  const line = view.state.doc.lineAt(from);
+  const indent = line.text.match(/^[ \t]*/)?.[0] ?? '';
+
+  // Dòng nhiều dòng thì mọi dòng sau phải thụt bằng dòng đầu
+  const body = text.split('\n').join(`\n${indent}`);
+
+  // Con trỏ đang ở giữa dòng có chữ -> xuống dòng mới rồi mới chèn
+  const needsNewline = line.text.slice(0, from - line.from).trim().length > 0;
+  const insert = needsNewline ? `\n${indent}${body}` : body;
+
+  view.dispatch({
+    changes: { from, to, insert },
+    selection: { anchor: from + insert.length },
+    scrollIntoView: true,
+  });
+  view.focus();
 }
 
 function buildExtensions(
@@ -330,6 +362,9 @@ export function CodeEditor({
     () => ({
       format: () => {
         if (viewRef.current) formatDocument(viewRef.current);
+      },
+      insert: (text: string) => {
+        if (viewRef.current) insertAtCursor(viewRef.current, text);
       },
     }),
     [],

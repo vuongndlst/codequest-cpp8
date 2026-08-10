@@ -18,6 +18,8 @@ import { relevantHandbookCards } from '@/data/challengeHandbook';
 import { useChallengeSession } from '@/hooks/useChallengeSession';
 import { useAuthStore } from '@/stores/authStore';
 import { CodeEditor, type CodeEditorHandle } from '@/components/editor/CodeEditor';
+import { CommandPalette } from '@/components/editor/CommandPalette';
+import { paletteForChallenge } from '@/data/commandPalette';
 import { ResultPanel } from '@/components/editor/ResultPanel';
 import { HintPanel } from '@/components/learning/HintPanel';
 import { HandbookModal } from '@/components/learning/Handbook';
@@ -98,6 +100,11 @@ export function ChallengePage() {
           </button>
         </div>
       </div>
+
+      <CommandPalette
+        commands={paletteForChallenge(challenge)}
+        onInsert={(snippet) => editorRef.current?.insert(snippet)}
+      />
 
       {session.isRestoring ? (
         <LoadingState label="Đang mở lại code em viết dở…" />
