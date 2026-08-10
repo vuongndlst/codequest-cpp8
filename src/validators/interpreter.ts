@@ -11,6 +11,7 @@ import type { TypeKeyword } from './tokens';
 import {
   FACING_DELTA,
   MAX_WORLD_EVENTS,
+  cellAhead,
   createWorldState,
   isBlockedAhead,
   turnedLeft,
@@ -565,13 +566,31 @@ class Interpreter {
     return VOID;
   }
 
+  /*
+    Hai hàm dưới đây phải so KHỚP CẢ HÀNG, và ô phía trước phải tính theo hướng
+    đang quay.
+
+    Bản cũ chỉ nhìn `col` và `col + 1` — đúng với bản đồ một hàng, nhưng trên
+    bản đồ hai chiều thì `openDoor()` sẽ mở nhầm cánh cửa nằm cùng cột mà khác
+    hàng, hoặc mở được cửa ở phía sau lưng. Lỗi này im lặng: chương trình vẫn
+    chạy, chỉ ra kết quả sai.
+
+    Prop không khai báo `row` được coi là ở hàng 0, để 7 nhiệm vụ cũ giữ nguyên
+    hành vi.
+  */
   private findPropAt(type: string) {
-    return this.worldSpec?.props?.find((prop) => prop.type === type && prop.col === this.world.col);
+    return this.worldSpec?.props?.find(
+      (prop) =>
+        prop.type === type &&
+        prop.col === this.world.col &&
+        (prop.row ?? 0) === this.world.row,
+    );
   }
 
   private findPropAhead(type: string) {
+    const { col, row } = cellAhead(this.world);
     return this.worldSpec?.props?.find(
-      (prop) => prop.type === type && prop.col === this.world.col + 1,
+      (prop) => prop.type === type && prop.col === col && (prop.row ?? 0) === row,
     );
   }
 

@@ -9,6 +9,45 @@
 
 export const HANDBOOK_CARDS: HandbookCard[] = [
   {
+    id: 'robot-commands',
+    title: 'Lệnh điều khiển nhân vật',
+    introducedInLesson: 'l1',
+    syntax: `moveForward();   // tiến MỘT ô theo hướng đang quay
+turnRight();     // quay phải, đứng yên tại chỗ
+turnLeft();      // quay trái, đứng yên tại chỗ
+collectGem();    // nhặt ngọc ở ô đang đứng
+openDoor();      // mở cánh cửa ngay phía trước`,
+    explanation:
+      'Mỗi lệnh làm đúng MỘT việc. Muốn đi ba ô thì phải gọi moveForward() ba lần. Lệnh quay chỉ đổi hướng nhìn, nhân vật vẫn đứng nguyên ô cũ.',
+    example: `int main() {
+    moveForward();   // sang ô bên phải
+    turnRight();     // giờ nhìn xuống dưới
+    moveForward();   // đi xuống một ô
+    collectGem();    // nhặt viên ngọc ở đây
+    return 0;
+}`,
+    commonMistakes: [
+      'Tưởng moveForward() đi thẳng tới đích, thực ra chỉ đi đúng một ô',
+      'Tưởng turnRight() vừa quay vừa tiến lên — nó chỉ quay tại chỗ',
+      'Quay xuống rồi quên quay lại nên đi lạc hẳn hướng khác',
+      'Gọi collectGem() khi nhân vật chưa đứng đúng ô có ngọc',
+    ],
+    tip: 'Trước khi gõ, hãy vẽ đường đi ra giấy và ghi rõ: đi mấy ô, quay ở đâu, quay về hướng nào.',
+    keywords: [
+      'moveForward',
+      'turnRight',
+      'turnLeft',
+      'collectGem',
+      'openDoor',
+      'di chuyển',
+      'quay',
+      'hướng',
+      'bản đồ',
+      'nhân vật',
+    ],
+  },
+
+  {
     id: 'program-structure',
     title: 'Cấu trúc chương trình',
     introducedInLesson: 'l1',

@@ -16,6 +16,14 @@ import type { Challenge, HandbookCard } from '@/types/content';
 
 /** Mẫu trong `requiredPatterns` → thẻ sổ tay tương ứng. Xét theo thứ tự này. */
 const PATTERN_TO_CARD: Array<{ test: RegExp; card: string }> = [
+  /*
+    Lệnh điều khiển nhân vật phải xét TRƯỚC mẫu `call:` chung.
+
+    Nếu để `call:` bắt trước, nhiệm vụ khu vực 1 dùng `moveForward()` sẽ chỉ
+    sang thẻ "Gọi hàm" — một khái niệm mãi khu vực 2 mới dạy. Học sinh mở ra
+    đọc sẽ càng rối.
+  */
+  { test: /call:(moveForward|turnRight|turnLeft|collectGem|collectKey|openDoor)/, card: 'robot-commands' },
   { test: /stmt:for/, card: 'for-loop' },
   { test: /stmt:if-else/, card: 'if-else' },
   /*

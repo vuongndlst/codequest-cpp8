@@ -3,6 +3,7 @@ import { GameStage } from '@/components/game/GameStage';
 import { TileSprite, TILE_COLS, TILE_COUNT } from '@/components/game/TileSprite';
 import { Button } from '@/components/ui/Button';
 import { analyzeChallenge } from '@/validators';
+import { LESSONS } from '@/lessons';
 import type { Challenge, WorldKind, WorldSpec } from '@/types/content';
 
 /**
@@ -13,6 +14,21 @@ import type { Challenge, WorldKind, WorldSpec } from '@/types/content';
  * sản phẩm rồi đưa chuỗi sự kiện cho sân khấu, nên những gì thấy ở đây đúng
  * bằng những gì học sinh thấy.
  */
+
+/**
+ * Bản đồ BOSS thật của Khu vực 1, lấy nguyên từ nội dung bài học.
+ *
+ * Dùng bản đồ thật thay vì bản đồ bịa: xem trước mà không khớp với thứ học
+ * sinh gặp thì xem để làm gì.
+ *
+ * Khai báo TRƯỚC `SAMPLES` vì `SAMPLES` dùng tới nó — `const` nằm trong vùng
+ * chết tạm thời, đọc trước khi khai báo là ném lỗi ngay lúc nạp module.
+ */
+const BOSS = LESSONS.find((lesson) => lesson.id === 'l1')!.challenges.find(
+  (challenge) => challenge.kind === 'boss',
+)!;
+
+const DEMO_MAP: WorldSpec = BOSS.world!;
 
 const SAMPLES: Record<WorldKind, string> = {
   'signal-tower': `#include <iostream>
@@ -56,47 +72,7 @@ int main() {
     }
     return 0;
 }`,
-  map: `#include <iostream>
-using namespace std;
-
-int main() {
-    // Đi sang phải tới cuối hành lang
-    for (int i = 0; i < 3; i = i + 1) {
-        moveForward();
-    }
-
-    // Quay xuống rồi đi tiếp
-    turnRight();
-    moveForward();
-    moveForward();
-
-    // Quay sang phải để tới ô đích
-    turnLeft();
-    moveForward();
-    moveForward();
-
-    return 0;
-}`,
-};
-
-/** Bản đồ mẫu: hành lang chữ Z, có tường chắn và một viên ngọc. */
-const DEMO_MAP: WorldSpec = {
-  kind: 'map',
-  cols: 6,
-  rows: 4,
-  startCol: 0,
-  startRow: 0,
-  startFacing: 'east',
-  goalCol: 5,
-  goalRow: 2,
-  terrain: [
-    '....##',
-    '###.##',
-    '......',
-    '######',
-  ],
-  props: [{ id: 'gem-1', type: 'gem', col: 3, row: 2 }],
-  initialState: { energy: 20 },
+  map: BOSS.solution ?? '',
 };
 
 const BASE: Challenge = {
