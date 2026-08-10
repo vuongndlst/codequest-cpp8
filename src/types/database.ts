@@ -112,7 +112,7 @@ export interface ExitTicketRow {
   id: string;
   user_id: string;
   lesson_id: string;
-  answers: Record<string, string | number>;
+  answers: Record<string, unknown>;
   score: number;
   reflection: string | null;
   submitted_at: string;

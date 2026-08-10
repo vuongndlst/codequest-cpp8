@@ -77,18 +77,20 @@ export async function completeChallenge(
   const percent = calculateLessonPercent(completedChallenges, requiredIds);
   const stars = calculateLessonStars(lessonId, completedChallenges);
   const wasCompleted = currentProgress?.status === 'completed';
-  const lessonJustCompleted = percent === 100 && !wasCompleted;
+  // Hoàn thành toàn bộ challenge mới chỉ mở Checkpoint. Khu vực chỉ hoàn tất
+  // sau khi Checkpoint đạt ngưỡng; việc đó được ghi ở ExitTicketPage.
+  const lessonJustCompleted = false;
 
   const xpAwarded = alreadyDone ? 0 : challenge.xpReward;
   const lessonXp = (currentProgress?.xp ?? 0) + xpAwarded;
 
   const patch: LessonProgressPatch = {
-    status: percent === 100 ? 'completed' : 'in_progress',
+    status: wasCompleted ? 'completed' : 'in_progress',
     progress_percent: percent,
     stars,
     xp: lessonXp,
     completed_challenges: completedChallenges,
-    completed_at: percent === 100 ? (currentProgress?.completed_at ?? new Date().toISOString()) : null,
+    completed_at: wasCompleted ? currentProgress?.completed_at ?? new Date().toISOString() : null,
   };
 
   /*

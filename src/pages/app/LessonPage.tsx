@@ -15,6 +15,7 @@ import { StarRating } from '@/components/game/StarRating';
 import { ErrorState, LoadingState, NoAccessState } from '@/components/common/StateViews';
 import { UpcomingPage, NotFoundPage } from '@/pages/UpcomingPage';
 import { getIcon } from '@/utils/icons';
+import { canOpenCheckpoint } from '@/utils/checkpoint';
 import { cn } from '@/utils/cn';
 import type { LessonProgressRow } from '@/types/database';
 
@@ -114,6 +115,11 @@ export function LessonPage() {
   const progress = progressByLesson[lessonId];
   const completedChallenges = progress?.completed_challenges ?? [];
   const challengeIds = lesson.challenges.map((challenge) => challenge.id);
+  const requiredChallenges = lesson.challenges.filter((challenge) => !challenge.optional);
+  const checkpointUnlocked = canOpenCheckpoint(
+    requiredChallenges.map((challenge) => challenge.id),
+    completedChallenges,
+  );
   const Icon = getIcon(meta.icon);
 
   const firstUnfinished =
@@ -345,28 +351,51 @@ export function LessonPage() {
             );
           })}
 
-          {/* Exit Ticket là node cuối cùng của khu vực */}
+          {/* Checkpoint là node cuối, chỉ mở sau khi hoàn thành nhiệm vụ bắt buộc. */}
           <li>
-            <Link
-              to={`/app/lesson/${lessonId}/exit-ticket`}
-              className="flex items-center gap-3 cq-panel p-3 hover:border-quest-500/60 transition-colors"
-            >
-              <span
-                className="grid place-items-center size-9 rounded-xl shrink-0 bg-abyss-700 text-slate-300"
-                aria-hidden="true"
+            {checkpointUnlocked ? (
+              <Link
+                to={`/app/lesson/${lessonId}/exit-ticket`}
+                className="flex items-center gap-3 cq-panel p-3 hover:border-quest-500/60 transition-colors"
               >
-                <BookOpen className="size-4" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-quest-500/15 text-quest-400">
-                  Exit Ticket
+                <span
+                  className="grid place-items-center size-9 rounded-xl shrink-0 bg-quest-500/15 text-quest-400"
+                  aria-hidden="true"
+                >
+                  <BookOpen className="size-4" />
                 </span>
-                <p className="font-semibold text-slate-100 mt-0.5">
-                  Kiểm tra nhanh cuối khu vực
-                </p>
-                <p className="text-xs text-slate-500">3 câu ngắn · 20 XP</p>
+                <div className="min-w-0 flex-1">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-quest-500/15 text-quest-400">
+                    Checkpoint
+                  </span>
+                  <p className="font-semibold text-slate-100 mt-0.5">
+                    Kiểm tra cuối khu vực
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {lesson.exitTicket.questions.length} câu · đạt từ 70% · thử lại không giới hạn
+                  </p>
+                </div>
+              </Link>
+            ) : (
+              <div
+                className="flex items-center gap-3 cq-panel p-3 opacity-60"
+                aria-disabled="true"
+              >
+                <span
+                  className="grid place-items-center size-9 rounded-xl shrink-0 bg-abyss-800 text-slate-600"
+                  aria-hidden="true"
+                >
+                  <Lock className="size-4" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-abyss-700 text-slate-500">
+                    Checkpoint
+                  </span>
+                  <p className="font-semibold text-slate-500 mt-0.5">Kiểm tra cuối khu vực</p>
+                  <p className="text-xs text-slate-600">Hoàn thành các nhiệm vụ bắt buộc để mở</p>
+                </div>
               </div>
-            </Link>
+            )}
           </li>
         </ol>
       </section>

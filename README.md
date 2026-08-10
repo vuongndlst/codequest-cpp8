@@ -5,7 +5,7 @@ Website học lập trình C++ tương tác dành cho học sinh lớp 8, theo p
 > **Trạng thái:** Hoàn thành cả 6 giai đoạn. Đủ nội dung 5 khu vực
 > (45 nhiệm vụ + 5 Exit Ticket + 5 bài hướng dẫn tư duy + phần mở đầu về thuật toán),
 > huy hiệu tự động, chứng chỉ PDF, dashboard giáo viên, hàng đợi offline.
-> **866 test** · sẵn sàng deploy lên GitHub Pages.
+> Kiểm thử tự động toàn diện · sẵn sàng build/deploy lên GitHub Pages.
 > Kiến trúc đầy đủ: [docs/phase-1-architecture.md](docs/phase-1-architecture.md)
 
 ---
@@ -20,6 +20,8 @@ ByteLand là một thế giới số đang bị các Bug phá hoại. Học sinh
 - **Gợi ý tăng dần 3 cấp** — câu hỏi định hướng → nhắc cấu trúc → khung code. Không đưa đáp án ngay.
 - **Sai không bị phạt.** Không có chữ "Thất bại", code của học sinh luôn được giữ nguyên, thử lại không giới hạn.
 - **Chạy code an toàn** bằng trình thông dịch tự viết cho tập con C++ — không dùng `eval`, không gọi API biên dịch bên ngoài.
+- **Learn → Predict → Practice → Game → Debug → Checkpoint**: kiến thức không đứng riêng khỏi gameplay; checkpoint đạt từ 70% mới hoàn tất khu vực.
+- **Phân biệt C++ và Game API**: học sinh luôn biết đâu là cú pháp/ngôn ngữ chuẩn, đâu là hàm điều khiển do ByteLand cung cấp.
 
 Khoá học: **CodeQuest C++ 8** · Giáo viên phụ trách: **Nguyễn Đình Vương**
 
@@ -86,6 +88,7 @@ Khoá học: **CodeQuest C++ 8** · Giáo viên phụ trách: **Nguyễn Đình 
 - Exit Ticket + trang khu vực + mở khoá node tuần tự
 - Chế độ Demo dùng chung engine thật, không ghi database
 - **Đủ 5 khu vực: 45 nhiệm vụ + 5 Exit Ticket**, có kiểm định nội dung tự động (450 test)
+- Kho khái niệm trung tâm và micro-practice data-driven trên trang hướng dẫn; hai khu vực đầu có checkpoint 10 câu đa dạng (đọc code, nhiều đáp án, sắp xếp, nối cặp, dự đoán, debug, điền code, tình huống)
 
 ### Đã có (Giai đoạn 2)
 
@@ -126,7 +129,7 @@ Khoá học: **CodeQuest C++ 8** · Giáo viên phụ trách: **Nguyễn Đình 
 | Icon | lucide-react (ISC) | Nhẹ, tree-shaking tốt |
 | Kiểm thử | Vitest + React Testing Library | Chạy nhanh, dùng chung cấu hình với Vite |
 
-**Chưa cài ở giai đoạn này** (sẽ thêm đúng lúc cần): CodeMirror 6 (Giai đoạn 3), html2canvas + jsPDF (Giai đoạn 5).
+Các dependency nặng chỉ được dùng ở nơi cần thiết: CodeMirror 6 cho editor và html2canvas + jsPDF cho chứng chỉ phía trình duyệt.
 
 ---
 
@@ -422,6 +425,25 @@ Regex trên code là nguồn gốc của việc báo sai cho học sinh làm đ�
 
 Chỉ node `kind: 'cleancode'` được đặt `minCleanCodeScore`. Các node khác **tuyệt đối không** — mục 11 của đề bài quy định điểm clean code không được làm học sinh trượt khi chương trình đã đúng. Có test canh điều này.
 
+### Thêm kiến thức và micro-practice
+
+Kho khái niệm nằm tại [src/data/curriculum.ts](src/data/curriculum.ts). Mỗi concept cần ghi rõ `category`: `cpp-language` hoặc `game-api`, giải thích, cú pháp, ví dụ và lỗi thường gặp. `LessonLearningPath` chỉ tham chiếu `conceptIds` rồi khai báo câu dự đoán và các hoạt động ngắn; component hiển thị không cần sửa khi thêm data.
+
+Mỗi micro-practice chỉ kiểm tra một ý mới. Feedback phải giải thích lý do, không chỉ báo đúng/sai. Hoạt động điền code yêu cầu học sinh tự gõ; không tạo nút chèn sẵn đáp án.
+
+### Thêm câu hỏi checkpoint
+
+Schema `ExitTicketQuestion` hỗ trợ:
+
+- `single-choice`, `knowledge`, `read-code`, `code-prediction`, `debugging`, `scenario`: dùng `correctIndex`;
+- `multiple-answer`: dùng `correctIndices`;
+- `ordering`: dùng `correctOrder`;
+- `matching`: dùng `matches` là các cặp `{ left, right }`, còn `options` là danh sách vế phải;
+- `fill-code`: dùng `acceptedAnswers`;
+- `self-assess`: không có đáp án đúng/sai và không tính điểm.
+
+Checkpoint chuẩn có 8–12 câu, đa dạng ít nhất 5 dạng có chấm điểm, kèm `explanation` và `misconception`. Học sinh phải hoàn thành mọi challenge bắt buộc mới mở checkpoint và đạt từ 70% mới hoàn tất khu vực. Chạy `src/lessons/content.test.ts` sau mỗi thay đổi nội dung.
+
 ---
 
 ## 13. Cách thay đổi điều kiện chứng chỉ
@@ -472,7 +494,7 @@ Chạy `supabase/tests/rls_checks.sql` để tự kiểm chứng những điều
 npm test
 ```
 
-**866 test** chia theo tầng:
+**889 test / 45 test files** (lượt regression 2026-08-10) chia theo tầng:
 
 | Nhóm | Số test | Nội dung |
 |---|---|---|
@@ -485,7 +507,8 @@ npm test
 | Thống kê giáo viên | 14 | Lỗi phổ biến xếp theo số học sinh, CSV có BOM |
 | Auto-save | 12 | Debounce, không ghi mỗi phím gõ, mất mạng không mất code |
 | Huy hiệu | 13 | Dùng gợi ý không bị phạt |
-| Còn lại | 259 | XP, Gem, âm thanh, avatar pixel, route guard, game workspace nhập môn, menu cài đặt trên bản đồ, sân khấu game, lớp học, hỏi đáp và lưu tiến trình |
+| Học tập + checkpoint mới | 13 | Kho concept, phân biệt C++/Game API, micro-practice, 8 dạng câu hỏi, chấm điểm và gate 70% |
+| Còn lại | 259+ | XP, Gem, âm thanh, avatar pixel, route guard, game workspace nhập môn, menu cài đặt trên bản đồ, sân khấu game, lớp học, hỏi đáp và lưu tiến trình |
 
 Kiểm thử RLS chạy riêng trên database — xem mục 7.
 

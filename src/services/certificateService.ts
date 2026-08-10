@@ -69,7 +69,7 @@ export function checkEligibility(input: EligibilityInput): CertificateEligibilit
   const bossPassed = boss ? completed.includes(boss.id) : false;
 
   // ③ Hoàn thành Exit Ticket
-  const exitTicketDone = exitTicket !== null;
+  const exitTicketDone = (exitTicket?.score ?? 0) >= 70;
 
   // ④ Đạt ít nhất 70% test case bắt buộc
   const correctAttempts = attempts.filter((attempt) => attempt.total_tests > 0);
@@ -104,7 +104,11 @@ export function checkEligibility(input: EligibilityInput): CertificateEligibilit
       id: 'exit-ticket',
       label: 'Nộp Exit Ticket',
       met: exitTicketDone,
-      detail: exitTicketDone ? `Đã nộp · ${exitTicket?.score ?? 0} điểm` : 'Chưa nộp',
+      detail: exitTicketDone
+        ? `Đã đạt · ${exitTicket?.score ?? 0} điểm`
+        : exitTicket
+          ? `Chưa đạt · ${exitTicket.score} điểm`
+          : 'Chưa nộp',
     },
     {
       id: 'test-rate',

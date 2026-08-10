@@ -208,17 +208,40 @@ export interface Challenge {
   whyThisMatters?: string;
 }
 
-/** Cau hoi Exit Ticket. Muc 5.8: 1 cau kien thuc + 1 cau doc code + 1 cau tu danh gia. */
+export type CheckpointAnswer = number | number[] | string | string[] | Record<string, string>;
+
+/** Câu hỏi checkpoint data-driven; UI không hard-code nội dung theo lesson. */
 export interface ExitTicketQuestion {
   id: string;
-  type: 'knowledge' | 'read-code' | 'self-assess';
+  type:
+    | 'knowledge'
+    | 'read-code'
+    | 'single-choice'
+    | 'multiple-answer'
+    | 'ordering'
+    | 'matching'
+    | 'code-prediction'
+    | 'debugging'
+    | 'fill-code'
+    | 'scenario'
+    | 'self-assess';
   prompt: string;
-  /** Doan code de hoc sinh doc (chi voi type = 'read-code') */
+  /** Đoạn code để học sinh đọc. */
   code?: string;
   options: string[];
-  /** Chi so dap an dung. Cau tu danh gia khong co dap an dung/sai. */
+  /** Dùng cho câu một đáp án. */
   correctIndex?: number;
+  /** Dùng cho câu nhiều đáp án. */
+  correctIndices?: number[];
+  /** Dùng cho câu sắp xếp. `options` là thứ tự ban đầu cố ý chưa đúng. */
+  correctOrder?: string[];
+  /** Dùng cho câu nối cặp. `options` là danh sách vế phải. */
+  matches?: Array<{ left: string; right: string }>;
+  /** Dùng cho câu điền code; so sánh sau khi chuẩn hoá khoảng trắng. */
+  acceptedAnswers?: string[];
   explanation?: string;
+  /** Hiểu lầm mà đáp án nhiễu đang kiểm tra. */
+  misconception?: string;
 }
 
 export interface ExitTicket {

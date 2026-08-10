@@ -885,6 +885,103 @@ int main() {
     },
     {
       id: 'l2-q3',
+      type: 'multiple-answer',
+      prompt: 'Những tên nào phù hợp cho một hàm thực hiện hành động?',
+      options: ['printStatus', 'openGate', 'data', 'thing1'],
+      correctIndices: [0, 1],
+      explanation: 'Tên hàm rõ nghĩa thường bắt đầu bằng động từ và nói được công việc của hàm.',
+      misconception: 'Tên ngắn chưa chắc dễ hiểu; hãy hỏi người đọc có đoán được hàm làm gì không.',
+    },
+    {
+      id: 'l2-q4',
+      type: 'ordering',
+      prompt: 'Sắp xếp để chương trình khai báo hàm trước, rồi gọi hàm trong main.',
+      options: [
+        'int main() { showStatus(); return 0; }',
+        'void showStatus() { cout << "San sang"; }',
+      ],
+      correctOrder: [
+        'void showStatus() { cout << "San sang"; }',
+        'int main() { showStatus(); return 0; }',
+      ],
+      explanation: 'Trong phạm vi khoá học này, hàm được khai báo trước để `main()` biết hàm tồn tại khi gọi.',
+      misconception: 'Phân biệt phần mô tả công việc của hàm với nơi yêu cầu hàm chạy.',
+    },
+    {
+      id: 'l2-q5',
+      type: 'matching',
+      prompt: 'Ghép thành phần của hàm với vai trò đúng.',
+      options: ['Tên kiểu trả về không có giá trị', 'Dữ liệu đầu vào của hàm', 'Yêu cầu hàm thực thi'],
+      matches: [
+        { left: 'void', right: 'Tên kiểu trả về không có giá trị' },
+        { left: 'parameter', right: 'Dữ liệu đầu vào của hàm' },
+        { left: 'showPower(50);', right: 'Yêu cầu hàm thực thi' },
+      ],
+      explanation: '`void` mô tả kiểu trả về, tham số nhận dữ liệu và lời gọi làm hàm thực sự chạy.',
+      misconception: 'Một dòng khai báo hàm và một dòng gọi hàm có vai trò khác nhau.',
+    },
+    {
+      id: 'l2-q6',
+      type: 'code-prediction',
+      prompt: 'Chương trình dưới đây gọi hàm showPower bao nhiêu lần?',
+      code: `void showPower(int value) {
+    cout << value << endl;
+}
+
+int main() {
+    showPower(20);
+    showPower(40);
+    showPower(80);
+    return 0;
+}`,
+      options: ['1 lần', '2 lần', '3 lần', '4 lần'],
+      correctIndex: 2,
+      explanation: 'Mỗi statement `showPower(...)` trong main là một lời gọi hàm riêng.',
+      misconception: 'Đừng đếm phần khai báo hàm; hãy đếm các lời gọi có giá trị cụ thể trong main.',
+    },
+    {
+      id: 'l2-q7',
+      type: 'debugging',
+      prompt: 'Lỗi chính trong đoạn code là gì?',
+      code: `void showPower(power) {
+    cout << power;
+}`,
+      options: [
+        'Tham số power thiếu kiểu dữ liệu',
+        'Tên hàm phải viết hoa toàn bộ',
+        'cout không được dùng trong hàm',
+        'Hàm có quá nhiều tham số',
+      ],
+      correctIndex: 0,
+      explanation: 'C++ cần biết kiểu của mỗi tham số, ví dụ `int power`.',
+      misconception: 'Kiểm tra cấu trúc `kiểu tênThamSố` bên trong cặp ngoặc của hàm.',
+    },
+    {
+      id: 'l2-q8',
+      type: 'fill-code',
+      prompt: 'Điền phần còn thiếu để gọi hàm với giá trị 90.',
+      code: 'showPower(___);',
+      options: [],
+      acceptedAnswers: ['90'],
+      explanation: 'Giá trị 90 được truyền vào tham số của hàm qua cặp ngoặc trong lời gọi.',
+      misconception: 'Chỉ cần điền giá trị đối số, không khai báo lại kiểu `int` khi gọi.',
+    },
+    {
+      id: 'l2-q9',
+      type: 'scenario',
+      prompt: 'Hai đoạn bản đồ đều cần chạy cùng một chuỗi ba hành động. Cách tổ chức nào dễ bảo trì nhất?',
+      options: [
+        'Chép ba hành động vào mọi nơi cần dùng',
+        'Gom ba hành động vào một hàm có tên rõ nghĩa rồi gọi lại',
+        'Đặt cả chương trình trên một dòng',
+        'Đổi tên mọi hàm thành a(), b(), c()',
+      ],
+      correctIndex: 1,
+      explanation: 'Hàm giúp gom một công việc có tên, giảm lặp và sửa một nơi khi hành vi thay đổi.',
+      misconception: 'Mục tiêu không chỉ là code ngắn, mà là làm cấu trúc chương trình dễ hiểu và dễ sửa.',
+    },
+    {
+      id: 'l2-q10',
       type: 'self-assess',
       prompt: 'Sau khu vực này, em thấy mình viết và gọi hàm ở mức nào?',
       options: [

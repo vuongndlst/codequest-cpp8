@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { NotFoundPage } from '@/pages/UpcomingPage';
 import { useAuthStore } from '@/stores/authStore';
+import { LearnPracticeFlow } from '@/components/learning/LearnPracticeFlow';
+import { getLearningPath } from '@/data/curriculum';
 
 /**
  * Trang "Học kiến thức" của một khu vực.
@@ -31,6 +33,7 @@ export function LessonGuidePage() {
   if (!lesson) return <NotFoundPage />;
 
   const firstChallenge = lesson.challenges[0];
+  const learningPath = getLearningPath(lesson.id);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 space-y-4">
@@ -64,6 +67,8 @@ export function LessonGuidePage() {
       )}
 
       <ConceptGuidePanel guide={lesson.conceptGuide} />
+
+      {learningPath && <LearnPracticeFlow path={learningPath} />}
 
       <div className="cq-card p-5 text-center">
         <p className="text-sm text-slate-300">

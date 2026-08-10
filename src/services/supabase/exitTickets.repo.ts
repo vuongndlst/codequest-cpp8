@@ -27,7 +27,7 @@ export async function fetchExitTicket(
 export interface SubmitExitTicketInput {
   userId: string;
   lessonId: string;
-  answers: Record<string, string | number>;
+  answers: Record<string, unknown>;
   score: number;
   reflection: string;
 }

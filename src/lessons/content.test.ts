@@ -3,6 +3,7 @@ import { LESSONS, getChallenge } from './index';
 import { analyzeChallenge } from '@/validators';
 import { tokenize } from '@/validators/lexer';
 import { parse } from '@/validators/parser';
+import type { ExitTicketQuestion } from '@/types/content';
 
 /**
  * Kiểm định NỘI DUNG bài học.
@@ -216,16 +217,27 @@ describe.each(LESSONS.map((lesson) => [lesson.id, lesson] as const))(
       }
     });
 
-    it('câu hỏi có chấm điểm đều có đáp án hợp lệ', () => {
+    it('câu hỏi có chấm điểm đều có cấu trúc đáp án hợp lệ', () => {
       const scored = lesson.exitTicket.questions.filter(
         (question) => question.type !== 'self-assess',
       );
       for (const question of scored) {
-        expect(question.correctIndex).toBeDefined();
-        expect(question.correctIndex).toBeGreaterThanOrEqual(0);
-        expect(question.correctIndex).toBeLessThan(question.options.length);
+        assertValidCheckpointAnswer(question);
       }
     });
+
+    if (lesson.id === 'l1' || lesson.id === 'l2') {
+      it('checkpoint mới có 8–12 câu và đa dạng ít nhất 5 dạng có chấm điểm', () => {
+        expect(lesson.exitTicket.questions.length).toBeGreaterThanOrEqual(8);
+        expect(lesson.exitTicket.questions.length).toBeLessThanOrEqual(12);
+        const scoredTypes = new Set(
+          lesson.exitTicket.questions
+            .filter((question) => question.type !== 'self-assess')
+            .map((question) => question.type),
+        );
+        expect(scoredTypes.size).toBeGreaterThanOrEqual(5);
+      });
+    }
 
     describe.each(lesson.challenges.map((challenge) => [challenge.id, challenge] as const))(
       'Challenge %s',
@@ -312,3 +324,39 @@ describe.each(LESSONS.map((lesson) => [lesson.id, lesson] as const))(
     );
   },
 );
+
+function assertValidCheckpointAnswer(question: ExitTicketQuestion) {
+  if (question.type === 'multiple-answer') {
+    expect(question.correctIndices?.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(question.correctIndices).size).toBe(question.correctIndices?.length);
+    for (const index of question.correctIndices ?? []) {
+      expect(index).toBeGreaterThanOrEqual(0);
+      expect(index).toBeLessThan(question.options.length);
+    }
+    return;
+  }
+
+  if (question.type === 'ordering') {
+    expect(question.correctOrder).toHaveLength(question.options.length);
+    expect(new Set(question.correctOrder)).toEqual(new Set(question.options));
+    return;
+  }
+
+  if (question.type === 'matching') {
+    expect(question.matches?.length).toBeGreaterThan(0);
+    for (const pair of question.matches ?? []) {
+      expect(pair.left.length).toBeGreaterThan(0);
+      expect(question.options).toContain(pair.right);
+    }
+    return;
+  }
+
+  if (question.type === 'fill-code') {
+    expect(question.acceptedAnswers?.length).toBeGreaterThan(0);
+    return;
+  }
+
+  expect(question.correctIndex).toBeDefined();
+  expect(question.correctIndex).toBeGreaterThanOrEqual(0);
+  expect(question.correctIndex).toBeLessThan(question.options.length);
+}

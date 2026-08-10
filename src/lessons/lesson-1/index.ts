@@ -955,6 +955,111 @@ moveForward();`,
     },
     {
       id: 'l1-q3',
+      type: 'multiple-answer',
+      prompt: 'Những nhận định nào đúng về trình tự câu lệnh?',
+      options: [
+        'C++ thực hiện các câu lệnh trong main từ trên xuống dưới',
+        'Đổi thứ tự hai câu lệnh có thể làm đổi kết quả',
+        'turnRight() luôn làm Byte tiến thêm một ô',
+        'Máy tính tự bỏ qua một bước nếu thấy bước đó chưa hợp lý',
+      ],
+      correctIndices: [0, 1],
+      explanation:
+        'Trình tự quyết định việc nào xảy ra trước. Máy chỉ làm đúng điều được ghi và `turnRight()` chỉ đổi hướng.',
+      misconception:
+        'Em thử tách hai câu hỏi: máy chạy code theo hướng nào, và lệnh quay có làm thay đổi ô đứng không?',
+    },
+    {
+      id: 'l1-q4',
+      type: 'ordering',
+      prompt: 'Sắp xếp ba câu lệnh để Byte đi một ô, quay phải rồi đi tiếp.',
+      options: [
+        'moveForward(); // bước thứ hai',
+        'turnRight();',
+        'moveForward(); // bước thứ nhất',
+      ],
+      correctOrder: [
+        'moveForward(); // bước thứ nhất',
+        'turnRight();',
+        'moveForward(); // bước thứ hai',
+      ],
+      explanation: 'Thuật toán đúng là đi → quay → đi. Đúng lệnh nhưng sai thứ tự vẫn tạo kết quả khác.',
+      misconception: 'Hãy đọc yêu cầu theo từng động từ rồi đặt một câu lệnh tương ứng cho mỗi động từ.',
+    },
+    {
+      id: 'l1-q5',
+      type: 'matching',
+      prompt: 'Ghép mỗi thành phần với ý nghĩa đúng.',
+      options: [
+        'Kết thúc một statement C++',
+        'Đưa thông tin ra màn hình kết quả',
+        'Game API làm Byte tiến một ô',
+      ],
+      matches: [
+        { left: ';', right: 'Kết thúc một statement C++' },
+        { left: 'cout', right: 'Đưa thông tin ra màn hình kết quả' },
+        { left: 'moveForward()', right: 'Game API làm Byte tiến một ô' },
+      ],
+      explanation:
+        '`;` thuộc cú pháp C++, `cout` thuộc thư viện chuẩn, còn `moveForward()` là hàm do ByteLand cung cấp.',
+      misconception: 'Phân biệt C++ language với Game API: cả hai dùng cú pháp C++, nhưng nguồn cung cấp khác nhau.',
+    },
+    {
+      id: 'l1-q6',
+      type: 'code-prediction',
+      prompt: 'Đoạn code dưới đây in ra mấy dòng?',
+      code: `cout << "A" << endl;
+cout << "B" << endl;
+cout << "C";`,
+      options: ['1 dòng', '2 dòng', '3 dòng', 'Không in ra vì thiếu endl ở dòng cuối'],
+      correctIndex: 2,
+      explanation: 'Hai `endl` đầu tạo xuống dòng. Dòng cuối vẫn in `C`, nên kết quả có ba dòng.',
+      misconception: '`endl` tạo xuống dòng; nó không phải điều kiện để `cout` được phép in.',
+    },
+    {
+      id: 'l1-q7',
+      type: 'debugging',
+      prompt: 'Dòng nào làm chương trình không chạy đúng cú pháp?',
+      code: `moveForward();
+turnRight()
+moveForward();`,
+      options: [
+        'Dòng 1 vì gọi hàm quá sớm',
+        'Dòng 2 vì thiếu dấu ;',
+        'Dòng 3 vì gọi moveForward() lần thứ hai',
+        'Không có lỗi cú pháp',
+      ],
+      correctIndex: 1,
+      explanation: 'Lời gọi hàm là một statement nên cần dấu `;` ở cuối.',
+      misconception: 'Kiểm tra ký tự cuối của từng statement trước khi thay đổi thuật toán.',
+    },
+    {
+      id: 'l1-q8',
+      type: 'fill-code',
+      prompt: 'Điền phần còn thiếu để Byte quay sang phải.',
+      code: '___;',
+      options: [],
+      acceptedAnswers: ['turnRight()', 'turnRight();'],
+      explanation: 'Tên hàm và cặp ngoặc tạo lời gọi `turnRight()`; dấu `;` kết thúc statement.',
+      misconception: 'Em cần cả tên hàm, chữ hoa đúng và cặp ngoặc tròn.',
+    },
+    {
+      id: 'l1-q9',
+      type: 'scenario',
+      prompt: 'Byte đụng tường ở bước 4. Cách debug nào giúp tìm nguyên nhân rõ nhất?',
+      options: [
+        'Xoá toàn bộ code và gõ ngẫu nhiên lại',
+        'Chạy từng bước, đối chiếu dòng đang sáng với vị trí Byte',
+        'Thêm thật nhiều moveForward() để vượt tường',
+        'Bỏ qua bản đồ và chỉ nhìn số dòng code',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Chạy từng bước giúp nối một dòng code với một thay đổi trên bản đồ, nên em biết chính xác bước nào cần sửa.',
+      misconception: 'Debug không phải đoán mò; hãy thu hẹp lỗi bằng cách quan sát từng bằng chứng.',
+    },
+    {
+      id: 'l1-q10',
       type: 'self-assess',
       prompt: 'Khi gặp một bản đồ mới, em thường làm gì trước tiên?',
       options: [
