@@ -161,7 +161,7 @@ export function StagePreviewDevPage() {
         </details>
       ))}
 
-      <div className="grid lg:grid-cols-2 gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
         <textarea
           value={code}
           onChange={(event) => {
@@ -173,7 +173,7 @@ export function StagePreviewDevPage() {
           className="w-full font-mono text-sm rounded-xl bg-abyss-900 border border-abyss-600 text-slate-100 p-3"
         />
 
-        <div className="space-y-3">
+        <div className="min-w-0 space-y-3">
           <GameStage
             spec={spec}
             events={result.worldEvents}

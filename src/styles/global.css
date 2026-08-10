@@ -226,14 +226,121 @@ html[data-theme='light'] {
   }
 }
 
-/* O dich nhap nhay nhe de hoc sinh nhin phat la biet phai toi dau */
+/* ---- O DICH ----
+   Hoc sinh phai NHIN PHAT LA BIET phai toi dau. Mot cai vien mo nhap nhay thi
+   lan giua co va bui cay. Nen dung ba lop chong nhau: cot anh sang chieu len,
+   vong tron lan toa, va vien vang dam. */
+
+/* Moc chi dich nhun nhay — kieu dau cham than tren dau NPC trong game.
+   Thay cho cot anh sang: cot sang bi khung ban do cat mat khi dich nam o hang
+   tren cung, va tren nen co xanh thi gan nhu khong nhin thay. */
+@keyframes goal-marker {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+/* Vong tron lan toa ra roi mo dan, nhu song nuoc */
+@keyframes goal-ring {
+  0% {
+    transform: scale(0.55);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
 @keyframes goal-pulse {
   0%,
   100% {
-    opacity: 0.35;
+    opacity: 0.8;
+    box-shadow:
+      0 0 10px 2px rgb(251 191 36 / 0.7),
+      inset 0 0 10px 2px rgb(251 191 36 / 0.35);
   }
   50% {
-    opacity: 0.75;
+    opacity: 1;
+    box-shadow:
+      0 0 22px 6px rgb(251 191 36 / 0.95),
+      inset 0 0 18px 5px rgb(251 191 36 / 0.55);
+  }
+}
+
+/* ---- NGOC ----
+   Xoay va lap lanh de mat bi hut vao. Dung `rotateY` chu khong `rotate`: vien
+   ngoc pixel xoay quanh truc doc trong nhu vat the ba chieu, con xoay tron thi
+   nhin nhu bi loi. */
+/*
+   Goc xoay CO Y chi tu -42deg toi 42deg, khong xoay tron mot vong.
+
+   Xoay qua moc 90deg thi vien ngoc nhin nghieng thanh mot vach mong dinh —
+   voi anh pixel 16px thi luc do no bien mat han, nhin nhu loi hien thi chu
+   khong phai hieu ung. Lac qua lac lai trong bien do hep van ra cam giac vat
+   the ba chieu ma khong bao gio bien mat.
+*/
+@keyframes gem-spin {
+  0%,
+  100% {
+    transform: perspective(120px) rotateY(-42deg) translateY(0);
+    filter: brightness(1.05);
+  }
+  25% {
+    transform: perspective(120px) rotateY(0deg) translateY(-3px);
+    filter: brightness(1.5);
+  }
+  50% {
+    transform: perspective(120px) rotateY(42deg) translateY(0);
+    filter: brightness(1.05);
+  }
+  75% {
+    transform: perspective(120px) rotateY(0deg) translateY(-3px);
+    filter: brightness(1.5);
+  }
+}
+
+/* Tia sang nho chay quanh vien ngoc */
+@keyframes gem-twinkle {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ---- AN MUNG ----
+   Nhan vat nhay len khi toi dich. Nhay ba nhip nho dan roi dung han, chu khong
+   nhay mai — nhay vo tan thanh ra gay xao nhang luc hoc sinh doc ket qua. */
+@keyframes hero-cheer {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  15% {
+    transform: translateY(-14px) scale(1.12);
+  }
+  30% {
+    transform: translateY(0) scale(0.94);
+  }
+  45% {
+    transform: translateY(-9px) scale(1.08);
+  }
+  60% {
+    transform: translateY(0) scale(0.97);
+  }
+  75% {
+    transform: translateY(-4px) scale(1.03);
+  }
+  100% {
+    transform: translateY(0) scale(1);
   }
 }
 

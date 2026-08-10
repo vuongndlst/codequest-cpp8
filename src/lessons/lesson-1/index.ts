@@ -1,4 +1,4 @@
-import type { Challenge, ExitTicket, Lesson } from '@/types/content';
+import type { Challenge, ExitTicket, Lesson, WorldSpec } from '@/types/content';
 import { LESSONS_META } from '@/data/lessons.meta';
 import { STANDARD_CLEAN_CODE } from '../shared';
 import { lesson1Guide } from './guide';
@@ -20,6 +20,55 @@ import { lesson1Guide } from './guide';
  * SỐ DÒNG VÀNG được đặt ở mức của lời giải gọn nhất. Học sinh giải dài hơn vẫn
  * qua bài — chỉ là màn hình mời em thử tìm đường ngắn hơn.
  */
+
+/**
+ * Dựng bản đồ có VIỀN CÂY bao quanh phần đi được.
+ *
+ * Hai lý do, đều là yêu cầu của thầy Vương:
+ *
+ *   ① Bản đồ trông rộng rãi ra dáng một vùng đất, thay vì một dải ô trơ trọi.
+ *   ② Viền cây là VẬT CẢN thật, nên nhân vật đi lố vẫn dừng lại đúng chỗ —
+ *      không cần đổi một dòng nào trong đáp án mẫu hay số dòng vàng.
+ *
+ * Tham số `lanes` mô tả các hàng ĐI ĐƯỢC, dùng `.` cho ô trống và `#` cho vật
+ * cản nằm giữa đường. Hàm tự bọc thêm một hàng cây ở trên, một hàng ở dưới, và
+ * đệm cây sang phải cho đủ `width`.
+ */
+function framedMap(
+  lanes: string[],
+  options: {
+    width: number;
+    startCol: number;
+    goalCol: number;
+    /** Hàng bắt đầu và hàng đích, tính THEO `lanes` (0 là hàng đi được đầu tiên) */
+    startLane?: number;
+    goalLane: number;
+    energy: number;
+    props?: NonNullable<WorldSpec['props']>;
+  },
+): WorldSpec {
+  const { width, startCol, goalCol, startLane = 0, goalLane, energy, props } = options;
+
+  const pad = (line: string) => (line + '#'.repeat(width)).slice(0, width);
+  const fence = '#'.repeat(width);
+
+  // Hàng 0 là viền trên, nên hàng đi được thứ n nằm ở hàng (n + 1)
+  const terrain = [fence, ...lanes.map(pad), fence];
+
+  return {
+    kind: 'map',
+    cols: width,
+    rows: terrain.length,
+    startCol,
+    startRow: startLane + 1,
+    startFacing: 'east',
+    goalCol,
+    goalRow: goalLane + 1,
+    terrain,
+    props: props?.map((prop) => ({ ...prop, row: (prop.row ?? 0) + 1 })),
+    initialState: { energy },
+  };
+}
 
 const challenges: Challenge[] = [
   // ─────────────────────────────────────── 1. Quan sát: máy chờ lệnh của em
@@ -56,7 +105,7 @@ int main() {
         id: 'l1-c1-t1',
         name: 'Byte tới được ô đích',
         kind: 'world',
-        expectedWorld: { col: 3, row: 0 },
+        expectedWorld: { col: 3, row: 1 },
         required: true,
         visible: true,
       },
@@ -90,17 +139,13 @@ int main() {
     cleanCodeRules: STANDARD_CLEAN_CODE,
     parStatements: 3,
     xpReward: 15,
-    world: {
-      kind: 'map',
-      cols: 4,
-      rows: 1,
+    world: framedMap(['....'], {
+      width: 7,
       startCol: 0,
-      startRow: 0,
-      startFacing: 'east',
       goalCol: 3,
-      goalRow: 0,
-      initialState: { energy: 10 },
-    },
+      goalLane: 0,
+      energy: 10,
+    }),
     solution: `#include <iostream>
 using namespace std;
 
@@ -148,7 +193,7 @@ int main() {
         id: 'l1-c2-t1',
         name: 'Byte tới đúng ô đích ở hàng dưới',
         kind: 'world',
-        expectedWorld: { col: 2, row: 1 },
+        expectedWorld: { col: 2, row: 2 },
         required: true,
         visible: true,
       },
@@ -184,18 +229,13 @@ int main() {
     cleanCodeRules: STANDARD_CLEAN_CODE,
     parStatements: 4,
     xpReward: 20,
-    world: {
-      kind: 'map',
-      cols: 3,
-      rows: 2,
+    world: framedMap(['...', '##.'], {
+      width: 7,
       startCol: 0,
-      startRow: 0,
-      startFacing: 'east',
       goalCol: 2,
-      goalRow: 1,
-      terrain: ['...', '##.'],
-      initialState: { energy: 10 },
-    },
+      goalLane: 1,
+      energy: 10,
+    }),
     solution: `#include <iostream>
 using namespace std;
 
@@ -241,7 +281,7 @@ int main() {
         id: 'l1-c3-t1',
         name: 'Nhặt được viên ngọc và tới đích',
         kind: 'world',
-        expectedWorld: { col: 3, row: 0, collectedGems: 1 },
+        expectedWorld: { col: 3, row: 1, collectedGems: 1 },
         required: true,
         visible: true,
       },
@@ -276,18 +316,14 @@ int main() {
     cleanCodeRules: STANDARD_CLEAN_CODE,
     parStatements: 4,
     xpReward: 20,
-    world: {
-      kind: 'map',
-      cols: 4,
-      rows: 1,
+    world: framedMap(['....'], {
+      width: 7,
       startCol: 0,
-      startRow: 0,
-      startFacing: 'east',
       goalCol: 3,
-      goalRow: 0,
+      goalLane: 0,
+      energy: 12,
       props: [{ id: 'ngoc-1', type: 'gem', col: 2, row: 0 }],
-      initialState: { energy: 12 },
-    },
+    }),
     solution: `#include <iostream>
 using namespace std;
 
@@ -333,7 +369,7 @@ int main() {
         id: 'l1-c4-t1',
         name: 'Byte đi vòng qua bụi gai và tới đích',
         kind: 'world',
-        expectedWorld: { col: 3, row: 1 },
+        expectedWorld: { col: 3, row: 2 },
         required: true,
         visible: true,
       },
@@ -369,18 +405,13 @@ int main() {
     cleanCodeRules: STANDARD_CLEAN_CODE,
     parStatements: 6,
     xpReward: 25,
-    world: {
-      kind: 'map',
-      cols: 4,
-      rows: 2,
+    world: framedMap(['.#..', '....'], {
+      width: 7,
       startCol: 0,
-      startRow: 0,
-      startFacing: 'east',
       goalCol: 3,
-      goalRow: 1,
-      terrain: ['.#..', '....'],
-      initialState: { energy: 15 },
-    },
+      goalLane: 1,
+      energy: 15,
+    }),
     solution: `#include <iostream>
 using namespace std;
 
@@ -439,7 +470,7 @@ int main() {
         id: 'l1-c5-t2',
         name: 'Cổng mở ra và Byte đi qua được',
         kind: 'world',
-        expectedWorld: { col: 3, row: 0 },
+        expectedWorld: { col: 3, row: 1 },
         required: true,
         visible: true,
       },
@@ -480,18 +511,14 @@ int main() {
     cleanCodeRules: STANDARD_CLEAN_CODE,
     parStatements: 5,
     xpReward: 30,
-    world: {
-      kind: 'map',
-      cols: 4,
-      rows: 1,
+    world: framedMap(['....'], {
+      width: 7,
       startCol: 0,
-      startRow: 0,
-      startFacing: 'east',
       goalCol: 3,
-      goalRow: 0,
+      goalLane: 0,
+      energy: 12,
       props: [{ id: 'cong-da', type: 'door', col: 3, row: 0 }],
-      initialState: { energy: 12 },
-    },
+    }),
     solution: `#include <iostream>
 using namespace std;
 
@@ -541,7 +568,7 @@ int main() {
         id: 'l1-c6-t1',
         name: 'Byte đi đủ số ô và tới đích',
         kind: 'world',
-        expectedWorld: { col: 4, row: 0 },
+        expectedWorld: { col: 4, row: 1 },
         required: true,
         visible: true,
       },
@@ -576,17 +603,13 @@ int main() {
     cleanCodeRules: STANDARD_CLEAN_CODE,
     parStatements: 4,
     xpReward: 25,
-    world: {
-      kind: 'map',
-      cols: 5,
-      rows: 1,
+    world: framedMap(['.....'], {
+      width: 8,
       startCol: 0,
-      startRow: 0,
-      startFacing: 'east',
       goalCol: 4,
-      goalRow: 0,
-      initialState: { energy: 10 },
-    },
+      goalLane: 0,
+      energy: 10,
+    }),
     solution: `#include <iostream>
 using namespace std;
 
@@ -633,7 +656,7 @@ int main() {
         id: 'l1-c7-t1',
         name: 'Byte quay đúng hướng và xuống được hàng dưới',
         kind: 'world',
-        expectedWorld: { col: 1, row: 1 },
+        expectedWorld: { col: 2, row: 2 },
         required: true,
         visible: true,
       },
@@ -668,17 +691,13 @@ int main() {
     cleanCodeRules: STANDARD_CLEAN_CODE,
     parStatements: 2,
     xpReward: 25,
-    world: {
-      kind: 'map',
-      cols: 3,
-      rows: 2,
-      startCol: 1,
-      startRow: 0,
-      startFacing: 'east',
-      goalCol: 1,
-      goalRow: 1,
-      initialState: { energy: 10 },
-    },
+    world: framedMap(['##.##', '##.##'], {
+      width: 5,
+      startCol: 2,
+      goalCol: 2,
+      goalLane: 1,
+      energy: 10,
+    }),
     solution: `#include <iostream>
 using namespace std;
 
@@ -722,7 +741,7 @@ return 0;
         id: 'l1-c8-t1',
         name: 'Byte vẫn tới được đích sau khi dọn',
         kind: 'world',
-        expectedWorld: { col: 3, row: 0 },
+        expectedWorld: { col: 3, row: 1 },
         required: true,
         visible: true,
       },
@@ -757,17 +776,13 @@ return 0;
     cleanCodeRules: STANDARD_CLEAN_CODE,
     minCleanCodeScore: 80,
     xpReward: 25,
-    world: {
-      kind: 'map',
-      cols: 4,
-      rows: 1,
+    world: framedMap(['....'], {
+      width: 7,
       startCol: 0,
-      startRow: 0,
-      startFacing: 'east',
       goalCol: 3,
-      goalRow: 0,
-      initialState: { energy: 10 },
-    },
+      goalLane: 0,
+      energy: 10,
+    }),
     solution: `#include <iostream>
 using namespace std;
 
@@ -830,7 +845,7 @@ int main() {
         id: 'l1-c9-t2',
         name: 'Nhặt được ngọc và đi qua được cổng làng',
         kind: 'world',
-        expectedWorld: { col: 4, row: 1, collectedGems: 1 },
+        expectedWorld: { col: 4, row: 2, collectedGems: 1 },
         required: true,
         visible: true,
       },
@@ -870,22 +885,17 @@ int main() {
     cleanCodeRules: STANDARD_CLEAN_CODE,
     parStatements: 10,
     xpReward: 40,
-    world: {
-      kind: 'map',
-      cols: 5,
-      rows: 2,
+    world: framedMap(['..#..', '.....'], {
+      width: 9,
       startCol: 0,
-      startRow: 0,
-      startFacing: 'east',
       goalCol: 4,
-      goalRow: 1,
-      terrain: ['..#..', '.....'],
+      goalLane: 1,
+      energy: 20,
       props: [
         { id: 'ngoc-boss', type: 'gem', col: 3, row: 1 },
         { id: 'cong-lang', type: 'door', col: 4, row: 1 },
       ],
-      initialState: { energy: 20 },
-    },
+    }),
     solution: `#include <iostream>
 using namespace std;
 

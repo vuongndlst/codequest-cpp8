@@ -3,14 +3,12 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   AlignLeft,
   ArrowLeft,
-  ArrowRight,
   BookOpen,
   Brain,
   Maximize2,
   Minimize2,
   Play,
   RotateCcw,
-  Sparkles,
   Target,
 } from 'lucide-react';
 import { getChallenge, getChallengeIds, getLesson } from '@/lessons';
@@ -26,6 +24,7 @@ import { HandbookModal } from '@/components/learning/Handbook';
 import { ThinkingPrompt } from '@/components/learning/ConceptGuidePanel';
 import { GameStage } from '@/components/game/GameStage';
 import { ByteMascot } from '@/components/game/ByteMascot';
+import { VictoryPanel } from '@/components/game/VictoryPanel';
 import { BadgeToast } from '@/components/game/BadgeToast';
 import { Button } from '@/components/ui/Button';
 import { SaveIndicator, LoadingState } from '@/components/common/StateViews';
@@ -230,7 +229,10 @@ export function ChallengePage() {
         {/* ============ CỘT TRÁI — ĐỀ BÀI ============ */}
         <div
           className={cn(
-            'lg:col-span-2 space-y-4',
+            // `min-w-0`: o luoi mac dinh la `min-width: auto` nen KHONG co
+            // lai duoc duoi kich thuoc noi dung — ban do rong hon cot la ca
+            // TRANG keo ngang duoc tren dien thoai.
+            'lg:col-span-2 min-w-0 space-y-4',
             // Đề bài dính theo màn hình để em không phải cuộn ngược lên đọc lại.
             // Chiều cao giới hạn theo khung nhìn, trừ chiều cao thanh trên cùng.
             'lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:pr-1',
@@ -293,7 +295,7 @@ export function ChallengePage() {
         </div>
 
         {/* ============ CỘT PHẢI — CHỖ LÀM VIỆC ============ */}
-        <div className="lg:col-span-3 space-y-4">
+        <div className="lg:col-span-3 min-w-0 space-y-4">
           {/* Sân khấu game: nằm trên ô code để em nhìn thấy ngay khi bấm Chạy */}
           {challenge.world && (
             <GameStage
@@ -328,47 +330,26 @@ export function ChallengePage() {
 
           {/* Hoàn thành -> mời sang nhiệm vụ tiếp theo */}
           {session.justCompleted && (
-            <div
-              className="cq-card p-4 border-verdant-500/50 bg-verdant-500/5"
-              role="status"
-              aria-live="polite"
-            >
-              <div className="flex items-center gap-3">
-                <ByteMascot size={44} mood="cheer" />
-                <div className="min-w-0 flex-1">
-                  <p className="font-bold text-verdant-400">
-                    {challenge.kind === 'boss'
-                      ? 'Em đã đánh bại Boss của khu vực này!'
-                      : 'Nhiệm vụ hoàn thành!'}
-                  </p>
-                  {session.xpAwarded > 0 && (
-                    <p className="text-sm text-treasure-300 flex items-center gap-1">
-                      <Sparkles className="size-4" aria-hidden="true" />+{session.xpAwarded} XP
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-2 mt-3">
-                {nextChallengeId ? (
-                  <Button
-                    onClick={() =>
-                      navigate(`/app/lesson/${lessonId}/challenge/${nextChallengeId}`)
-                    }
-                    trailingIcon={<ArrowRight className="size-4" aria-hidden="true" />}
-                  >
-                    Nhiệm vụ tiếp theo
-                  </Button>
-                ) : (
+            <VictoryPanel
+              challenge={challenge}
+              result={session.result}
+              xpAwarded={session.xpAwarded}
+              nextLabel={nextChallengeId ? 'Nhiệm vụ tiếp theo' : 'Về trang khu vực'}
+              onNext={() =>
+                navigate(
+                  nextChallengeId
+                    ? `/app/lesson/${lessonId}/challenge/${nextChallengeId}`
+                    : `/app/lesson/${lessonId}`,
+                )
+              }
+              secondaryAction={
+                nextChallengeId ? (
                   <Link to={`/app/lesson/${lessonId}`}>
-                    <Button>Về trang khu vực</Button>
+                    <Button variant="secondary">Xem danh sách nhiệm vụ</Button>
                   </Link>
-                )}
-                <Link to={`/app/lesson/${lessonId}`}>
-                  <Button variant="secondary">Xem danh sách nhiệm vụ</Button>
-                </Link>
-              </div>
-            </div>
+                ) : undefined
+              }
+            />
           )}
         </div>
       </div>
