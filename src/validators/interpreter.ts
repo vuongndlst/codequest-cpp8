@@ -9,13 +9,24 @@ import type {
 } from './ast';
 import type { TypeKeyword } from './tokens';
 import {
+  FACING_DELTA,
   MAX_WORLD_EVENTS,
   createWorldState,
   isBlockedAhead,
+  turnedLeft,
+  turnedRight,
   type WorldEvent,
   type WorldEventType,
   type WorldState,
 } from './world';
+
+/** Tên hướng bằng tiếng Việt, dùng trong thông báo cho học sinh. */
+const FACING_LABELS = {
+  east: 'phải',
+  south: 'xuống',
+  west: 'trái',
+  north: 'lên',
+} as const;
 
 /**
  * Bước ⑥ của pipeline: chạy AST.
@@ -183,6 +194,9 @@ class Scope {
 /** Hàm hành động của game — tên tiếng Anh theo quy ước đã chốt. */
 export const GAME_ACTIONS: Record<string, WorldEventType> = {
   moveForward: 'move',
+  // Quay tại chỗ — bản đồ hai chiều cần đổi hướng mới đi được sang hàng khác
+  turnRight: 'turn',
+  turnLeft: 'turn',
   openDoor: 'open-door',
   turnOnLight: 'turn-on-light',
   activateBridge: 'activate-bridge',
@@ -365,6 +379,7 @@ class Interpreter {
       type,
       index: this.events.length,
       col: this.world.col,
+      row: this.world.row,
       message,
       detail,
     });
@@ -465,13 +480,38 @@ class Interpreter {
           this.pushEvent('blocked', 'Phía trước có vật cản, nhân vật không đi qua được.');
           break;
         }
-        this.world.col += 1;
+
+        // Đi theo HƯỚNG ĐANG QUAY. Bản đồ một hàng mặc định quay `east` nên
+        // vẫn là tăng cột lên một, y hệt hành vi cũ.
+        const step = FACING_DELTA[this.world.facing];
+        this.world.col += step.dCol;
+        this.world.row += step.dRow;
         this.world.energy -= 1;
         this.world.blocked = false;
-        this.pushEvent('move', `Nhân vật tiến tới ô ${this.world.col}`);
-        if (this.world.col === this.world.goalCol) {
+
+        this.pushEvent(
+          'move',
+          this.world.rows > 1
+            ? `Nhân vật tiến tới ô (${this.world.col}, ${this.world.row})`
+            : `Nhân vật tiến tới ô ${this.world.col}`,
+        );
+
+        if (this.world.col === this.world.goalCol && this.world.row === this.world.goalRow) {
           this.pushEvent('reach-goal', 'Nhân vật đã tới đích!');
         }
+        break;
+      }
+
+      case 'turnRight':
+      case 'turnLeft': {
+        this.world.facing =
+          name === 'turnRight' ? turnedRight(this.world.facing) : turnedLeft(this.world.facing);
+        // Quay tại chỗ KHÔNG tốn năng lượng: đề bài cấm cơ chế trừng phạt, mà
+        // học sinh mới học thường phải quay vài lần mới định hướng được.
+        this.world.blocked = isBlockedAhead(this.world, this.worldSpec);
+        this.pushEvent('turn', `Nhân vật quay sang hướng ${FACING_LABELS[this.world.facing]}`, {
+          facing: this.world.facing,
+        });
         break;
       }
 

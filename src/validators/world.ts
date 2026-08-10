@@ -8,12 +8,45 @@ import type { WorldSpec } from '@/types/content';
  * chạy code (trong Web Worker, không có DOM) tách hoàn toàn khỏi phần hiển thị.
  */
 
+/**
+ * Bốn hướng nhân vật có thể quay.
+ *
+ * Mặc định LUÔN là `east`. Đây không phải lựa chọn thẩm mỹ: 7 nhiệm vụ đã có
+ * từ trước dùng bản đồ một hàng ngang, `moveForward()` của chúng tăng cột lên
+ * một. Để mặc định là `east` thì những bài đó chạy y hệt như cũ, không phải sửa
+ * một dòng nội dung nào.
+ */
+export type Facing = 'east' | 'south' | 'west' | 'north';
+
+/** Vector di chuyển của từng hướng, theo hệ toạ độ màn hình (row tăng xuống dưới). */
+export const FACING_DELTA: Record<Facing, { dCol: number; dRow: number }> = {
+  east: { dCol: 1, dRow: 0 },
+  south: { dCol: 0, dRow: 1 },
+  west: { dCol: -1, dRow: 0 },
+  north: { dCol: 0, dRow: -1 },
+};
+
+const CLOCKWISE: Facing[] = ['east', 'south', 'west', 'north'];
+
+export function turnedRight(facing: Facing): Facing {
+  return CLOCKWISE[(CLOCKWISE.indexOf(facing) + 1) % 4];
+}
+
+export function turnedLeft(facing: Facing): Facing {
+  return CLOCKWISE[(CLOCKWISE.indexOf(facing) + 3) % 4];
+}
+
 export interface WorldState {
   /** Vị trí ô hiện tại của nhân vật (0-based) */
   col: number;
+  /** Hàng hiện tại. Bản đồ một hàng thì luôn bằng 0. */
+  row: number;
   /** Ô đích cần tới */
   goalCol: number;
+  goalRow: number;
   cols: number;
+  rows: number;
+  facing: Facing;
   energy: number;
   hasKey: boolean;
   openedDoors: string[];
@@ -35,6 +68,7 @@ export type WorldEventType =
   | 'collect-key'
   | 'collect-gem'
   | 'attack-bug'
+  | 'turn'
   | 'reach-goal'
   | 'out-of-energy'
   /*
@@ -69,6 +103,8 @@ export interface WorldEvent {
   /** Thứ tự sự kiện, dùng để phát lại animation */
   index: number;
   col: number;
+  /** Hàng của nhân vật lúc sự kiện xảy ra. Bản đồ một hàng thì luôn 0. */
+  row: number;
   message: string;
   detail?: Record<string, unknown>;
 }
@@ -79,8 +115,12 @@ export function createWorldState(spec: WorldSpec = DEFAULT_WORLD): WorldState {
   const initial = spec.initialState ?? {};
   return {
     col: spec.startCol ?? 0,
+    row: spec.startRow ?? 0,
     goalCol: spec.goalCol ?? spec.cols - 1,
+    goalRow: spec.goalRow ?? 0,
     cols: spec.cols,
+    rows: spec.rows ?? 1,
+    facing: spec.startFacing ?? 'east',
     energy: typeof initial.energy === 'number' ? initial.energy : 10,
     hasKey: initial.hasKey === true,
     openedDoors: [],
@@ -92,14 +132,42 @@ export function createWorldState(spec: WorldSpec = DEFAULT_WORLD): WorldState {
   };
 }
 
-/** Vật cản ở ô kế tiếp (tường, cầu chưa bật…) */
+/** Ô ngay trước mặt nhân vật, theo hướng đang quay. */
+export function cellAhead(state: WorldState): { col: number; row: number } {
+  const delta = FACING_DELTA[state.facing];
+  return { col: state.col + delta.dCol, row: state.row + delta.dRow };
+}
+
+/** Ô nền là tường. Bản đồ không khai báo `terrain` thì mọi ô đều đi được. */
+export function isWall(spec: WorldSpec | undefined, col: number, row: number): boolean {
+  const line = spec?.terrain?.[row];
+  return line !== undefined && line[col] === '#';
+}
+
+/** Vật thể đứng tại một ô. Prop không khai báo `row` được coi là ở hàng 0. */
+export function propAt(
+  spec: WorldSpec | undefined,
+  col: number,
+  row: number,
+): NonNullable<WorldSpec['props']>[number] | undefined {
+  return spec?.props?.find((prop) => prop.col === col && (prop.row ?? 0) === row);
+}
+
+/**
+ * Vật cản ngay trước mặt (tường, cửa chưa mở, cầu chưa bật, hoặc mép bản đồ).
+ *
+ * Với bản đồ một hàng và hướng mặc định `east`, hàm này cho kết quả y hệt bản
+ * cũ — đó là điều kiện để 7 nhiệm vụ đã có không phải sửa gì.
+ */
 export function isBlockedAhead(state: WorldState, spec: WorldSpec | undefined): boolean {
-  if (!spec?.props) return state.col >= state.cols - 1;
+  const { col, row } = cellAhead(state);
 
-  const nextCol = state.col + 1;
-  if (nextCol >= state.cols) return true;
+  // Ra khỏi bản đồ cũng là bị chặn
+  if (col < 0 || col >= state.cols || row < 0 || row >= state.rows) return true;
 
-  const obstacle = spec.props.find((prop) => prop.col === nextCol);
+  if (isWall(spec, col, row)) return true;
+
+  const obstacle = propAt(spec, col, row);
   if (!obstacle) return false;
 
   switch (obstacle.type) {
@@ -108,6 +176,7 @@ export function isBlockedAhead(state: WorldState, spec: WorldSpec | undefined): 
     case 'bridge':
       return !state.activatedBridges.includes(obstacle.id);
     case 'wall':
+    case 'rock':
       return true;
     default:
       return false;

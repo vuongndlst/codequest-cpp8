@@ -3,6 +3,7 @@ import type { WorldEvent } from '@/validators/world';
 import { WorldStage } from './WorldStage';
 import { SignalTowerStage } from './SignalTowerStage';
 import { WorkshopStage } from './WorkshopStage';
+import { TileMapStage } from './TileMapStage';
 
 interface GameStageProps {
   spec: WorldSpec;
@@ -27,6 +28,11 @@ export function GameStage({ spec, events, avatarId, playKey }: GameStageProps) {
 
     case 'workshop':
       return <WorkshopStage events={events} playKey={playKey} />;
+
+    case 'map':
+      return (
+        <TileMapStage spec={spec} events={events} avatarId={avatarId} playKey={playKey} />
+      );
 
     case 'path':
     default:

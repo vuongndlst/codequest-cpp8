@@ -98,7 +98,8 @@ export interface TestCase {
 /**
  * Loai san khau.
  *
- *   · path          — con duong o luoi, nhan vat di tu trai sang (khu vuc 3-5)
+ *   · path          — con duong mot hang, nhan vat di tu trai sang (khu vuc 3-5)
+ *   · map           — ban do o luoi hai chieu, nhan vat quay huong va di chuyen
  *   · signal-tower  — thap tin hieu: den sang theo tung `cout`, tinh the giu
  *                     gia tri bien (khu vuc 1)
  *   · workshop      — xuong ren: moi ham la mot co may, goi ham thi may chay
@@ -106,16 +107,36 @@ export interface TestCase {
  *
  * Bo trong thi mac dinh `path`, nen 7 nhiem vu da co san khau khong doi gi.
  */
-export type WorldKind = 'path' | 'signal-tower' | 'workshop';
+export type WorldKind = 'path' | 'map' | 'signal-tower' | 'workshop';
+
+/** Huong nhan vat quay mat. Mac dinh `east` de ban do mot hang chay nhu cu. */
+export type WorldFacing = 'east' | 'south' | 'west' | 'north';
+
+/**
+ * O nen cua ban do.
+ *
+ * `ground` di duoc, `wall` chan duong. Tach rieng khoi `props` vi nen phu kin
+ * ban do con vat the thi thua thot — nhoi ca hai vao mot mang thi ban do 8x6
+ * phai khai bao 48 phan tu chi de noi "cho nay la co".
+ */
+export type MapTerrain = 'ground' | 'wall';
 
 export interface WorldSpec {
   kind?: WorldKind;
-  /** So o cua con duong / kich thuoc luoi. San khau khac dung lam so cho trong. */
+  /** So cot cua ban do. San khau khong phai ban do dung lam so cho trong. */
   cols: number;
   rows?: number;
   startCol?: number;
+  startRow?: number;
+  startFacing?: WorldFacing;
   goalCol?: number;
-  /** Cac vat the tinh: den, cua, cau, chuong ngai vat... */
+  goalRow?: number;
+  /**
+   * Nen ban do, moi chuoi la mot hang: `.` la o di duoc, `#` la tuong.
+   * Vd. ['....', '.##.', '....'] — bo trong thi ca ban do deu di duoc.
+   */
+  terrain?: string[];
+  /** Cac vat the: den, cua, cau, ngoc, chuong ngai vat... */
   props?: Array<{ id: string; type: string; col: number; row?: number; state?: string }>;
   /** Bien khoi tao cua the gioi, vd. { energy: 10, hasKey: true } */
   initialState?: Record<string, unknown>;

@@ -3,7 +3,7 @@ import { GameStage } from '@/components/game/GameStage';
 import { TileSprite, TILE_COLS, TILE_COUNT } from '@/components/game/TileSprite';
 import { Button } from '@/components/ui/Button';
 import { analyzeChallenge } from '@/validators';
-import type { Challenge, WorldKind } from '@/types/content';
+import type { Challenge, WorldKind, WorldSpec } from '@/types/content';
 
 /**
  * Trang xem trước sân khấu game — CHỈ tồn tại khi chạy `npm run dev`.
@@ -56,6 +56,47 @@ int main() {
     }
     return 0;
 }`,
+  map: `#include <iostream>
+using namespace std;
+
+int main() {
+    // Đi sang phải tới cuối hành lang
+    for (int i = 0; i < 3; i = i + 1) {
+        moveForward();
+    }
+
+    // Quay xuống rồi đi tiếp
+    turnRight();
+    moveForward();
+    moveForward();
+
+    // Quay sang phải để tới ô đích
+    turnLeft();
+    moveForward();
+    moveForward();
+
+    return 0;
+}`,
+};
+
+/** Bản đồ mẫu: hành lang chữ Z, có tường chắn và một viên ngọc. */
+const DEMO_MAP: WorldSpec = {
+  kind: 'map',
+  cols: 6,
+  rows: 4,
+  startCol: 0,
+  startRow: 0,
+  startFacing: 'east',
+  goalCol: 5,
+  goalRow: 2,
+  terrain: [
+    '....##',
+    '###.##',
+    '......',
+    '######',
+  ],
+  props: [{ id: 'gem-1', type: 'gem', col: 3, row: 2 }],
+  initialState: { energy: 20 },
 };
 
 const BASE: Challenge = {
@@ -79,8 +120,11 @@ export function StagePreviewDevPage() {
   const [code, setCode] = useState(SAMPLES['signal-tower']);
   const [playKey, setPlayKey] = useState(0);
 
-  const spec = useMemo(
-    () => ({ kind, cols: kind === 'path' ? 5 : 0, startCol: 0, goalCol: 4 }),
+  const spec = useMemo<WorldSpec>(
+    () =>
+      kind === 'map'
+        ? DEMO_MAP
+        : { kind, cols: kind === 'path' ? 5 : 0, startCol: 0, goalCol: 4 },
     [kind],
   );
 
@@ -103,7 +147,7 @@ export function StagePreviewDevPage() {
       </p>
 
       <div className="flex flex-wrap gap-2">
-        {(['signal-tower', 'workshop', 'path'] as WorldKind[]).map((option) => (
+        {(['map', 'signal-tower', 'workshop', 'path'] as WorldKind[]).map((option) => (
           <Button
             key={option}
             variant={kind === option ? 'primary' : 'secondary'}
