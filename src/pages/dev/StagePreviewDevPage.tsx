@@ -122,22 +122,24 @@ export function StagePreviewDevPage() {
         Bảng tra chỉ số tile — chỉ có ở trang dev.
         Dựng cảnh cần biết ô nào là cỏ, ô nào là cổng; đoán mò thì sai cả buổi.
       */}
-      <details className="cq-panel p-3">
-        <summary className="text-sm text-slate-300 cursor-pointer">
-          Bảng tra chỉ số tile ({TILE_COUNT} ô)
-        </summary>
-        <div
-          className="mt-3 grid gap-1"
-          style={{ gridTemplateColumns: `repeat(${TILE_COLS}, minmax(0, 1fr))` }}
-        >
-          {Array.from({ length: TILE_COUNT }, (_, index) => (
-            <div key={index} className="flex flex-col items-center">
-              <TileSprite index={index} scale={2} title={`tile ${index}`} />
-              <span className="text-[9px] text-slate-500 tabular-nums">{index}</span>
-            </div>
-          ))}
-        </div>
-      </details>
+      {(['town', 'dungeon'] as const).map((sheet) => (
+        <details key={sheet} className="cq-panel p-3">
+          <summary className="text-sm text-slate-300 cursor-pointer">
+            Bảng tra tile — {sheet} ({TILE_COUNT} ô)
+          </summary>
+          <div
+            className="mt-3 grid gap-1"
+            style={{ gridTemplateColumns: `repeat(${TILE_COLS}, minmax(0, 1fr))` }}
+          >
+            {Array.from({ length: TILE_COUNT }, (_, index) => (
+              <div key={index} className="flex flex-col items-center">
+                <TileSprite index={index} sheet={sheet} scale={3} title={`${sheet} ${index}`} />
+                <span className="text-[9px] text-slate-500 tabular-nums">{index}</span>
+              </div>
+            ))}
+          </div>
+        </details>
+      ))}
 
       <div className="grid lg:grid-cols-2 gap-4 items-start">
         <textarea
