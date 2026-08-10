@@ -3,9 +3,12 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   isAudioUnlocked,
+  isBackgroundMusicEnabled,
   playSound,
+  playVictoryFanfare,
   resetAudioForTest,
   setSoundEnabled,
+  setMusicEnabled,
   unlockAudio,
   type SoundName,
 } from './audio';
@@ -74,6 +77,14 @@ describe('Chính sách phát của trình duyệt', () => {
 
     expect(played).toHaveLength(1);
   });
+
+  it('fanfare chiến thắng có hiệu ứng dự phòng khi Web Audio không khả dụng', () => {
+    const played = stubAudio();
+    unlockAudio();
+    playVictoryFanfare();
+
+    expect(played.some((source) => source.endsWith('/audio/goal.ogg'))).toBe(true);
+  });
 });
 
 describe('Nút tắt tiếng', () => {
@@ -95,6 +106,16 @@ describe('Nút tắt tiếng', () => {
     playSound('goal');
 
     expect(played).toHaveLength(1);
+  });
+});
+
+describe('Nhạc nền trong phòng máy', () => {
+  it('mặc định tắt và chỉ bật khi học sinh chủ động chọn', () => {
+    expect(isBackgroundMusicEnabled()).toBe(false);
+    setMusicEnabled(true);
+    expect(isBackgroundMusicEnabled()).toBe(true);
+    setMusicEnabled(false);
+    expect(isBackgroundMusicEnabled()).toBe(false);
   });
 });
 

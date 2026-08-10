@@ -15,12 +15,14 @@ import {
   validateEmail,
   validateFullName,
   validatePasswordConfirm,
+  validateStudentCode,
+  studentEmailFromCode,
 } from '@/services/supabase/auth.service';
 import { joinClassByCode } from '@/services/supabase/classes.repo';
 import { isSupabaseConfigured } from '@/lib/env';
 import { cn } from '@/utils/cn';
 
-type FieldName = 'fullName' | 'classCode' | 'email' | 'password' | 'passwordConfirm';
+type FieldName = 'fullName' | 'classCode' | 'studentCode' | 'password' | 'passwordConfirm';
 
 export function RegisterPage() {
   const navigate = useNavigate();
@@ -33,7 +35,6 @@ export function RegisterPage() {
     fullName: '',
     classCode: prefilledCode,
     studentCode: '',
-    email: '',
     password: '',
     passwordConfirm: '',
   });
@@ -44,9 +45,10 @@ export function RegisterPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [needsEmailConfirm, setNeedsEmailConfirm] = useState(false);
 
+  const schoolEmail = studentEmailFromCode(form.studentCode);
   const passwordCheck = useMemo(
-    () => checkPassword(form.password, { email: form.email, fullName: form.fullName }),
-    [form.password, form.email, form.fullName],
+    () => checkPassword(form.password, { email: schoolEmail, fullName: form.fullName }),
+    [form.password, schoolEmail, form.fullName],
   );
 
   const setField = (name: keyof typeof form) => (value: string) =>
@@ -59,12 +61,15 @@ export function RegisterPage() {
     const errors: Partial<Record<FieldName, string>> = {};
     const fullNameError = validateFullName(form.fullName);
     const classCodeError = validateClassCode(form.classCode);
-    const emailError = validateEmail(form.email);
+    const studentCodeError = validateStudentCode(form.studentCode);
+    const emailError = validateEmail(schoolEmail);
     const confirmError = validatePasswordConfirm(form.password, form.passwordConfirm);
 
     if (fullNameError) errors.fullName = fullNameError;
     if (classCodeError) errors.classCode = classCodeError;
-    if (emailError) errors.email = emailError;
+    if (studentCodeError || emailError) {
+      errors.studentCode = studentCodeError ?? emailError ?? undefined;
+    }
     if (passwordCheck.error) errors.password = passwordCheck.error;
     if (confirmError) errors.passwordConfirm = confirmError;
 
@@ -77,7 +82,7 @@ export function RegisterPage() {
     setIsSubmitting(true);
 
     const { data, error } = await signUp({
-      email: form.email,
+      email: schoolEmail,
       password: form.password,
       fullName: form.fullName,
       // Tên lớp thật sẽ được ghi đè sau khi vào lớp bằng mã
@@ -124,7 +129,7 @@ export function RegisterPage() {
         <Mail className="size-12 text-quest-400 mx-auto" aria-hidden="true" />
         <h1 className="text-2xl font-extrabold text-slate-100 mt-4">Em kiểm tra hộp thư nhé</h1>
         <p className="text-sm text-slate-400 mt-2 leading-relaxed">
-          Thầy trò mình vừa gửi một email xác nhận tới <strong>{form.email}</strong>. Em mở email
+          Thầy trò mình vừa gửi một email xác nhận tới <strong>{schoolEmail}</strong>. Em mở email
           đó rồi bấm vào đường dẫn để kích hoạt tài khoản. Nếu không thấy, em kiểm tra cả thư mục
           Spam nhé.
         </p>
@@ -184,24 +189,27 @@ export function RegisterPage() {
           />
           <Input
             label="Mã học sinh"
+            required
             value={form.studentCode}
-            onChange={(event) => setField('studentCode')(event.target.value)}
+            onChange={(event) => setField('studentCode')(event.target.value.replace(/\D/g, '').slice(0, 7))}
+            error={fieldErrors.studentCode}
             leadingIcon={<Hash className="size-4" />}
-            hint="Không bắt buộc"
-            placeholder="HS0123"
+            hint="Gồm đúng 7 chữ số"
+            placeholder="2406105"
+            inputMode="numeric"
+            maxLength={7}
           />
         </div>
 
         <Input
-          label="Email"
+          label="Email LSTS"
           type="email"
-          required
           autoComplete="email"
-          value={form.email}
-          onChange={(event) => setField('email')(event.target.value)}
-          error={fieldErrors.email}
+          value={schoolEmail}
+          readOnly
           leadingIcon={<Mail className="size-4" />}
-          placeholder="tenem@gmail.com"
+          placeholder="Nhập mã học sinh để tạo email"
+          hint="Email được tạo tự động từ mã học sinh của em"
         />
 
         <div className="space-y-2">

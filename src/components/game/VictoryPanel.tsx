@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
-import { ArrowRight, ScrollText, Sparkles, Target } from 'lucide-react';
+import { useEffect, useState, type CSSProperties } from 'react';
+import { ArrowRight, Gem, ScrollText, Sparkles, Star, Target } from 'lucide-react';
 import type { Challenge } from '@/types/content';
 import type { RunResult } from '@/types/runner';
 import { Button } from '@/components/ui/Button';
 import { ByteMascot } from '@/components/game/ByteMascot';
-import { playSound } from '@/services/audio';
+import { playSound, playVictoryFanfare } from '@/services/audio';
 import { useUiStore } from '@/stores/uiStore';
 import { cn } from '@/utils/cn';
 
@@ -12,6 +12,7 @@ interface VictoryPanelProps {
   challenge: Challenge;
   result: RunResult | null;
   xpAwarded: number;
+  gemsAwarded?: number;
   /** Điều hướng bằng router của ứng dụng — KHÔNG dùng thẻ `a` để khỏi tải lại cả trang */
   onNext: () => void;
   nextLabel: string;
@@ -34,6 +35,7 @@ export function VictoryPanel({
   challenge,
   result,
   xpAwarded,
+  gemsAwarded = 0,
   onNext,
   nextLabel,
   secondaryAction,
@@ -47,8 +49,12 @@ export function VictoryPanel({
 
   // Tiếng reo mừng, kêu đúng một lần khi bảng hiện ra
   useEffect(() => {
-    playSound(isBoss ? 'levelup' : 'goal');
-  }, [isBoss]);
+    playVictoryFanfare(isBoss);
+    const gemTimer = window.setTimeout(() => {
+      if (gemsAwarded > 0) playSound('gem');
+    }, 620);
+    return () => window.clearTimeout(gemTimer);
+  }, [gemsAwarded, isBoss]);
 
   /*
     XP đếm dần lên thay vì hiện phắt con số cuối.
@@ -79,12 +85,20 @@ export function VictoryPanel({
 
   return (
     <section
-      className="cq-card p-5 border-verdant-500/60 bg-verdant-500/5"
+      className="cq-card relative overflow-hidden p-5 border-verdant-500/60 bg-[radial-gradient(circle_at_50%_0%,rgba(52,211,153,0.18),transparent_48%)]"
       role="status"
       aria-live="polite"
       aria-labelledby="victory-heading"
     >
-      <div className="flex items-center gap-4">
+      {!reducedMotion && xpAwarded > 0 && (
+        <div className="cq-fireworks" aria-hidden="true">
+          {Array.from({ length: 24 }, (_, index) => (
+            <span key={index} style={{ '--spark': index } as CSSProperties} />
+          ))}
+        </div>
+      )}
+
+      <div className="relative z-10 flex items-center gap-4">
         <span
           className="shrink-0"
           style={{ animation: reducedMotion ? undefined : 'hero-cheer 1.2s ease-out' }}
@@ -97,15 +111,32 @@ export function VictoryPanel({
             {isBoss ? 'Em đã đánh bại Boss của khu vực này!' : 'Nhiệm vụ hoàn thành!'}
           </h3>
 
-          {xpAwarded > 0 && (
-            <p className="flex items-center gap-1.5 text-treasure-300 font-bold mt-0.5">
-              <Sparkles className="size-4" aria-hidden="true" />
-              <span className="tabular-nums text-xl">+{shownXp}</span>
-              <span className="text-sm">XP</span>
-            </p>
-          )}
+          <p className="mt-0.5 text-sm text-slate-300">ByteLand đã ghi nhận chiến công của em.</p>
         </div>
       </div>
+
+      {xpAwarded > 0 && (
+        <div className="relative z-10 mt-4 grid grid-cols-3 gap-2" aria-label="Phần thưởng nhiệm vụ">
+          <RewardCard
+            icon={<Sparkles className="size-4" aria-hidden="true" />}
+            value={`+${shownXp}`}
+            label="XP"
+            tone="cyan"
+          />
+          <RewardCard
+            icon={<Gem className="size-4" aria-hidden="true" />}
+            value={`+${gemsAwarded}`}
+            label="Gem"
+            tone="gold"
+          />
+          <RewardCard
+            icon={<Star className="size-4" aria-hidden="true" />}
+            value="1/1"
+            label="Mục tiêu"
+            tone="green"
+          />
+        </div>
+      )}
 
       {/* --- Kết quả số dòng vàng --- */}
       {par?.par != null && (
@@ -175,5 +206,33 @@ export function VictoryPanel({
         {secondaryAction}
       </div>
     </section>
+  );
+}
+
+function RewardCard({
+  icon,
+  value,
+  label,
+  tone,
+}: {
+  icon: React.ReactNode;
+  value: string;
+  label: string;
+  tone: 'cyan' | 'gold' | 'green';
+}) {
+  const tones = {
+    cyan: 'border-quest-400/25 bg-quest-500/10 text-quest-200',
+    gold: 'border-treasure-400/30 bg-treasure-500/10 text-treasure-200',
+    green: 'border-verdant-400/25 bg-verdant-500/10 text-verdant-200',
+  };
+
+  return (
+    <div className={cn('rounded-xl border px-2 py-2.5 text-center shadow-lg', tones[tone])}>
+      <span className="mx-auto flex w-fit items-center justify-center gap-2 font-extrabold tabular-nums">
+        <span className="grid shrink-0 place-items-center" aria-hidden="true">{icon}</span>
+        <span>{value}</span>
+      </span>
+      <span className="mt-0.5 block text-[9px] font-bold uppercase tracking-wider opacity-75">{label}</span>
+    </div>
   );
 }

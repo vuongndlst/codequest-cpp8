@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fitScale } from './TileMapStage';
+import { FIRST_MISSION_MAX_SCALE, fitScale, MAX_SCALE, MIN_SCALE } from './TileMapStage';
 
 /**
  * Bản đồ KHÔNG ĐƯỢC tràn ra ngoài cột phải của màn hình nhiệm vụ.
@@ -10,7 +10,12 @@ import { fitScale } from './TileMapStage';
  */
 describe('Chọn tỉ lệ bản đồ theo bề ngang khung', () => {
   it('khung rộng thì phóng to hết cỡ', () => {
-    expect(fitScale(4, 1000)).toBe(4);
+    expect(fitScale(4, 1000)).toBe(MAX_SCALE);
+  });
+
+  it('chỉ màn nhập môn được mở rộng tới mức trần riêng', () => {
+    expect(fitScale(7, 1200, 3, 600, FIRST_MISSION_MAX_SCALE)).toBe(FIRST_MISSION_MAX_SCALE);
+    expect(fitScale(7, 1200, 3, 600)).toBe(MAX_SCALE);
   });
 
   it('khung hẹp thì co lại cho vừa, không tràn', () => {
@@ -20,12 +25,18 @@ describe('Chọn tỉ lệ bản đồ theo bề ngang khung', () => {
   });
 
   it('không bao giờ nhỏ hơn mức sàn, dù khung hẹp tới đâu', () => {
-    expect(fitScale(20, 50)).toBe(2);
-    expect(fitScale(9, 0)).toBe(4);
+    expect(fitScale(20, 50)).toBe(MIN_SCALE);
+    expect(fitScale(9, 0)).toBe(MAX_SCALE);
   });
 
   it('không bao giờ lớn hơn mức trần, dù khung rộng tới đâu', () => {
-    expect(fitScale(3, 5000)).toBe(4);
+    expect(fitScale(3, 5000)).toBe(MAX_SCALE);
+  });
+
+  it('co theo cả chiều cao để bản đồ và ô code cùng nằm trong khung nhìn', () => {
+    // 6 hàng × 16px × 6 = 576px, nhưng khung chỉ dành 320px cho bản đồ.
+    const scale = fitScale(5, 900, 6, 320);
+    expect(6 * 16 * scale).toBeLessThanOrEqual(320);
   });
 
   it('luôn trả về số nguyên — tỉ lệ lẻ làm ảnh pixel bị nhoè', () => {
@@ -37,8 +48,8 @@ describe('Chọn tỉ lệ bản đồ theo bề ngang khung', () => {
   });
 
   it('kích thước không hợp lệ thì lùi về mức trần thay vì vỡ giao diện', () => {
-    expect(fitScale(5, Number.NaN)).toBe(4);
-    expect(fitScale(5, -100)).toBe(4);
+    expect(fitScale(5, Number.NaN)).toBe(MAX_SCALE);
+    expect(fitScale(5, -100)).toBe(MAX_SCALE);
   });
 
   /** Mọi bản đồ của Khu vực 1 phải lọt vừa cột phải trên laptop phổ thông. */

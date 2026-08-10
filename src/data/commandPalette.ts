@@ -106,7 +106,64 @@ export function paletteForChallenge(challenge: Challenge): PaletteCommand[] {
   if (challenge.kind === 'cleancode') return [];
 
   const order = LESSONS_META.findIndex((lesson) => lesson.id === challenge.lessonId);
-  if (order < 0) return BY_LESSON.l1 ?? [];
+  const available = order < 0 ? (BY_LESSON.l1 ?? []) : (BY_LESSON[challenge.lessonId] ?? []);
 
-  return BY_LESSON[challenge.lessonId] ?? BY_LESSON.l1 ?? [];
+  /*
+    Không đưa toàn bộ "hộp đồ nghề" của cả khu vực vào mọi nhiệm vụ.
+
+    Bản cũ làm một bài chỉ cần đi thẳng nhưng vẫn hiện quay trái, quay phải,
+    nhặt chìa, mở cửa, cout... Học sinh phải tự đoán nút nào liên quan trước
+    cả khi bắt đầu nghĩ thuật toán. Lời giải mẫu là nguồn tín hiệu chính xác
+    nhất để biết LỆNH NÀO cần, nhưng ta chỉ lộ từng lệnh rời — tuyệt đối không
+    lộ thứ tự hay số lần dùng nên vẫn không làm bài hộ.
+  */
+  const signal = [
+    challenge.solution ?? '',
+    challenge.starterCode,
+    challenge.instructions.join('\n'),
+    challenge.requiredPatterns.join('\n'),
+    ...(challenge.testCases.map((test) =>
+      [test.name, test.expectedOutput ?? '', JSON.stringify(test.expectedWorld ?? {})].join(' '),
+    )),
+  ].join('\n');
+
+  const isRelevant = (command: PaletteCommand): boolean => {
+    switch (command.label) {
+      case 'moveForward();':
+        return /\bmoveForward\b/.test(signal);
+      case 'turnRight();':
+        return /\bturnRight\b/.test(signal);
+      case 'turnLeft();':
+        return /\bturnLeft\b/.test(signal);
+      case 'collectGem();':
+        return /\bcollectGem\b/.test(signal);
+      case 'collectKey();':
+        return /\bcollectKey\b/.test(signal);
+      case 'openDoor();':
+        return /\bopenDoor\b/.test(signal);
+      case 'cout << "..." << endl;':
+        return /\bcout\b/.test(signal);
+      case 'int ten = 0;':
+        return /\bint\s+[A-Za-z_]/.test(signal);
+      case 'for (...) { }':
+        return /\bfor\s*\(/.test(signal);
+      case 'if (...) { }':
+        return /\bif\s*\(/.test(signal);
+      case 'isBlocked()':
+        return /\bisBlocked\s*\(/.test(signal);
+      default:
+        return false;
+    }
+  };
+
+  const selected = available.filter(isRelevant);
+  if (selected.length > 0) return selected;
+
+  // Lưới an toàn cho nội dung chưa có lời giải mẫu: chỉ đưa đúng một lệnh
+  // khởi đầu hợp ngữ cảnh, không quay lại hiển thị cả bảng của khu vực.
+  const fallbackLabel =
+    challenge.world?.kind === 'signal-tower' || challenge.world?.kind === 'workshop'
+      ? 'cout << "..." << endl;'
+      : 'moveForward();';
+  return available.filter((command) => command.label === fallbackLabel).slice(0, 1);
 }

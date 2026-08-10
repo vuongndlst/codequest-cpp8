@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import {
   BookOpen,
   GraduationCap,
+  Gem,
   LogOut,
   Map,
   Menu,
@@ -139,6 +140,12 @@ export function TopBar() {
             <span className="w-px h-4 bg-abyss-600" aria-hidden="true" />
             <span className="text-xs text-slate-300 tabular-nums">
               {profile?.total_xp ?? 0} XP
+            </span>
+            <span className="w-px h-4 bg-abyss-600" aria-hidden="true" />
+            <span className="inline-flex items-center gap-1 text-xs font-bold text-treasure-300 tabular-nums">
+              <Gem className="size-3" aria-hidden="true" />
+              {profile?.gem_balance ?? 0}
+              <span className="sr-only">Gem</span>
             </span>
           </div>
 

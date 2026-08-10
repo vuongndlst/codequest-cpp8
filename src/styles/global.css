@@ -317,6 +317,41 @@ html[data-theme='light'] {
   }
 }
 
+@keyframes portal-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes portal-breathe {
+  0%, 100% { transform: scale(0.92); filter: brightness(0.9); }
+  50% { transform: scale(1.04); filter: brightness(1.28); }
+}
+
+.cq-fireworks {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 92px;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.cq-fireworks span {
+  --angle: calc(var(--spark) * 15deg);
+  position: absolute;
+  left: 50%;
+  top: 58px;
+  width: 5px;
+  height: 12px;
+  border-radius: 999px;
+  background: hsl(calc(var(--spark) * 37deg) 88% 66%);
+  box-shadow: 0 0 8px currentColor;
+  animation: reward-firework 1.15s ease-out calc((var(--spark) % 6) * 45ms) both;
+}
+
+@keyframes reward-firework {
+  from { opacity: 1; transform: rotate(var(--angle)) translateY(0) scale(1); }
+  to { opacity: 0; transform: rotate(var(--angle)) translateY(-115px) scale(0.25); }
+}
+
 /* ---- AN MUNG ----
    Nhan vat nhay len khi toi dich. Nhay ba nhip nho dan roi dung han, chu khong
    nhay mai — nhay vo tan thanh ra gay xao nhang luc hoc sinh doc ket qua. */
@@ -341,6 +376,63 @@ html[data-theme='light'] {
   }
   100% {
     transform: translateY(0) scale(1);
+  }
+}
+
+/* Màn nhập môn: vài điểm sáng chậm tạo cảm giác thế giới đang sống.
+   Chỉ TileMapStage của nhiệm vụ đầu tiên dùng các animation này. */
+@keyframes first-mission-firefly {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: translate3d(0, 0, 0) scale(0.7);
+  }
+  45% {
+    opacity: 1;
+    transform: translate3d(8px, -10px, 0) scale(1.15);
+  }
+  70% {
+    opacity: 0.55;
+    transform: translate3d(-4px, -5px, 0) scale(0.9);
+  }
+}
+
+@keyframes first-mission-victory-burst {
+  0% {
+    opacity: 1;
+    transform: scale(0.35);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+}
+
+@keyframes first-mission-code-scan {
+  0% {
+    left: -18%;
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    left: 112%;
+    opacity: 0;
+  }
+}
+
+@keyframes first-mission-step-wave {
+  0% {
+    opacity: 0.95;
+    transform: scale(0.45);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.8);
   }
 }
 
@@ -385,6 +477,16 @@ html[data-theme='light'] {
     outline: none;
   }
 
+  /*
+    RouteAnnouncer đưa focus vào <main> sau mỗi lần chuyển trang để trình đọc
+    màn hình đọc đúng nội dung mới. <main> không phải điều khiển tương tác, nên
+    không vẽ một vòng focus cyan khổng lồ quanh toàn bộ trang.
+  */
+  main[tabindex='-1']:focus-visible {
+    outline: none;
+    box-shadow: none;
+  }
+
   code,
   pre,
   kbd {
@@ -412,6 +514,20 @@ html[data-theme='light'] {
    ========================================================================== */
 
 @layer components {
+  /*
+    Nen luoi cho khu vực mở đầu: gợi không gian bản đồ/code mà không cần ảnh
+    trang trí nặng. Hai lớp radial-gradient làm luới mờ dần về rìa, nên chữ và
+    bản xem trước nhiệm vụ vẫn là trọng tâm.
+  */
+  .cq-hero-grid {
+    background-image:
+      linear-gradient(rgb(34 211 238 / 0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(34 211 238 / 0.045) 1px, transparent 1px);
+    background-size: 34px 34px;
+    mask-image: radial-gradient(ellipse 85% 72% at 50% 42%, black 28%, transparent 82%);
+    -webkit-mask-image: radial-gradient(ellipse 85% 72% at 50% 42%, black 28%, transparent 82%);
+  }
+
   .cq-card {
     @apply bg-abyss-800/70 border border-abyss-600/60 rounded-card backdrop-blur-sm;
   }

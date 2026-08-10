@@ -50,6 +50,10 @@ interface CodeEditorProps {
   onChange: (value: string) => void;
   /** Dòng cần làm nổi bật (dòng có lỗi) */
   highlightedLines?: number[];
+  /** Dòng đang được engine thực thi — màu cyan, tách biệt với dòng lỗi màu đỏ. */
+  executingLine?: number;
+  /** Các dòng trọng tâm; dòng khung C++ còn lại được làm mờ để giảm tải nhận thức. */
+  focusLines?: number[];
   readOnly?: boolean;
   /** Chiều cao tối thiểu, mặc định vừa khít khung nhiệm vụ */
   minHeight?: string;
@@ -77,6 +81,47 @@ const errorLineField = StateField.define<DecorationSet>({
       next = Decoration.set(ranges, true);
     }
 
+    return next;
+  },
+  provide: (field) => EditorView.decorations.from(field),
+});
+
+const setExecutingLine = StateEffect.define<number | undefined>();
+const executingLineDecoration = Decoration.line({ class: 'cm-executingLine' });
+const executingLineField = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(decorations, transaction) {
+    let next = decorations.map(transaction.changes);
+    for (const effect of transaction.effects) {
+      if (!effect.is(setExecutingLine)) continue;
+      const line = effect.value;
+      next = line && line <= transaction.state.doc.lines
+        ? Decoration.set([executingLineDecoration.range(transaction.state.doc.line(line).from)])
+        : Decoration.none;
+    }
+    return next;
+  },
+  provide: (field) => EditorView.decorations.from(field),
+});
+
+const setFocusLines = StateEffect.define<number[]>();
+const scaffoldLineDecoration = Decoration.line({ class: 'cm-scaffoldLine' });
+const focusLineField = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(decorations, transaction) {
+    let next = decorations.map(transaction.changes);
+    for (const effect of transaction.effects) {
+      if (!effect.is(setFocusLines)) continue;
+      const focused = new Set(effect.value);
+      next = focused.size === 0
+        ? Decoration.none
+        : Decoration.set(
+            Array.from({ length: transaction.state.doc.lines }, (_, index) => index + 1)
+              .filter((line) => !focused.has(line))
+              .map((line) => scaffoldLineDecoration.range(transaction.state.doc.line(line).from)),
+            true,
+          );
+    }
     return next;
   },
   provide: (field) => EditorView.decorations.from(field),
@@ -117,6 +162,11 @@ const byteLandTheme = EditorView.theme(
       // Không CHỈ dùng màu để báo lỗi (mục 18) — thêm vạch đỏ bên trái
       boxShadow: 'inset 3px 0 0 0 #f87171',
     },
+    '.cm-executingLine': {
+      backgroundColor: 'rgba(34, 211, 238, 0.13)',
+      boxShadow: 'inset 3px 0 0 0 #22d3ee',
+    },
+    '.cm-scaffoldLine': { opacity: '0.42' },
     '.cm-matchingBracket, &.cm-focused .cm-matchingBracket': {
       backgroundColor: 'rgba(167, 139, 250, 0.3)',
       outline: 'none',
@@ -169,6 +219,11 @@ const dayLightTheme = EditorView.theme(
       backgroundColor: 'rgba(220, 38, 38, 0.09)',
       boxShadow: 'inset 3px 0 0 0 #dc2626',
     },
+    '.cm-executingLine': {
+      backgroundColor: 'rgba(8, 145, 178, 0.1)',
+      boxShadow: 'inset 3px 0 0 0 #0891b2',
+    },
+    '.cm-scaffoldLine': { opacity: '0.48' },
     '.cm-matchingBracket, &.cm-focused .cm-matchingBracket': {
       backgroundColor: 'rgba(124, 58, 237, 0.22)',
       outline: 'none',
@@ -303,6 +358,8 @@ function buildExtensions(
     bracketMatching(),
     cpp(),
     errorLineField,
+    executingLineField,
+    focusLineField,
     themeCompartment.of(themeExtension(resolvedTheme)),
     /*
       Dán code vào thì thụt lề lại luôn.
@@ -341,6 +398,8 @@ export function CodeEditor({
   value,
   onChange,
   highlightedLines = [],
+  executingLine,
+  focusLines = [],
   readOnly = false,
   minHeight = '320px',
   ariaLabel = 'Vùng viết code C++',
@@ -411,6 +470,18 @@ export function CodeEditor({
     if (!view) return;
     view.dispatch({ effects: setErrorLines.of(highlightedLines) });
   }, [highlightedLines]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({ effects: setExecutingLine.of(executingLine) });
+  }, [executingLine]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({ effects: setFocusLines.of(focusLines) });
+  }, [focusLines]);
 
   // Đổi bảng màu tại chỗ, giữ nguyên con trỏ và lịch sử Ctrl+Z
   useEffect(() => {

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { GameStage } from '@/components/game/GameStage';
+import { useStageReplay } from '@/components/game/useStageReplay';
 import { TileSprite, TILE_COLS, TILE_COUNT } from '@/components/game/TileSprite';
 import { Button } from '@/components/ui/Button';
 import { analyzeChallenge } from '@/validators';
@@ -108,6 +109,7 @@ export function StagePreviewDevPage() {
     () => analyzeChallenge(code, { ...BASE, world: spec }),
     [code, spec],
   );
+  const replay = useStageReplay(result.worldEvents, playKey);
 
   const pick = (next: WorldKind) => {
     setKind(next);
@@ -178,7 +180,7 @@ export function StagePreviewDevPage() {
             spec={spec}
             events={result.worldEvents}
             avatarId="guardian-cyan"
-            playKey={playKey}
+            playedCount={replay.playedCount}
           />
 
           <details className="cq-panel p-3">

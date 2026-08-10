@@ -1,44 +1,127 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useUiStore } from '@/stores/uiStore';
 import type { WorldEvent } from '@/validators/world';
 
-export const STAGE_STEP_MS = 320;
+/**
+ * Tốc độ phát lại chuỗi sự kiện.
+ *
+ *   · normal — nhịp vừa phải, đủ để mắt bám theo từng bước chân
+ *   · fast   — xem lại nhanh khi đã hiểu bài, khỏi phải ngồi chờ
+ *   · step   — ĐỨNG YÊN, mỗi lần bấm mới nhích một sự kiện
+ *
+ * Chế độ `step` là công cụ debug quan trọng nhất của cả màn hình: học sinh
+ * dừng đúng ngay trước bước sai, nhìn nhân vật đang đứng đâu, quay hướng nào,
+ * rồi mới đối chiếu với dòng code. Không có nó thì mọi lỗi chỉ hiện ra ở kết
+ * quả cuối cùng, và việc "tìm ra sai chỗ nào" biến thành đoán mò.
+ */
+export type ReplaySpeed = 'normal' | 'fast' | 'step';
+
+export const REPLAY_STEP_MS: Record<Exclude<ReplaySpeed, 'step'>, number> = {
+  normal: 320,
+  fast: 110,
+};
+
+/** Nhịp của chế độ bình thường — tên cũ, giữ lại cho các chỗ đang dùng. */
+export const STAGE_STEP_MS = REPLAY_STEP_MS.normal;
+
+export interface StageReplay {
+  /** Số sự kiện đã phát tới thời điểm này */
+  playedCount: number;
+  /** Tổng số sự kiện của lần chạy hiện tại */
+  total: number;
+  /** Đang tự động chạy (chế độ từng bước không tính là đang chạy) */
+  isPlaying: boolean;
+  /** Đã phát hết chuỗi sự kiện */
+  isDone: boolean;
+  /** Nhích thêm một sự kiện — dùng ở chế độ từng bước */
+  stepForward: () => void;
+  /** Nhảy thẳng tới cuối, bỏ qua phần còn lại */
+  skipToEnd: () => void;
+}
 
 /**
  * Phát lại chuỗi sự kiện thành từng bước.
  *
- * Tách ra khỏi component vì cả ba sân khấu (đường đi, tháp tín hiệu, xưởng
- * rèn) đều cần đúng cơ chế này. Ba bản sao của một vòng `setInterval` là ba
- * chỗ để quên dọn timer.
+ * Hook này CỐ Ý được gọi ở TRANG chứ không ở trong sân khấu. Trước đây mỗi sân
+ * khấu tự đếm nhịp của riêng nó, nên nút bấm nằm ngoài sân khấu — thanh điều
+ * khiển dưới bản đồ — không cách nào ra lệnh "nhích một bước" được. Nay trang
+ * giữ tiến độ, sân khấu chỉ nhận `playedCount` rồi vẽ. Sân khấu thành thuần
+ * hiển thị, còn nút bấm thì điều khiển được thật.
  *
  * Khi học sinh bật chế độ giảm chuyển động, kết quả cuối hiện ra ngay thay vì
- * chạy từng nhịp — yêu cầu về khả năng tiếp cận, không phải tuỳ chọn.
+ * chạy từng nhịp — yêu cầu về khả năng tiếp cận, không phải tuỳ chọn. Riêng
+ * chế độ từng bước thì VẪN đi từng bước: đó là học sinh chủ động bấm để tìm
+ * lỗi, không phải hoạt hình trang trí.
  */
-export function useStageReplay(events: WorldEvent[], playKey: number): number {
+export function useStageReplay(
+  events: WorldEvent[],
+  playKey: number,
+  speed: ReplaySpeed = 'normal',
+): StageReplay {
   const reducedMotion = useUiStore((state) => state.reducedMotion);
   const [playedCount, setPlayedCount] = useState(0);
+  const total = events.length;
 
+  /*
+    Tiến độ được giữ song song trong một ref.
+
+    Lý do: effect chạy tự động phụ thuộc vào `speed`, nên đổi tốc độ giữa chừng
+    sẽ dọn timer cũ và dựng timer mới. Nếu chỉ có state thì lần dựng lại đó bắt
+    đầu từ đâu là chuyện của closure cũ — dễ thành "bấm Nhanh ở bước tám thì
+    nhân vật nhảy về vạch xuất phát". Đọc tiến độ từ ref thì timer mới luôn nối
+    tiếp đúng chỗ đang dở.
+  */
+  const playedRef = useRef(0);
+
+  const setPlayed = useCallback((next: number) => {
+    playedRef.current = next;
+    setPlayedCount(next);
+  }, []);
+
+  // --- Có chuỗi sự kiện mới (mỗi lần bấm Chạy) thì quay về vạch xuất phát ---
   useEffect(() => {
-    if (events.length === 0) {
-      setPlayedCount(0);
-      return;
-    }
+    setPlayed(0);
+  }, [events, playKey, setPlayed]);
+
+  // --- Tự động nhích từng nhịp ---
+  useEffect(() => {
+    if (total === 0 || speed === 'step') return;
 
     if (reducedMotion) {
-      setPlayedCount(events.length);
+      setPlayed(total);
       return;
     }
 
-    setPlayedCount(0);
-    let current = 0;
-    const timer = setInterval(() => {
-      current += 1;
-      setPlayedCount(current);
-      if (current >= events.length) clearInterval(timer);
-    }, STAGE_STEP_MS);
+    if (playedRef.current >= total) return;
 
-    return () => clearInterval(timer);
-  }, [events, playKey, reducedMotion]);
+    /*
+      `setTimeout` hẹn lại từng nhịp thay vì `setInterval`: dọn timer khi đổi
+      tốc độ thì chỉ mất đúng một nhịp đang chờ, không mất tiến độ.
+    */
+    let timer: ReturnType<typeof setTimeout>;
 
-  return playedCount;
+    const tick = () => {
+      const next = Math.min(playedRef.current + 1, total);
+      setPlayed(next);
+      if (next < total) timer = setTimeout(tick, REPLAY_STEP_MS[speed]);
+    };
+
+    timer = setTimeout(tick, REPLAY_STEP_MS[speed]);
+    return () => clearTimeout(timer);
+  }, [events, playKey, reducedMotion, speed, total, setPlayed]);
+
+  const stepForward = useCallback(() => {
+    setPlayed(Math.min(playedRef.current + 1, total));
+  }, [total, setPlayed]);
+
+  const skipToEnd = useCallback(() => setPlayed(total), [total, setPlayed]);
+
+  return {
+    playedCount,
+    total,
+    isPlaying: total > 0 && playedCount < total && speed !== 'step',
+    isDone: total > 0 && playedCount >= total,
+    stepForward,
+    skipToEnd,
+  };
 }

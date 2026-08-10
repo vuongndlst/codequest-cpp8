@@ -34,7 +34,10 @@ export function ZoneCard({
 }: ZoneCardProps) {
   const Icon = getIcon(lesson.icon);
   const accent = ACCENTS[lesson.accent];
-  const isLocked = lockState === 'locked' || preview;
+  // Ở bản đồ xem trước, học sinh đang khám phá LỘ TRÌNH chứ chưa xem trạng
+  // thái tài khoản. Giữ màu và biểu tượng của khu vực để bản đồ có sức hút;
+  // chỉ khoá thật khi đây là bản đồ cá nhân sau đăng nhập.
+  const isLocked = lockState === 'locked' && !preview;
   const isCompleted = lockState === 'completed';
 
   const body = (
@@ -64,11 +67,18 @@ export function ZoneCard({
       </div>
 
       <div className="mt-4 space-y-2">
-        {isLocked ? (
+        {preview ? (
+          <div className="space-y-1.5">
+            <p className="text-xs leading-relaxed text-slate-400 line-clamp-2">
+              {lesson.subtitle}
+            </p>
+            <p className="text-xs font-semibold text-slate-500">
+              {lesson.challengeCount} nhiệm vụ · khoảng {lesson.estimatedMinutes} phút
+            </p>
+          </div>
+        ) : isLocked ? (
           <p className="text-xs text-slate-500">
-            {preview
-              ? 'Đăng nhập để bắt đầu hành trình'
-              : `Hoàn thành Khu vực ${lesson.order - 1} để mở khoá`}
+            {`Hoàn thành Khu vực ${lesson.order - 1} để mở khoá`}
           </p>
         ) : (
           <>
@@ -90,8 +100,16 @@ export function ZoneCard({
 
   const baseClass = cn(
     'block cq-card p-4 transition-colors',
-    isLocked ? 'opacity-60' : cn('hover:border-quest-500/60', accent.ring),
+    isLocked ? 'opacity-60' : cn(!preview && 'hover:border-quest-500/60', accent.ring),
   );
+
+  if (preview) {
+    return (
+      <li className={cn(baseClass, 'h-full')}>
+        {body}
+      </li>
+    );
+  }
 
   if (isLocked) {
     return (

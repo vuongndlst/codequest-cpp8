@@ -1,11 +1,12 @@
 import { Cog, PackageOpen } from 'lucide-react';
 import type { WorldEvent } from '@/validators/world';
-import { useStageReplay } from './useStageReplay';
 import { cn } from '@/utils/cn';
 
 interface WorkshopStageProps {
   events: WorldEvent[];
-  playKey: number;
+  /** Số sự kiện đã phát — trang giữ tiến độ, sân khấu chỉ vẽ đúng thời điểm đó */
+  playedCount: number;
+  hideTitle?: boolean;
 }
 
 interface Machine {
@@ -80,17 +81,16 @@ function replay(events: WorldEvent[]): Machine[] {
  * hàm rồi thắc mắc sao chạy chương trình không thấy gì. Nhìn cỗ máy nằm im
  * kèm dòng chữ "chưa được gọi" thì hiểu ngay, không cần giảng.
  */
-export function WorkshopStage({ events, playKey }: WorkshopStageProps) {
-  const playedCount = useStageReplay(events, playKey);
+export function WorkshopStage({ events, playedCount, hideTitle }: WorkshopStageProps) {
   const machines = replay(events.slice(0, playedCount));
 
   const hasRun = events.length > 0;
   const idleCount = machines.filter((machine) => machine.runCount === 0).length;
 
   return (
-    <section className="cq-panel p-4" aria-labelledby="workshop-heading">
+    <section aria-labelledby="workshop-heading">
       <div className="flex items-center justify-between gap-2 mb-3">
-        <h3 id="workshop-heading" className="text-sm font-bold text-slate-200">
+        <h3 id="workshop-heading" className={hideTitle ? 'sr-only' : 'text-sm font-bold text-slate-200'}>
           Xưởng Rèn
         </h3>
         <span className="text-xs text-slate-500">

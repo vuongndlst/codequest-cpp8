@@ -1,4 +1,5 @@
 import type { TilesetName } from './TileSprite';
+import { AVATARS } from '@/data/avatars';
 
 /**
  * Chỉ số ô dùng để dựng bản đồ.
@@ -44,6 +45,16 @@ export const TILE = {
   door: dungeon(45),
   /** Đuốc / đèn */
   torch: dungeon(29),
+  /** Rương phần thưởng */
+  chest: dungeon(41),
+  /** Bot cản đường */
+  bot: dungeon(108),
+  /** Boss pixel */
+  boss: dungeon(120),
+  /** Vũ khí và khiên dùng thống nhất với kho trang bị */
+  sword: dungeon(116),
+  shield: dungeon(118),
+  potion: dungeon(114),
 } as const;
 
 /**
@@ -77,6 +88,19 @@ export function propTile(type: string): TileRef | null {
       return TILE.wall;
     case 'tree':
       return TILE.tree;
+    case 'chest':
+      return TILE.chest;
+    case 'bot':
+    case 'enemy':
+      return TILE.bot;
+    case 'boss':
+      return TILE.boss;
+    case 'sword':
+      return TILE.sword;
+    case 'shield':
+      return TILE.shield;
+    case 'potion':
+      return TILE.potion;
     default:
       return null;
   }
@@ -88,16 +112,9 @@ export function propTile(type: string): TileRef | null {
  * Nhân vật của bộ Tiny Dungeon nằm ở ô 84–107. Ánh xạ theo `avatarId` để học
  * sinh chọn nhân vật nào thì thấy đúng nhân vật đó trên bản đồ.
  */
-export const HERO_TILES: Record<string, number> = {
-  'guardian-cyan': 84,
-  'guardian-violet': 85,
-  'mage-emerald': 86,
-  'mage-amber': 87,
-  'bot-sky': 96,
-  'bot-rose': 97,
-  'scout-lime': 98,
-  'scout-indigo': 99,
-};
+export const HERO_TILES: Record<string, number> = Object.fromEntries(
+  AVATARS.map((avatar) => [avatar.id, avatar.tileIndex]),
+);
 
 export const DEFAULT_HERO_TILE = 84;
 

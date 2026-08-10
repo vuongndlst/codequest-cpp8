@@ -24,6 +24,8 @@ export interface SignUpInput {
   avatarId?: string;
 }
 
+export const LSTS_EMAIL_DOMAIN = 'lsts.edu.vn';
+
 export const MIN_PASSWORD_LENGTH = 10;
 
 /**
@@ -242,6 +244,22 @@ export function validateEmail(email: string): string | null {
   }
   if (value.length > 120) return 'Email dài quá. Em kiểm tra lại nhé.';
   return null;
+}
+
+/** Mã học sinh LSTS gồm đúng 7 chữ số, ví dụ 2406105. */
+export function validateStudentCode(studentCode: string): string | null {
+  const value = studentCode.trim();
+  if (!value) return 'Em chưa nhập mã học sinh.';
+  if (!/^\d{7}$/.test(value)) {
+    return 'Mã học sinh LSTS phải gồm đúng 7 chữ số. Ví dụ: 2406105.';
+  }
+  return null;
+}
+
+/** Email trường là dữ liệu suy ra, không để học sinh phải gõ lại. */
+export function studentEmailFromCode(studentCode: string): string {
+  const value = studentCode.trim();
+  return value ? `${value}@${LSTS_EMAIL_DOMAIN}` : '';
 }
 
 export function validatePassword(

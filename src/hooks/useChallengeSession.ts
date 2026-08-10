@@ -11,6 +11,7 @@ import { completeChallenge } from '@/services/progressService';
 import { fetchAllLessonProgress, indexProgressByLesson } from '@/services/supabase/progress.repo';
 import { awardBadges, evaluateBadges, loadBadgeHistory } from '@/services/badgeService';
 import { fetchAllBadges, fetchUserBadges } from '@/services/supabase/gamification.repo';
+import { awardChallengeGems } from '@/services/supabase/equipment.repo';
 import type { BadgeRow } from '@/types/database';
 
 /**
@@ -81,6 +82,7 @@ export function useChallengeSession({
   const [playKey, setPlayKey] = useState(0);
   const [justCompleted, setJustCompleted] = useState(false);
   const [xpAwarded, setXpAwarded] = useState(0);
+  const [gemsAwarded, setGemsAwarded] = useState(0);
   const [newBadges, setNewBadges] = useState<BadgeRow[]>([]);
 
   const { saveState, flush, markSaved } = useAutoSave({
@@ -102,6 +104,7 @@ export function useChallengeSession({
     setSolutionVisible(false);
     setJustCompleted(false);
     setXpAwarded(0);
+    setGemsAwarded(0);
 
     void (async () => {
       const local = readLocalDraft(userId, challenge.id);
@@ -141,6 +144,9 @@ export function useChallengeSession({
 
   // --- Chạy code ---------------------------------------------------------
   const run = useCallback(async () => {
+    // Mỗi lần chạy là một bằng chứng mới. Nếu lần trước đúng nhưng lần này em
+    // đang thử thay đổi code, không giữ bảng chiến thắng phủ lên kết quả mới.
+    setJustCompleted(false);
     setIsRunning(true);
     await flush();
 
@@ -196,6 +202,8 @@ export function useChallengeSession({
       });
 
       setXpAwarded(outcome.xpAwarded);
+      const newGems = await awardChallengeGems(challenge.id).catch(() => 0);
+      setGemsAwarded(newGems);
       setJustCompleted(true);
       await refreshProfile();
 
@@ -272,6 +280,7 @@ export function useChallengeSession({
     playKey,
     justCompleted,
     xpAwarded,
+    gemsAwarded,
     newBadges,
     dismissBadges: () => setNewBadges([]),
     attemptsBeforeSolution: ATTEMPTS_BEFORE_SOLUTION,

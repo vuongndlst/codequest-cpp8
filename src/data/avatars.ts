@@ -1,32 +1,85 @@
 /**
- * Bộ avatar nhân vật.
+ * Danh sách 8 nhân vật pixel dùng thống nhất trong đăng ký, hồ sơ và bản đồ.
  *
- * Mục 22: avatar mặc định là hình minh hoạ, KHÔNG yêu cầu học sinh tải ảnh thật.
- * Toàn bộ hình được vẽ bằng SVG gốc trong `components/game/AvatarIcon.tsx`,
- * không dùng tài sản có bản quyền của sản phẩm khác.
+ * Sprite lấy từ Kenney Tiny Dungeon (CC0). Bộ gốc không đặt tên riêng cho từng
+ * nhân vật, vì vậy CodeQuest dùng tên nguyên bản của ByteLand thay vì gọi theo màu.
  */
-
-export type AvatarShape = 'visor' | 'hood' | 'antenna' | 'crest';
 
 export interface AvatarDef {
   id: string;
   name: string;
-  shape: AvatarShape;
-  /** Màu chính (thân/áo) */
-  primary: string;
-  /** Màu phụ (kính/viền) */
-  accent: string;
+  shortName: string;
+  role: string;
+  description: string;
+  /** Chỉ số ô trong public/game/tiny-dungeon.png. */
+  tileIndex: number;
 }
 
 export const AVATARS: AvatarDef[] = [
-  { id: 'guardian-cyan', name: 'Vệ Binh Lam', shape: 'visor', primary: '#0891b2', accent: '#67e8f9' },
-  { id: 'guardian-violet', name: 'Vệ Binh Tím', shape: 'visor', primary: '#7c3aed', accent: '#c4b5fd' },
-  { id: 'mage-emerald', name: 'Pháp Sư Ngọc', shape: 'hood', primary: '#059669', accent: '#6ee7b7' },
-  { id: 'mage-amber', name: 'Pháp Sư Hổ Phách', shape: 'hood', primary: '#d97706', accent: '#fcd34d' },
-  { id: 'bot-sky', name: 'Trợ Thủ Thiên Thanh', shape: 'antenna', primary: '#0284c7', accent: '#7dd3fc' },
-  { id: 'bot-rose', name: 'Trợ Thủ Hồng Ngọc', shape: 'antenna', primary: '#be185d', accent: '#f9a8d4' },
-  { id: 'scout-lime', name: 'Trinh Sát Lục', shape: 'crest', primary: '#4d7c0f', accent: '#bef264' },
-  { id: 'scout-indigo', name: 'Trinh Sát Chàm', shape: 'crest', primary: '#4338ca', accent: '#a5b4fc' },
+  {
+    id: 'guardian-cyan',
+    name: 'Arin Kiếm Sĩ',
+    shortName: 'Arin',
+    role: 'Kiếm sĩ ByteLand',
+    description: 'Bình tĩnh, bền bỉ và luôn tiến từng bước chắc chắn.',
+    tileIndex: 84,
+  },
+  {
+    id: 'guardian-violet',
+    name: 'Lyra Hộ Vệ',
+    shortName: 'Lyra',
+    role: 'Hộ vệ Ánh Sao',
+    description: 'Quan sát kỹ bản đồ trước khi chọn hành động.',
+    tileIndex: 85,
+  },
+  {
+    id: 'mage-emerald',
+    name: 'Mộc Linh',
+    shortName: 'Mộc',
+    role: 'Pháp sư Rừng Mã',
+    description: 'Biến những câu lệnh nhỏ thành giải pháp thông minh.',
+    tileIndex: 86,
+  },
+  {
+    id: 'mage-amber',
+    name: 'Sol Hỏa Thuật',
+    shortName: 'Sol',
+    role: 'Pháp sư Hỏa Tinh',
+    description: 'Tò mò, nhanh nhạy và thích thử nghiệm nhiều cách giải.',
+    tileIndex: 87,
+  },
+  {
+    id: 'bot-sky',
+    name: 'Bolt Thợ Máy',
+    shortName: 'Bolt',
+    role: 'Kỹ sư Robot',
+    description: 'Yêu máy móc, hàm lệnh và những hệ thống chạy chính xác.',
+    tileIndex: 96,
+  },
+  {
+    id: 'bot-rose',
+    name: 'Nova Trinh Sát',
+    shortName: 'Nova',
+    role: 'Trinh sát Tinh Vân',
+    description: 'Nhanh nhẹn và luôn tìm ra lỗi ẩn trong chương trình.',
+    tileIndex: 97,
+  },
+  {
+    id: 'scout-lime',
+    name: 'Moss Du Hiệp',
+    shortName: 'Moss',
+    role: 'Du hiệp Thung Lũng',
+    description: 'Kiên nhẫn tìm đường và không ngại sửa code để thử lại.',
+    tileIndex: 98,
+  },
+  {
+    id: 'scout-indigo',
+    name: 'Kiro Bóng Đêm',
+    shortName: 'Kiro',
+    role: 'Hiệp sĩ Bóng Đêm',
+    description: 'Tập trung, gọn gàng và luôn viết code có kế hoạch.',
+    tileIndex: 99,
+  },
 ];
 
 export const DEFAULT_AVATAR_ID = 'guardian-cyan';

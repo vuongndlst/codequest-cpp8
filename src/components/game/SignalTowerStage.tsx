@@ -1,11 +1,12 @@
 import { Box, Lightbulb } from 'lucide-react';
 import type { WorldEvent } from '@/validators/world';
-import { useStageReplay } from './useStageReplay';
 import { cn } from '@/utils/cn';
 
 interface SignalTowerStageProps {
   events: WorldEvent[];
-  playKey: number;
+  /** Số sự kiện đã phát — trang giữ tiến độ, sân khấu chỉ vẽ đúng thời điểm đó */
+  playedCount: number;
+  hideTitle?: boolean;
 }
 
 interface Beacon {
@@ -86,16 +87,15 @@ function replay(events: WorldEvent[]): { beacons: Beacon[]; crystals: Crystal[] 
  * Học sinh viết `x = 5;` rồi `x = 3;` sẽ thấy số 5 biến mất trước mắt. Giải
  * thích bằng lời không bao giờ vào bằng nhìn thấy.
  */
-export function SignalTowerStage({ events, playKey }: SignalTowerStageProps) {
-  const playedCount = useStageReplay(events, playKey);
+export function SignalTowerStage({ events, playedCount, hideTitle }: SignalTowerStageProps) {
   const { beacons, crystals } = replay(events.slice(0, playedCount));
 
   const hasRun = events.length > 0;
 
   return (
-    <section className="cq-panel p-4" aria-labelledby="tower-heading">
+    <section aria-labelledby="tower-heading">
       <div className="flex items-center justify-between gap-2 mb-3">
-        <h3 id="tower-heading" className="text-sm font-bold text-slate-200">
+        <h3 id="tower-heading" className={hideTitle ? 'sr-only' : 'text-sm font-bold text-slate-200'}>
           Tháp Tín Hiệu
         </h3>
         <span className="text-xs text-slate-500">

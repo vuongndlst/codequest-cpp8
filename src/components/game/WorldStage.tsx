@@ -1,8 +1,6 @@
-import { useEffect, useState } from 'react';
 import type { WorldSpec } from '@/types/content';
 import type { WorldEvent } from '@/validators/world';
 import { createWorldState } from '@/validators/world';
-import { useUiStore } from '@/stores/uiStore';
 import { AvatarIcon } from './AvatarIcon';
 import { cn } from '@/utils/cn';
 
@@ -10,45 +8,20 @@ interface WorldStageProps {
   spec: WorldSpec;
   events: WorldEvent[];
   avatarId?: string | null;
-  /** Khoá phát lại — đổi giá trị này để chạy lại animation từ đầu */
-  playKey: number;
+  /** Số sự kiện đã phát — trang giữ tiến độ, sân khấu chỉ vẽ đúng thời điểm đó */
+  playedCount: number;
+  hideTitle?: boolean;
 }
-
-const STEP_MS = 320;
 
 /**
  * Sân khấu game 2D.
  *
  * Chương trình của học sinh không vẽ trực tiếp — nó sinh ra chuỗi sự kiện,
- * component này phát lại thành animation. Khi bật chế độ giảm chuyển động,
- * kết quả cuối cùng hiện ra ngay lập tức thay vì chạy từng bước.
+ * component này vẽ lại trạng thái tại sự kiện thứ `playedCount`. Việc đếm nhịp
+ * nằm ở `useStageReplay` phía trang, để thanh điều khiển ngoài sân khấu ra
+ * lệnh chạy nhanh hay nhích từng bước được.
  */
-export function WorldStage({ spec, events, avatarId, playKey }: WorldStageProps) {
-  const reducedMotion = useUiStore((state) => state.reducedMotion);
-  const [playedCount, setPlayedCount] = useState(0);
-
-  useEffect(() => {
-    if (events.length === 0) {
-      setPlayedCount(0);
-      return;
-    }
-
-    if (reducedMotion) {
-      setPlayedCount(events.length);
-      return;
-    }
-
-    setPlayedCount(0);
-    let current = 0;
-    const timer = setInterval(() => {
-      current += 1;
-      setPlayedCount(current);
-      if (current >= events.length) clearInterval(timer);
-    }, STEP_MS);
-
-    return () => clearInterval(timer);
-  }, [events, playKey, reducedMotion]);
-
+export function WorldStage({ spec, events, avatarId, playedCount, hideTitle }: WorldStageProps) {
   const state = replayEvents(spec, events.slice(0, playedCount));
   const lastEvent = playedCount > 0 ? events[playedCount - 1] : null;
   const cellWidth = 100 / spec.cols;
@@ -56,8 +29,8 @@ export function WorldStage({ spec, events, avatarId, playKey }: WorldStageProps)
   const hasBoss = spec.props?.some((prop) => prop.type === 'bug') ?? false;
 
   return (
-    <section className="cq-panel p-4" aria-labelledby="stage-heading">
-      <h3 id="stage-heading" className="text-sm font-bold text-slate-200 mb-3">
+    <section aria-labelledby="stage-heading">
+      <h3 id="stage-heading" className={hideTitle ? 'sr-only' : 'text-sm font-bold text-slate-200 mb-2'}>
         Sân khấu ByteLand
       </h3>
 

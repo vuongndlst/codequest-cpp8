@@ -15,6 +15,8 @@ const ROOT = join(process.cwd(), 'supabase');
 
 const schemaSql = readFileSync(join(ROOT, 'migrations', '0001_init_schema.sql'), 'utf8');
 const policySql = readFileSync(join(ROOT, 'migrations', '0002_rls_policies.sql'), 'utf8');
+const identitySql = readFileSync(join(ROOT, 'migrations', '0005_lsts_student_identity.sql'), 'utf8');
+const economySql = readFileSync(join(ROOT, 'migrations', '0006_single_player_economy.sql'), 'utf8');
 
 /** Mọi bảng chứa dữ liệu gắn với một học sinh cụ thể. */
 const STUDENT_DATA_TABLES = [
@@ -146,6 +148,29 @@ describe('Migration RLS', () => {
 
     expect(writePolicies.length).toBeGreaterThan(0);
     expect(writePolicies.every((chunk) => chunk.includes('is_teacher'))).toBe(true);
+  });
+});
+
+describe('Migration danh tính và kinh tế chơi đơn', () => {
+  it('chuẩn hóa mã học sinh mới thành đúng 7 chữ số mà không xóa dữ liệu cũ', () => {
+    expect(identitySql).toContain("new.student_code !~ '^[0-9]{7}$'");
+    expect(identitySql).not.toMatch(/delete\s+from\s+public\.profiles/i);
+  });
+
+  it('mỗi nhiệm vụ chỉ thưởng Gem một lần', () => {
+    expect(economySql).toContain('uq_challenge_gem_reward unique (user_id, challenge_id)');
+    expect(economySql).toContain('on conflict (user_id, challenge_id) do nothing');
+  });
+
+  it('bảo vệ số dư Gem khỏi cập nhật trực tiếp từ client', () => {
+    expect(economySql).toContain('new.gem_balance := old.gem_balance');
+    expect(economySql).toContain("current_setting('app.codequest_gem_write'");
+  });
+
+  it('bật RLS cho toàn bộ bảng kinh tế', () => {
+    for (const table of ['challenge_gem_rewards', 'equipment_catalog', 'user_equipment']) {
+      expect(economySql).toContain(`alter table public.${table} enable row level security`);
+    }
   });
 });
 

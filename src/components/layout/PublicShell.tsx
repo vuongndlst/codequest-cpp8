@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { Link, Outlet } from 'react-router-dom';
-import { Zap } from 'lucide-react';
+import { ArrowRight, Zap } from 'lucide-react';
 import { SiteFooter } from './AppShell';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { RouteAnnouncer } from '@/components/common/RouteAnnouncer';
@@ -22,8 +22,8 @@ export function PublicShell() {
       <RouteAnnouncer />
       {!isOnline && <OfflineBanner />}
 
-      <header className="border-b border-abyss-800">
-        <div className="mx-auto max-w-6xl px-4 h-16 flex items-center justify-between">
+      <header className="sticky top-0 z-40 border-b border-abyss-800 bg-abyss-950/90 backdrop-blur-xl">
+        <div className="mx-auto max-w-7xl px-4 h-16 flex items-center justify-between gap-4">
           {/*
             Chữ thương hiệu ẩn ở màn hình hẹp, giống thanh điều hướng của app.
 
@@ -44,21 +44,46 @@ export function PublicShell() {
             </span>
           </Link>
 
-          <nav aria-label="Điều hướng phụ" className="flex items-center gap-1 text-sm">
-            <ThemeToggle className="mr-1" />
+          <nav
+            aria-label="Khám phá CodeQuest"
+            className="hidden lg:flex items-center justify-center gap-1 text-sm"
+          >
+            <Link
+              to="/demo"
+              className="px-3 h-9 inline-flex items-center rounded-lg text-slate-400 hover:text-slate-100 hover:bg-abyss-800"
+            >
+              Chơi thử
+            </Link>
+            <Link
+              to="/map-preview"
+              className="px-3 h-9 inline-flex items-center rounded-lg text-slate-400 hover:text-slate-100 hover:bg-abyss-800"
+            >
+              Bản đồ khóa học
+            </Link>
             <Link
               to="/handbook"
               className="px-3 h-9 inline-flex items-center rounded-lg text-slate-400 hover:text-slate-100 hover:bg-abyss-800"
             >
               Sổ tay lệnh
             </Link>
+          </nav>
+
+          <div className="flex items-center gap-1 sm:gap-2">
+            <ThemeToggle />
             <Link
               to="/auth/login"
-              className="px-3 h-9 inline-flex items-center rounded-lg text-slate-400 hover:text-slate-100 hover:bg-abyss-800"
+              className="px-2 sm:px-3 h-9 inline-flex items-center rounded-lg text-sm font-medium text-slate-300 hover:text-slate-100 hover:bg-abyss-800"
             >
               Đăng nhập
             </Link>
-          </nav>
+            <Link
+              to="/auth/register"
+              className="hidden sm:inline-flex h-9 items-center gap-1.5 rounded-lg bg-quest-600 px-3 text-sm font-bold text-onaccent shadow-md shadow-quest-600/20 transition hover:bg-quest-500"
+            >
+              Bắt đầu
+              <ArrowRight className="size-3.5" aria-hidden="true" />
+            </Link>
+          </div>
         </div>
       </header>
 

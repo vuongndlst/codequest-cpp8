@@ -5,7 +5,7 @@ Website học lập trình C++ tương tác dành cho học sinh lớp 8, theo p
 > **Trạng thái:** Hoàn thành cả 6 giai đoạn. Đủ nội dung 5 khu vực
 > (45 nhiệm vụ + 5 Exit Ticket + 5 bài hướng dẫn tư duy + phần mở đầu về thuật toán),
 > huy hiệu tự động, chứng chỉ PDF, dashboard giáo viên, hàng đợi offline.
-> **648 test** · sẵn sàng deploy lên GitHub Pages.
+> **866 test** · sẵn sàng deploy lên GitHub Pages.
 > Kiến trúc đầy đủ: [docs/phase-1-architecture.md](docs/phase-1-architecture.md)
 
 ---
@@ -29,6 +29,17 @@ Khoá học: **CodeQuest C++ 8** · Giáo viên phụ trách: **Nguyễn Đình 
 
 ### Đã có (Giai đoạn 6)
 
+- Trang giới thiệu sản phẩm, bản đồ xem trước và luồng bắt đầu được thiết kế lại để cho thấy ngay
+  vòng lặp cốt lõi: hiểu nhiệm vụ → viết C++ → xem thế giới phản hồi → sửa Bug và mở khoá
+- Màn làm nhiệm vụ đi theo một trục rõ ràng **nhiệm vụ → bản đồ → code**; nút chạy nằm ngay trên bản đồ,
+  bảng lệnh chỉ hiện cú pháp cần cho bài hiện tại và gợi ý được thu gọn thành popover
+- Nhiệm vụ đầu tiên dùng game workspace một viewport: map và editor luôn nằm cạnh nhau; học sinh phải
+  **dự đoán → chạy mẫu → xóa một lệnh → quan sát → khôi phục → hoàn thành**. Khung C++ được làm mờ,
+  dòng đang chạy sáng đồng bộ với từng bước chân của Byte
+- Sân khấu có ba chế độ phát **Thường / Nhanh / Từng bước**, cho phép dừng đúng trước bước sai
+  để đối chiếu vị trí nhân vật với code; bản đồ tự co theo cả chiều rộng lẫn chiều cao khung nhìn
+- Nút Run, lựa chọn tốc độ và hoạt động thử lệnh có âm thanh phản hồi; tiếng bước chân phát đúng
+  theo từng sự kiện di chuyển, đồng bộ với tốc độ hoạt ảnh trên bản đồ
 - **Hàng đợi offline**: hoàn thành nhiệm vụ khi mất mạng vẫn không mất tiến trình —
   thao tác được cất trong localStorage và tự ghi lại khi có mạng
 - Thông báo chuyển trang cho trình đọc màn hình, đưa tiêu điểm bàn phím về đầu nội dung
@@ -74,12 +85,14 @@ Khoá học: **CodeQuest C++ 8** · Giáo viên phụ trách: **Nguyễn Đình 
 - Sân khấu game 2D phát lại chuỗi sự kiện thành animation
 - Exit Ticket + trang khu vực + mở khoá node tuần tự
 - Chế độ Demo dùng chung engine thật, không ghi database
-- **Đủ 5 khu vực: 45 nhiệm vụ + 5 Exit Ticket**, có kiểm định nội dung tự động (430 test)
+- **Đủ 5 khu vực: 45 nhiệm vụ + 5 Exit Ticket**, có kiểm định nội dung tự động (450 test)
 
 ### Đã có (Giai đoạn 2)
 
 - Đăng ký / đăng nhập / đăng xuất / quên mật khẩu / khôi phục phiên bằng Supabase Auth
-- Hồ sơ học sinh: họ tên, lớp, mã học sinh, 8 avatar nhân vật vẽ bằng SVG gốc
+- Hồ sơ học sinh LSTS: mã 7 chữ số, email tự sinh `mã-học-sinh@lsts.edu.vn`, 8 nhân vật pixel đồng nhất với bản đồ
+- Nhạc nền tùy chọn, portal năng lượng, callout nhắc nhiệm vụ và màn thưởng XP · Gem · pháo hoa
+- Kinh tế chơi đơn: Gem thưởng một lần, kho trang bị, mua/nâng cấp an toàn qua RPC; Demo Sandbox mở toàn bộ để kiểm thử
 - Hai vai trò `student` / `teacher`, học sinh **không thể** tự chọn vai trò giáo viên
 - Dashboard học sinh: lời chào, cấp độ, XP, thanh tiến trình, sao, huy hiệu, chứng chỉ
 - Bản đồ 5 khu vực với trạng thái khoá / đang học / đã hoàn thành
@@ -227,17 +240,19 @@ Thiếu bước này thì đường dẫn đặt lại mật khẩu trong email 
 
 ## 7. Chạy migration
 
-### Cách nhanh nhất — dán một lần
+### Cài đặt mới
 
-Mở **SQL Editor → New query**, dán toàn bộ [supabase/setup/chay-tat-ca.sql](supabase/setup/chay-tat-ca.sql) rồi Run.
-
-File này gộp cả ba file bên dưới theo đúng thứ tự. Chạy lại nhiều lần cũng không sao — mọi lệnh đều dùng `if not exists` / `on conflict`.
+File [supabase/setup/chay-tat-ca.sql](supabase/setup/chay-tat-ca.sql) chỉ còn là bản baseline cũ. Với project mới, chạy các file migration theo đúng thứ tự bên dưới để có đủ lớp học, hỏi đáp, danh tính LSTS, Gem và trang bị.
 
 ### Hoặc chạy từng file
 
 1. `supabase/migrations/0001_init_schema.sql` — tạo bảng, hàm, trigger, index
 2. `supabase/migrations/0002_rls_policies.sql` — bật RLS và tạo policy
-3. `supabase/seed.sql` — nạp 10 huy hiệu và cài đặt lớp mẫu
+3. `supabase/migrations/0003_classes_and_xp_integrity.sql` — lớp học và toàn vẹn XP
+4. `supabase/migrations/0004_messages.sql` — hỏi đáp học sinh–giáo viên
+5. `supabase/migrations/0005_lsts_student_identity.sql` — mã học sinh LSTS 7 chữ số
+6. `supabase/migrations/0006_single_player_economy.sql` — Gem và trang bị chơi đơn
+7. `supabase/seed.sql` — nạp huy hiệu và cài đặt lớp mẫu
 
 > Sửa schema về sau thì sửa vào **file gốc trong `migrations/`**, rồi tạo lại file gộp. File gộp chỉ là bản tiện dụng cho lần cài đặt đầu tiên.
 
@@ -457,7 +472,7 @@ Chạy `supabase/tests/rls_checks.sql` để tự kiểm chứng những điều
 npm test
 ```
 
-**648 test** chia theo tầng:
+**866 test** chia theo tầng:
 
 | Nhóm | Số test | Nội dung |
 |---|---|---|
@@ -465,12 +480,12 @@ npm test
 | Engine chạy code | 48 | 13 lỗi thường gặp, ngữ nghĩa C++ (chia số nguyên, `cout << true` in ra `1`), chống vòng lặp vô hạn |
 | Accessibility | 19 | Nhãn, `aria-live`, không chỉ dùng màu để báo đúng/sai, điều hướng Tab |
 | Hàng đợi offline | 16 | Xếp hàng khi mất mạng, chạy lại đúng thứ tự, bỏ mục hỏng vĩnh viễn |
-| Migration + bảo mật | 15 | Mọi bảng bật RLS, `.env.example` không chứa giá trị thật |
+| Migration + bảo mật | 19 | RLS, danh tính LSTS, Gem không thể tự bơm, `.env.example` không chứa giá trị thật |
 | Chứng chỉ | 14 | 5 điều kiện, mã không trùng, clean code thấp vẫn được cấp |
 | Thống kê giáo viên | 14 | Lỗi phổ biến xếp theo số học sinh, CSV có BOM |
 | Auto-save | 12 | Debounce, không ghi mỗi phím gõ, mất mạng không mất code |
 | Huy hiệu | 13 | Dùng gợi ý không bị phạt |
-| Còn lại | 47 | XP, mở khoá, route guard, phần mở đầu |
+| Còn lại | 259 | XP, Gem, âm thanh, avatar pixel, route guard, game workspace nhập môn, menu cài đặt trên bản đồ, sân khấu game, lớp học, hỏi đáp và lưu tiến trình |
 
 Kiểm thử RLS chạy riêng trên database — xem mục 7.
 
@@ -502,6 +517,7 @@ npm run typecheck
 | Font giao diện | Be Vietnam Pro (Google Fonts) | SIL OFL 1.1 |
 | Font code | JetBrains Mono (Google Fonts) | SIL OFL 1.1 |
 | Icon | Lucide Icons | ISC |
-| Nhân vật Byte, avatar, favicon, 5 khu vực | Tự thiết kế bằng SVG | gốc |
+| Nhân vật Byte, favicon, 5 khu vực | Thiết kế nguyên bản trong dự án | gốc |
+| Avatar và tile bản đồ pixel | Kenney Tiny Dungeon / Tiny Town | CC0 1.0 |
 
 Toàn bộ giao diện, nhân vật và hình ảnh đều là thiết kế nguyên bản, **không sao chép** tài sản của CodeCombat, Swift Playgrounds hay bất kỳ sản phẩm nào khác.

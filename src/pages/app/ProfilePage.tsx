@@ -84,7 +84,6 @@ export function ProfilePage() {
       // KHÔNG gửi `class_name`: cột đó nay do `join_class_by_code()` quản lý.
       const updated = await updateProfile(profile.id, {
         full_name: fullName.trim(),
-        student_code: studentCode.trim() || null,
         avatar_id: avatarId,
       });
       setProfile(updated);
@@ -151,8 +150,8 @@ export function ProfilePage() {
             <Input
               label="Mã học sinh"
               value={studentCode}
-              onChange={(event) => setStudentCode(event.target.value)}
-              hint="Không bắt buộc"
+              readOnly
+              hint="Mã đăng nhập cố định; liên hệ thầy cô nếu em cần thay đổi"
               leadingIcon={<Hash className="size-4" />}
             />
 

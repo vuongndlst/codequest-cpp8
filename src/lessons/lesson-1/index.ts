@@ -88,7 +88,7 @@ const challenges: Challenge[] = [
     thinkingPrompt:
       'Trước khi bấm Chạy, em đoán thử: ba dòng lệnh này sẽ đưa Byte tới ô số mấy? Đoán xong rồi hãy chạy để kiểm tra.',
     whyThisMatters:
-      'Đây là ý quan trọng nhất của cả khu vực: một lệnh làm đúng một việc. Hiểu điều này thì em sẽ biết vì sao chương trình dài ra rất nhanh, và vì sao sau này người ta phải nghĩ ra vòng lặp.',
+      'Máy tính không đoán ý của em: mỗi dòng lệnh tạo ra đúng một hành động. Khi quan sát được mối nối giữa code và bước chân của Byte, em đã hiểu nền tảng đầu tiên của lập trình.',
     starterCode: `#include <iostream>
 using namespace std;
 
@@ -114,7 +114,7 @@ int main() {
       {
         errorCode: 'MISSING_SEMICOLON',
         message:
-          'Mỗi lệnh phải kết thúc bằng dấu `;`. Em có thể bấm nút lệnh ở bảng phía trên ô code — bấm là được chèn sẵn dấu chấm phẩy.',
+          'Mỗi lệnh phải kết thúc bằng dấu `;`. Em có thể bấm nút lệnh ở bảng ngay dưới ô code — dấu chấm phẩy sẽ được chèn sẵn.',
       },
     ],
     hints: [

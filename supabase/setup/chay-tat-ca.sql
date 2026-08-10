@@ -1,5 +1,5 @@
 ﻿-- ============================================================================
--- CODEQUEST C++ 8 - CAI DAT DATABASE (chay MOT LAN duy nhat)
+-- CODEQUEST C++ 8 - BASELINE DATABASE (ban cu)
 --
 -- CACH CHAY:
 --   1. Mo Supabase Dashboard cua thay
@@ -7,7 +7,9 @@
 --   3. Bam New query
 --   4. Dan TOAN BO file nay vao roi bam Run (hoac Ctrl + Enter)
 --
--- File nay gop 3 file goc lai lam mot, theo dung thu tu:
+-- QUAN TRONG: Sau file nay, phai chay tiep migration 0003 -> 0006.
+-- Project moi nen chay truc tiep tung file trong migrations theo dung thu tu.
+-- File nay chi gop 3 file baseline:
 --   0001_init_schema.sql  -> tao bang, ham, trigger, index
 --   0002_rls_policies.sql -> bat Row Level Security va tao policy
 --   seed.sql              -> nap 10 huy hieu va cai dat lop mau

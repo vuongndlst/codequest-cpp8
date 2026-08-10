@@ -1,5 +1,16 @@
 import { Link } from 'react-router-dom';
-import { Award, BookOpen, Brain, Flame, ScrollText, Sparkles, Star, Zap } from 'lucide-react';
+import {
+  ArrowRight,
+  Award,
+  BookOpen,
+  Brain,
+  Flame,
+  ScrollText,
+  Sparkles,
+  Star,
+  Trophy,
+  Zap,
+} from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { LESSONS_META } from '@/data/lessons.meta';
@@ -43,6 +54,7 @@ export function DashboardPage() {
   const completedCount = LESSONS_META.filter(
     (lesson) => data.progressByLesson[lesson.id]?.status === 'completed',
   ).length;
+  const allCompleted = completedCount === LESSONS_META.length;
 
   const firstName = profile?.full_name?.trim().split(/\s+/).pop() ?? 'bạn';
 
@@ -85,17 +97,41 @@ export function DashboardPage() {
             </div>
           </div>
 
-          {nextLesson && (
+          {allCompleted ? (
             <div className="sm:text-right shrink-0">
-              <p className="text-xs text-slate-500 mb-1">Nhiệm vụ tiếp theo</p>
-              <p className="text-sm font-semibold text-slate-200 mb-2">{nextLesson.zoneName}</p>
-              <Link to={`/app/lesson/${nextLesson.id}`}>
-                <Button leadingIcon={<Zap className="size-4" aria-hidden="true" />}>
-                  Tiếp tục
+              <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-treasure-300">
+                <Trophy className="size-3.5" aria-hidden="true" />
+                Đã giải cứu ByteLand
+              </p>
+              <p className="mt-1 mb-2 text-sm font-semibold text-slate-200">
+                Bộ sưu tập của em đã sẵn sàng
+              </p>
+              <Link to="/app/certificates">
+                <Button
+                  variant="treasure"
+                  trailingIcon={<ArrowRight className="size-4" aria-hidden="true" />}
+                >
+                  Xem chứng chỉ
                 </Button>
               </Link>
             </div>
-          )}
+          ) : nextLesson ? (
+            <div className="sm:min-w-56 sm:text-right shrink-0">
+              <p className="text-xs font-bold uppercase tracking-wide text-quest-400">
+                Nhiệm vụ đang mở
+              </p>
+              <p className="mt-1 text-sm font-semibold text-slate-200">{nextLesson.zoneName}</p>
+              <p className="mb-2 text-xs text-slate-500">{nextLesson.title}</p>
+              <Link to={`/app/lesson/${nextLesson.id}`}>
+                <Button
+                  leadingIcon={<Zap className="size-4" aria-hidden="true" />}
+                  trailingIcon={<ArrowRight className="size-4" aria-hidden="true" />}
+                >
+                  Tiếp tục hành trình
+                </Button>
+              </Link>
+            </div>
+          ) : null}
         </div>
       </section>
 

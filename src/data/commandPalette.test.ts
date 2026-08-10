@@ -57,7 +57,12 @@ describe('Bảng lệnh bấm để chèn', () => {
    * tên lệnh nhiều hơn là sai tư duy. Bấm nút thì không thể sai hai thứ đó.
    */
   it('khu vực 1 có sẵn ba lệnh di chuyển', () => {
-    const found = labels(makeChallenge({ lessonId: 'l1' }));
+    const found = labels(
+      makeChallenge({
+        lessonId: 'l1',
+        solution: 'moveForward();\nturnRight();\nturnLeft();',
+      }),
+    );
     expect(found).toContain('moveForward();');
     expect(found).toContain('turnRight();');
     expect(found).toContain('turnLeft();');
@@ -74,9 +79,22 @@ describe('Bảng lệnh bấm để chèn', () => {
   });
 
   it('vòng lặp xuất hiện từ khu vực 3, điều kiện từ khu vực 4', () => {
-    expect(labels(makeChallenge({ lessonId: 'l3' }))).toContain('for (...) { }');
-    expect(labels(makeChallenge({ lessonId: 'l3' }))).not.toContain('if (...) { }');
-    expect(labels(makeChallenge({ lessonId: 'l4' }))).toContain('if (...) { }');
+    expect(labels(makeChallenge({ lessonId: 'l3', solution: 'for (int i = 0; i < 4; i++) {}' }))).toContain('for (...) { }');
+    expect(labels(makeChallenge({ lessonId: 'l3', solution: 'for (int i = 0; i < 4; i++) {}' }))).not.toContain('if (...) { }');
+    expect(labels(makeChallenge({ lessonId: 'l4', solution: 'if (isBlocked()) {}' }))).toContain('if (...) { }');
+  });
+
+  it('mỗi nhiệm vụ chỉ hiện những lệnh thực sự cần dùng', () => {
+    const found = labels(
+      makeChallenge({
+        lessonId: 'l1',
+        solution: 'moveForward();\ncollectGem();',
+      }),
+    );
+
+    expect(found).toEqual(['moveForward();', 'collectGem();']);
+    expect(found).not.toContain('turnRight();');
+    expect(found).not.toContain('cout << "..." << endl;');
   });
 
   /** Bài dọn code: việc của em là sửa code có sẵn, không phải thêm lệnh mới. */

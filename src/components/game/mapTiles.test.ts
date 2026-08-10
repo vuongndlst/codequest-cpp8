@@ -68,7 +68,19 @@ describe('Ô nền của bản đồ', () => {
 
 describe('Ô của vật thể', () => {
   it('nhận các loại vật thể đang dùng trong nội dung', () => {
-    for (const type of ['gem', 'key', 'door', 'light', 'wall']) {
+    for (const type of [
+      'gem',
+      'key',
+      'door',
+      'light',
+      'wall',
+      'chest',
+      'bot',
+      'boss',
+      'sword',
+      'shield',
+      'potion',
+    ]) {
       expect(propTile(type), `thiếu tile cho ${type}`).not.toBeNull();
     }
   });

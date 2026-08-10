@@ -9,7 +9,20 @@ interface GameStageProps {
   spec: WorldSpec;
   events: WorldEvent[];
   avatarId?: string | null;
-  playKey: number;
+  /**
+   * Số sự kiện đã phát.
+   *
+   * Trang giữ tiến độ (qua `useStageReplay`) chứ không phải sân khấu, để thanh
+   * điều khiển nằm ngoài sân khấu ra lệnh chạy nhanh / nhích từng bước được.
+   */
+  playedCount: number;
+  /** Trang đã có tiêu đề sân khấu riêng thì ẩn tiêu đề lặp bên trong. */
+  hideTitle?: boolean;
+  /** Nhấn mạnh sân khấu nhập môn mà không làm thay đổi các nhiệm vụ phía sau. */
+  presentation?: 'default' | 'first-mission' | 'boss';
+  /** Đồng bộ hiệu ứng sân khấu với tốc độ phát lại do trang điều khiển. */
+  isPlaying?: boolean;
+  motionDurationMs?: number;
 }
 
 /**
@@ -21,21 +34,47 @@ interface GameStageProps {
  * Bỏ trống `kind` thì mặc định là `path` — 7 nhiệm vụ đã có sân khấu từ trước
  * không phải sửa một dòng nào.
  */
-export function GameStage({ spec, events, avatarId, playKey }: GameStageProps) {
+export function GameStage({
+  spec,
+  events,
+  avatarId,
+  playedCount,
+  hideTitle,
+  presentation = 'default',
+  isPlaying = false,
+  motionDurationMs = 280,
+}: GameStageProps) {
   switch (spec.kind) {
     case 'signal-tower':
-      return <SignalTowerStage events={events} playKey={playKey} />;
+      return <SignalTowerStage events={events} playedCount={playedCount} hideTitle={hideTitle} />;
 
     case 'workshop':
-      return <WorkshopStage events={events} playKey={playKey} />;
+      return <WorkshopStage events={events} playedCount={playedCount} hideTitle={hideTitle} />;
 
     case 'map':
       return (
-        <TileMapStage spec={spec} events={events} avatarId={avatarId} playKey={playKey} />
+        <TileMapStage
+          spec={spec}
+          events={events}
+          avatarId={avatarId}
+          playedCount={playedCount}
+          hideTitle={hideTitle}
+          presentation={presentation}
+          isPlaying={isPlaying}
+          motionDurationMs={motionDurationMs}
+        />
       );
 
     case 'path':
     default:
-      return <WorldStage spec={spec} events={events} avatarId={avatarId} playKey={playKey} />;
+      return (
+        <WorldStage
+          spec={spec}
+          events={events}
+          avatarId={avatarId}
+          playedCount={playedCount}
+          hideTitle={hideTitle}
+        />
+      );
   }
 }

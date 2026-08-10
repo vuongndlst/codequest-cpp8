@@ -32,6 +32,8 @@ export interface ProfileRow {
   avatar_id: string;
   role: UserRole;
   total_xp: number;
+  /** Có sau migration 0006; optional để hồ sơ cache cũ vẫn khôi phục an toàn. */
+  gem_balance?: number;
   level: number;
   streak_days: number;
   last_active_date: string | null;
@@ -132,6 +134,26 @@ export interface ClassSettingsRow {
   unlocked_lessons: string[];
   allow_solution_view: boolean;
   updated_by: string | null;
+  updated_at: string;
+}
+
+export interface EquipmentCatalogRow {
+  id: string;
+  name: string;
+  description: string;
+  base_cost: number;
+  max_level: number;
+  unlock_lesson: string;
+  sort_order: number;
+}
+
+export interface UserEquipmentRow {
+  id: string;
+  user_id: string;
+  equipment_id: string;
+  level: number;
+  equipped: boolean;
+  acquired_at: string;
   updated_at: string;
 }
 

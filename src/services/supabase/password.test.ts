@@ -2,9 +2,11 @@
 import {
   MIN_PASSWORD_LENGTH,
   checkPassword,
+  studentEmailFromCode,
   validateClassCode,
   validatePassword,
   validatePasswordConfirm,
+  validateStudentCode,
 } from './auth.service';
 
 describe('Độ dài mật khẩu', () => {
@@ -111,5 +113,18 @@ describe('Mã lớp', () => {
 
   it('từ chối mã quá ngắn', () => {
     expect(validateClassCode('AB')).toContain('chưa đúng định dạng');
+  });
+});
+
+describe('Danh tính học sinh LSTS', () => {
+  it('chỉ nhận mã gồm đúng 7 chữ số', () => {
+    expect(validateStudentCode('2406105')).toBeNull();
+    expect(validateStudentCode('240610')).toContain('7 chữ số');
+    expect(validateStudentCode('24A6105')).toContain('7 chữ số');
+  });
+
+  it('tạo email trường từ mã học sinh', () => {
+    expect(studentEmailFromCode(' 2406105 ')).toBe('2406105@lsts.edu.vn');
+    expect(studentEmailFromCode('')).toBe('');
   });
 });
