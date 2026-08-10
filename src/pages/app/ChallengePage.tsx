@@ -5,6 +5,8 @@ import {
   ArrowLeft,
   BookOpen,
   Brain,
+  ChevronDown,
+  ChevronUp,
   ChevronsRight,
   Footprints,
   Gauge,
@@ -22,6 +24,13 @@ import { useChallengeSession } from '@/hooks/useChallengeSession';
 import { useAuthStore } from '@/stores/authStore';
 import { useUiStore } from '@/stores/uiStore';
 import { updateProfile } from '@/services/supabase/profiles.repo';
+import {
+  equipItem,
+  fetchEquipmentCatalog,
+  fetchUserEquipment,
+  purchaseOrUpgradeEquipment,
+} from '@/services/supabase/equipment.repo';
+import type { EquipmentCatalogRow, UserEquipmentRow } from '@/types/database';
 import { CodeEditor, type CodeEditorHandle } from '@/components/editor/CodeEditor';
 import { CommandPalette } from '@/components/editor/CommandPalette';
 import { ResultPanel } from '@/components/editor/ResultPanel';
@@ -29,6 +38,7 @@ import { HintPanel } from '@/components/learning/HintPanel';
 import { FirstMissionWorkspace } from '@/components/learning/FirstMissionWorkspace';
 import { HandbookModal } from '@/components/learning/Handbook';
 import { GameStage } from '@/components/game/GameStage';
+import { ZoneSceneStage } from '@/components/game/ZoneSceneStage';
 import { MapSettingsMenu } from '@/components/game/MapSettingsMenu';
 import { useStageReplay, type ReplaySpeed } from '@/components/game/useStageReplay';
 import { ByteMascot } from '@/components/game/ByteMascot';
@@ -68,7 +78,9 @@ export function ChallengePage() {
   const { lessonId = '', challengeId = '' } = useParams();
   const navigate = useNavigate();
   const profile = useAuthStore((state) => state.profile);
+  const user = useAuthStore((state) => state.user);
   const setProfile = useAuthStore((state) => state.setProfile);
+  const refreshProfile = useAuthStore((state) => state.refreshProfile);
   const soundEnabled = useUiStore((state) => state.soundEnabled);
   const toggleSound = useUiStore((state) => state.toggleSound);
   const musicEnabled = useUiStore((state) => state.musicEnabled);
@@ -76,8 +88,14 @@ export function ChallengePage() {
 
   const [handbookOpen, setHandbookOpen] = useState(false);
   const [hintOpen, setHintOpen] = useState(false);
+  const [activeCommandToken, setActiveCommandToken] = useState('');
+  const [requirementsExpanded, setRequirementsExpanded] = useState(false);
   const [isEditorExpanded, setIsEditorExpanded] = useState(false);
   const [replaySpeed, setReplaySpeed] = useState<ReplaySpeed>('normal');
+  const [equipmentCatalog, setEquipmentCatalog] = useState<EquipmentCatalogRow[]>([]);
+  const [userEquipment, setUserEquipment] = useState<UserEquipmentRow[]>([]);
+  const [equipmentBusyId, setEquipmentBusyId] = useState<string | null>(null);
+  const [equipmentError, setEquipmentError] = useState<string | null>(null);
   const editorRef = useRef<CodeEditorHandle>(null);
   const mapRef = useRef<HTMLDivElement>(null);
 
@@ -99,6 +117,29 @@ export function ChallengePage() {
   }, []);
 
   useEffect(() => {
+    if (!user) {
+      setEquipmentCatalog([]);
+      setUserEquipment([]);
+      return;
+    }
+
+    let cancelled = false;
+    void Promise.all([fetchEquipmentCatalog(), fetchUserEquipment(user.id)])
+      .then(([catalog, owned]) => {
+        if (cancelled) return;
+        setEquipmentCatalog(catalog);
+        setUserEquipment(owned);
+        setEquipmentError(null);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) setEquipmentError(error instanceof Error ? error.message : 'Chưa tải được kho trang bị.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  useEffect(() => {
     if (!isEditorExpanded) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setIsEditorExpanded(false);
@@ -107,6 +148,11 @@ export function ChallengePage() {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [isEditorExpanded]);
 
+  useEffect(() => {
+    setRequirementsExpanded(false);
+    setActiveCommandToken('');
+  }, [challengeId]);
+
   if (!lesson || !challenge) return <NotFoundPage />;
 
   const challengeIds = getChallengeIds(lessonId);
@@ -114,6 +160,10 @@ export function ChallengePage() {
   const nextChallengeId = challengeIds[index + 1];
   const relevantCommands = paletteForChallenge(challenge);
   const isFirstMission = challenge.id === 'l1-c1-observe';
+  const visibleInstructions = requirementsExpanded
+    ? challenge.instructions
+    : challenge.instructions.slice(0, 3);
+  const hiddenInstructionCount = Math.max(0, challenge.instructions.length - visibleInstructions.length);
 
   /** Chạy từ editor thì tự đưa mắt học sinh trở lại bản đồ để xem nhân vật. */
   const runAndWatch = () => {
@@ -137,15 +187,59 @@ export function ChallengePage() {
     setProfile(updated);
   };
 
+  const buyOrUpgradeEquipment = async (equipmentId: string) => {
+    setEquipmentBusyId(equipmentId);
+    setEquipmentError(null);
+    try {
+      const wasOwned = userEquipment.some((item) => item.equipment_id === equipmentId);
+      const purchased = await purchaseOrUpgradeEquipment(equipmentId);
+      // RPC mua mới có thể tự đánh dấu trang bị. Gọi equip một lần để database đảm bảo
+      // chỉ có đúng một vật phẩm đang dùng, kể cả với tài khoản được tạo từ migration cũ.
+      const updated = !wasOwned && purchased.equipped ? await equipItem(equipmentId) : purchased;
+      setUserEquipment((items) => {
+        const exists = items.some((item) => item.equipment_id === equipmentId);
+        return exists
+          ? items.map((item) => (item.equipment_id === equipmentId ? updated : item))
+          : [...items, updated];
+      });
+      await refreshProfile();
+      playSound('gem');
+    } catch (error) {
+      setEquipmentError(error instanceof Error ? error.message : 'Chưa nâng cấp được trang bị.');
+    } finally {
+      setEquipmentBusyId(null);
+    }
+  };
+
+  const equipEquipment = async (equipmentId: string) => {
+    setEquipmentBusyId(equipmentId);
+    setEquipmentError(null);
+    try {
+      const updated = await equipItem(equipmentId);
+      setUserEquipment((items) =>
+        items.map((item) => ({
+          ...item,
+          equipped: item.equipment_id === updated.equipment_id,
+          updated_at: item.equipment_id === updated.equipment_id ? updated.updated_at : item.updated_at,
+        })),
+      );
+      playSound('click');
+    } catch (error) {
+      setEquipmentError(error instanceof Error ? error.message : 'Chưa trang bị được vật phẩm.');
+    } finally {
+      setEquipmentBusyId(null);
+    }
+  };
+
   const editorPanel = (
     <section className="space-y-3" aria-labelledby="code-heading">
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-quest-400">
-            Bước {isFirstMission ? 4 : 3}
+            Code điều khiển Byte
           </p>
           <h2 id="code-heading" className="text-lg font-bold text-slate-100">
-            {isFirstMission ? 'Đọc và thử code' : 'Viết code của em'}
+            Chương trình của em
           </h2>
         </div>
         <div className="flex items-center gap-3">
@@ -176,16 +270,17 @@ export function ChallengePage() {
           handleRef={editorRef}
           value={session.code}
           onChange={session.setCode}
+          onActiveTokenChange={setActiveCommandToken}
           highlightedLines={session.highlightedLines}
           minHeight={isEditorExpanded ? 'calc(100vh - 220px)' : '380px'}
           ariaLabel={`Vùng viết code cho nhiệm vụ ${challenge.title}`}
         />
       )}
 
-      {/* Chỉ những lệnh cần cho nhiệm vụ, đặt SAU editor như một thanh phím tắt. */}
+      {/* Chỉ nhắc cú pháp liên quan sau khi học sinh chủ động gõ; không chèn code hộ. */}
       <CommandPalette
         commands={relevantCommands}
-        onInsert={(snippet) => editorRef.current?.insert(snippet)}
+        activeToken={activeCommandToken}
       />
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -317,20 +412,32 @@ export function ChallengePage() {
   }
 
   return (
-    <div className={cn('mx-auto space-y-5', isFirstMission ? 'max-w-7xl' : 'max-w-6xl')}>
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <Link
-            to={`/app/lesson/${lessonId}`}
-            className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-slate-200"
-          >
-            <ArrowLeft className="size-4" aria-hidden="true" />
-            {lesson.zoneName}
-          </Link>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
+    <div className="mx-auto max-w-[96rem] space-y-2">
+      <Link
+        to={`/app/lesson/${lessonId}`}
+        className="inline-flex items-center gap-2 text-xs text-slate-400 hover:text-slate-200"
+      >
+        <ArrowLeft className="size-3.5" aria-hidden="true" />
+        Trở về {lesson.zoneName}
+      </Link>
+
+      <section
+        className="overflow-hidden rounded-2xl border border-quest-500/35 bg-abyss-900 shadow-2xl shadow-black/20"
+        aria-label={`Không gian nhiệm vụ ${challenge.title}`}
+      >
+        <header className="flex min-h-14 flex-wrap items-center justify-between gap-2 border-b border-abyss-700 bg-abyss-800/95 px-3 py-2 sm:px-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-quest-500/15 text-quest-300">
+              <Target className="size-4.5" aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-quest-400">
+                Nhiệm vụ {index + 1}/{challengeIds.length}
+              </p>
+              <div className="flex min-w-0 items-center gap-2">
             <span
               className={cn(
-                'rounded-lg px-2.5 py-1 text-xs font-bold uppercase tracking-wide',
+                'hidden rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide sm:inline-flex',
                 challenge.kind === 'boss'
                   ? 'bg-alert-500/15 text-alert-400'
                   : challenge.kind === 'debug'
@@ -340,16 +447,17 @@ export function ChallengePage() {
             >
               {KIND_LABELS[challenge.kind] ?? challenge.kind}
             </span>
-            <h1 className="text-2xl font-extrabold text-slate-100">{challenge.title}</h1>
+                <h1 className="truncate text-sm font-extrabold text-slate-100 sm:text-base">{challenge.title}</h1>
+              </div>
+            </div>
           </div>
-        </div>
-        <p className="rounded-lg border border-abyss-700 bg-abyss-900 px-3 py-1.5 text-xs text-slate-400">
-          Nhiệm vụ {index + 1}/{challengeIds.length}
-        </p>
-      </header>
+          <p className="rounded-lg border border-abyss-600 bg-abyss-950 px-2.5 py-1.5 text-xs font-bold text-slate-400">
+            Mục tiêu {session.result?.isCorrect ? '1/1' : '0/1'}
+          </p>
+        </header>
 
       {/* ① NHIỆM VỤ — học sinh biết mục tiêu trước khi nhìn vào sân chơi. */}
-      <section className="rounded-2xl border border-abyss-700 bg-abyss-900 p-4 sm:p-5" aria-labelledby="instructions-heading">
+      <section className="border-b border-abyss-700 bg-abyss-900 px-3 py-3 sm:px-4" aria-labelledby="instructions-heading">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
           <div className="flex min-w-0 flex-1 gap-3">
             <ByteMascot size={42} animated={false} />
@@ -372,7 +480,7 @@ export function ChallengePage() {
 
           <div className="lg:w-[46%] lg:border-l lg:border-abyss-700 lg:pl-5">
             <ul className="space-y-2">
-              {challenge.instructions.map((instruction, position) => (
+              {visibleInstructions.map((instruction, position) => (
                 <li key={position} className="flex gap-2 text-sm text-slate-200">
                   <span className="grid size-5 shrink-0 place-items-center rounded-full bg-quest-500/15 text-[10px] font-bold text-quest-400">
                     {position + 1}
@@ -381,6 +489,26 @@ export function ChallengePage() {
                 </li>
               ))}
             </ul>
+            {challenge.instructions.length > 3 && (
+              <button
+                type="button"
+                onClick={() => {
+                  playSound('click');
+                  setRequirementsExpanded((expanded) => !expanded);
+                }}
+                aria-expanded={requirementsExpanded}
+                className="mt-2 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-quest-400 hover:bg-quest-500/10"
+              >
+                {requirementsExpanded ? (
+                  <ChevronUp className="size-3.5" aria-hidden="true" />
+                ) : (
+                  <ChevronDown className="size-3.5" aria-hidden="true" />
+                )}
+                {requirementsExpanded
+                  ? 'Thu gọn yêu cầu'
+                  : `Xem thêm ${hiddenInstructionCount} yêu cầu`}
+              </button>
+            )}
             {!isFirstMission && (
               <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-abyss-700 pt-3">
                 {(challenge.thinkingPrompt || lesson.conceptGuide.thinkingSteps[0]) && (
@@ -402,11 +530,13 @@ export function ChallengePage() {
         </div>
       </section>
 
+      <div className="grid min-h-[calc(100dvh-16rem)] lg:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.85fr)]">
+
       {/* ② BẢN ĐỒ LỚN — nút chạy và debug nằm ngay trên sân chơi. */}
       <section
         ref={mapRef}
         className={cn(
-          'scroll-mt-20 overflow-hidden rounded-2xl border border-quest-500/35 bg-abyss-900 shadow-xl shadow-black/15 transition-shadow duration-300',
+          'scroll-mt-20 overflow-hidden border-b border-abyss-700 bg-[radial-gradient(circle_at_50%_18%,rgba(34,211,238,0.1),transparent_60%)] transition-shadow duration-300 lg:border-b-0 lg:border-r',
           isFirstMission && replay.isPlaying && 'shadow-[0_0_48px_rgba(34,211,238,0.2)] ring-2 ring-quest-400/30',
         )}
         aria-labelledby="game-board-heading"
@@ -516,6 +646,14 @@ export function ChallengePage() {
                 onAvatarChange={changeAvatarOnMap}
                 accountHref="/app/profile"
                 accountActionLabel="Mở hồ sơ đầy đủ"
+                showEquipment={lesson.order >= 2 || challenge.kind === 'boss'}
+                equipmentCatalog={equipmentCatalog}
+                userEquipment={userEquipment}
+                equipmentBusyId={equipmentBusyId}
+                equipmentError={equipmentError}
+                currentLessonOrder={lesson.order}
+                onBuyOrUpgrade={buyOrUpgradeEquipment}
+                onEquip={equipEquipment}
               />
               <GameStage
                 spec={challenge.world}
@@ -526,18 +664,19 @@ export function ChallengePage() {
                 presentation={isFirstMission ? 'first-mission' : challenge.kind === 'boss' ? 'boss' : 'default'}
                 isPlaying={replay.isPlaying}
                 motionDurationMs={replaySpeed === 'fast' ? 100 : replaySpeed === 'step' ? 220 : 280}
+                lessonId={lesson.id}
               />
             </div>
           ) : (
-            <div className="grid min-h-72 place-items-center text-center">
-              <div>
-                <ByteMascot size={72} className="mx-auto" mood="thinking" />
-                <p className="mt-3 font-semibold text-slate-200">Byte đang chờ chương trình</p>
-                <p className="mt-1 text-sm text-slate-500">
-                  Nhiệm vụ này sẽ phản hồi qua màn hình kết quả sau khi chạy.
-                </p>
-              </div>
-            </div>
+            <ZoneSceneStage
+              lessonId={lesson.id}
+              challengeKind={challenge.kind}
+              challengeTitle={challenge.title}
+              events={stageEvents}
+              playedCount={replay.playedCount}
+              avatarId={profile?.avatar_id}
+              isPlaying={replay.isPlaying}
+            />
           )}
         </div>
 
@@ -554,8 +693,10 @@ export function ChallengePage() {
       </section>
 
       {/* ③ CODE — editor, lệnh cần dùng và công cụ nằm trong cùng một luồng. */}
-      <section className="rounded-2xl border border-abyss-700 bg-abyss-900 p-4 sm:p-5">
+      <section className="min-w-0 bg-abyss-900 p-3 sm:p-4">
         {editorPanel}
+      </section>
+      </div>
       </section>
 
       {(session.result || session.isRunning) && (

@@ -69,7 +69,7 @@ describe('Bố cục màn hình làm nhiệm vụ', () => {
 
     const map = screen.getByRole('heading', { name: 'Quan sát bản đồ' });
     const requirement = screen.getByRole('heading', { name: 'Nhiệm vụ của em' });
-    const code = screen.getByRole('heading', { name: 'Viết code của em' });
+    const code = screen.getByRole('heading', { name: 'Chương trình của em' });
 
     expect(requirement.compareDocumentPosition(map) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(map.compareDocumentPosition(code) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -94,13 +94,15 @@ describe('Bố cục màn hình làm nhiệm vụ', () => {
     expect(playSound).toHaveBeenCalledWith('click');
   });
 
-  it('bảng lệnh nằm SAU editor và chỉ đóng vai trò thanh phím tắt', () => {
+  it('coach nhắc lệnh nằm SAU editor và không cho bấm chèn code', () => {
     renderChallenge();
 
     const editor = screen.getByTestId('editor');
-    const palette = screen.getByRole('heading', { name: 'Lệnh cần cho nhiệm vụ' });
+    const palette = screen.getByRole('heading', { name: 'Nhắc lệnh khi em gõ' });
 
     expect(editor.compareDocumentPosition(palette) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText(/Byte chỉ nhắc cú pháp sau 2 ký tự/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /moveForward/i })).not.toBeInTheDocument();
   });
 
   it('gợi ý nằm cùng khu vực code nhưng mặc định chỉ là một nút gọn', () => {
@@ -136,6 +138,6 @@ describe('Bố cục màn hình làm nhiệm vụ', () => {
 
     unmount();
     renderChallenge('l1', 'l1-c2-concept');
-    expect(screen.getByRole('heading', { name: 'Viết code của em' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Chương trình của em' })).toBeInTheDocument();
   });
 });

@@ -50,7 +50,9 @@ export async function purchaseOrUpgradeEquipment(equipmentId: string): Promise<U
       p_equipment_id: equipmentId,
     });
     if (error) throw error;
-    return data as UserEquipmentRow;
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) throw new Error('EMPTY_EQUIPMENT_RESULT');
+    return row as UserEquipmentRow;
   } catch (error) {
     throw toRepositoryError(error, 'Chưa mua hoặc nâng cấp được trang bị.');
   }
@@ -63,7 +65,9 @@ export async function equipItem(equipmentId: string): Promise<UserEquipmentRow> 
       p_equipment_id: equipmentId,
     });
     if (error) throw error;
-    return data as UserEquipmentRow;
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) throw new Error('EMPTY_EQUIPMENT_RESULT');
+    return row as UserEquipmentRow;
   } catch (error) {
     throw toRepositoryError(error, 'Chưa trang bị được vật phẩm này.');
   }

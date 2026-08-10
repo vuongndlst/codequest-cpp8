@@ -48,6 +48,8 @@ import { tags } from '@lezer/highlight';
 interface CodeEditorProps {
   value: string;
   onChange: (value: string) => void;
+  /** Báo từ khóa ngay trước con trỏ để coach nhắc cú pháp sau khi học sinh bắt đầu gõ. */
+  onActiveTokenChange?: (token: string) => void;
   /** Dòng cần làm nổi bật (dòng có lỗi) */
   highlightedLines?: number[];
   /** Dòng đang được engine thực thi — màu cyan, tách biệt với dòng lỗi màu đỏ. */
@@ -342,6 +344,7 @@ function buildExtensions(
   readOnly: boolean,
   resolvedTheme: 'light' | 'dark',
   onChange: (value: string) => void,
+  onActiveTokenChange: (token: string) => void,
 ): Extension[] {
   return [
     lineNumbers(),
@@ -390,6 +393,13 @@ function buildExtensions(
     EditorState.readOnly.of(readOnly),
     EditorView.updateListener.of((update) => {
       if (update.docChanged) onChange(update.state.doc.toString());
+      if (update.docChanged || update.selectionSet) {
+        const cursor = update.state.selection.main.head;
+        const line = update.state.doc.lineAt(cursor);
+        const beforeCursor = line.text.slice(0, cursor - line.from);
+        const token = beforeCursor.match(/[A-Za-z_][A-Za-z0-9_]*$/)?.[0] ?? '';
+        onActiveTokenChange(token);
+      }
     }),
   ];
 }
@@ -397,6 +407,7 @@ function buildExtensions(
 export function CodeEditor({
   value,
   onChange,
+  onActiveTokenChange = () => undefined,
   highlightedLines = [],
   executingLine,
   focusLines = [],
@@ -409,6 +420,8 @@ export function CodeEditor({
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const onActiveTokenChangeRef = useRef(onActiveTokenChange);
+  onActiveTokenChangeRef.current = onActiveTokenChange;
 
   const resolvedTheme = useUiStore((state) => state.resolvedTheme);
   // Giữ trong ref để effect khởi tạo không phải phụ thuộc vào giá trị này
@@ -436,8 +449,11 @@ export function CodeEditor({
     const view = new EditorView({
       state: EditorState.create({
         doc: value,
-        extensions: buildExtensions(readOnly, themeRef.current, (next) =>
-          onChangeRef.current(next),
+        extensions: buildExtensions(
+          readOnly,
+          themeRef.current,
+          (next) => onChangeRef.current(next),
+          (token) => onActiveTokenChangeRef.current(token),
         ),
       }),
       parent: hostRef.current,

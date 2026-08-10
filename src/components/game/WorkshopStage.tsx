@@ -1,6 +1,8 @@
 import { Cog, PackageOpen } from 'lucide-react';
 import type { WorldEvent } from '@/validators/world';
 import { cn } from '@/utils/cn';
+import { TileSprite } from './TileSprite';
+import { TILE } from './mapTiles';
 
 interface WorkshopStageProps {
   events: WorldEvent[];
@@ -88,13 +90,23 @@ export function WorkshopStage({ events, playedCount, hideTitle }: WorkshopStageP
   const idleCount = machines.filter((machine) => machine.runCount === 0).length;
 
   return (
-    <section aria-labelledby="workshop-heading">
+    <section aria-labelledby="workshop-heading" className="rounded-2xl border-2 border-treasure-400/30 bg-gradient-to-b from-amber-500/12 via-orange-500/5 to-abyss-950 p-4 shadow-[0_18px_60px_rgba(245,158,11,0.1)]">
       <div className="flex items-center justify-between gap-2 mb-3">
         <h3 id="workshop-heading" className={hideTitle ? 'sr-only' : 'text-sm font-bold text-slate-200'}>
           Xưởng Rèn
         </h3>
         <span className="text-xs text-slate-500">
           {hasRun ? `${machines.length} cỗ máy trên bàn` : 'Chưa chạy'}
+        </span>
+      </div>
+
+      <div className="relative mb-4 h-28 overflow-hidden rounded-xl border border-abyss-700 bg-abyss-950/75" aria-hidden="true">
+        <div className="absolute inset-x-0 bottom-0 h-10 border-t border-treasure-400/20 bg-[repeating-linear-gradient(90deg,rgba(148,163,184,.16)_0_20px,rgba(15,23,42,.65)_20px_40px)]" />
+        <TileSprite index={TILE.torch.index} sheet={TILE.torch.sheet} scale={3} className="absolute left-[8%] bottom-8 drop-shadow-[0_0_12px_rgba(251,191,36,.7)]" />
+        <TileSprite index={TILE.sword.index} sheet={TILE.sword.sheet} scale={4} className="absolute left-[43%] bottom-8 drop-shadow-[0_8px_8px_rgba(0,0,0,.5)]" />
+        <TileSprite index={TILE.chest.index} sheet={TILE.chest.sheet} scale={4} className="absolute right-[8%] bottom-8 drop-shadow-[0_8px_8px_rgba(0,0,0,.5)]" />
+        <span className="absolute left-3 top-2 rounded-full bg-treasure-500/12 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-treasure-200">
+          Khai báo = lắp máy · Gọi hàm = bật máy
         </span>
       </div>
 
@@ -105,12 +117,12 @@ export function WorkshopStage({ events, playedCount, hideTitle }: WorkshopStageP
             : 'Bấm Chạy code để lắp máy lên bàn.'}
         </p>
       ) : (
-        <ul className="space-y-2 list-none">
+        <ul className="grid gap-2 list-none sm:grid-cols-2">
           {machines.map((machine) => (
             <li
               key={machine.name}
               className={cn(
-                'rounded-xl border p-3 transition-colors',
+                'min-h-32 rounded-xl border p-3 transition-all',
                 machine.isRunningNow
                   ? 'border-quest-500 bg-quest-500/15'
                   : machine.runCount > 0
@@ -128,7 +140,10 @@ export function WorkshopStage({ events, playedCount, hideTitle }: WorkshopStageP
                   )}
                   aria-hidden="true"
                 >
-                  <Cog className={cn('size-5', machine.isRunningNow && 'animate-spin')} />
+                  <span className="relative grid place-items-center">
+                    <TileSprite index={TILE.sword.index} sheet={TILE.sword.sheet} scale={2} className={cn(machine.isRunningNow && 'animate-pulse')} />
+                    <Cog className={cn('absolute size-4 drop-shadow-md', machine.isRunningNow && 'animate-spin')} />
+                  </span>
                 </span>
 
                 <div className="min-w-0 flex-1">

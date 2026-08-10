@@ -121,4 +121,40 @@ describe('Cài đặt nổi trên bản đồ', () => {
     expect(screen.getByRole('button', { name: 'Tắt âm thanh' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Trang bị' })).not.toBeInTheDocument();
   });
+
+  it('mua trang bị thật bằng dữ liệu từ Supabase thay vì chỉ mô phỏng', async () => {
+    const user = userEvent.setup();
+    const onBuyOrUpgrade = vi.fn();
+    render(
+      <MemoryRouter>
+        <MapSettingsMenu
+          avatarId="guardian-cyan"
+          account={{ name: 'Minh An', level: 3, totalXp: 300, gems: 100 }}
+          soundEnabled
+          onToggleSound={onToggleSound}
+          onAvatarChange={onAvatarChange}
+          accountHref="/app/profile"
+          accountActionLabel="Mở hồ sơ"
+          currentLessonOrder={3}
+          equipmentCatalog={[{
+            id: 'algorithm-sword',
+            name: 'Kiếm thuật toán',
+            description: 'Mở thao tác tấn công.',
+            base_cost: 45,
+            max_level: 3,
+            unlock_lesson: 'l3',
+            sort_order: 2,
+          }]}
+          userEquipment={[]}
+          onBuyOrUpgrade={onBuyOrUpgrade}
+        />
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Mở cài đặt trên bản đồ' }));
+    await user.click(screen.getByRole('button', { name: 'Trang bị' }));
+    await user.click(screen.getByRole('button', { name: 'Mua · 45 Gem' }));
+
+    expect(onBuyOrUpgrade).toHaveBeenCalledWith('algorithm-sword');
+  });
 });

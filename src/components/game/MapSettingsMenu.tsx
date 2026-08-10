@@ -18,6 +18,7 @@ import { TileSprite } from '@/components/game/TileSprite';
 import { TILE } from '@/components/game/mapTiles';
 import { playSound } from '@/services/audio';
 import { cn } from '@/utils/cn';
+import type { EquipmentCatalogRow, UserEquipmentRow } from '@/types/database';
 
 type MapMenuTab = 'character' | 'account' | 'equipment';
 
@@ -47,6 +48,13 @@ interface MapSettingsMenuProps {
   showEquipment?: boolean;
   /** Chế độ sandbox cho phép xem trước toàn bộ trang bị mà không ghi dữ liệu thật. */
   allEquipmentUnlocked?: boolean;
+  equipmentCatalog?: EquipmentCatalogRow[];
+  userEquipment?: UserEquipmentRow[];
+  equipmentBusyId?: string | null;
+  equipmentError?: string | null;
+  currentLessonOrder?: number;
+  onBuyOrUpgrade?: (equipmentId: string) => void | Promise<void>;
+  onEquip?: (equipmentId: string) => void | Promise<void>;
 }
 
 const TABS: Array<{
@@ -106,6 +114,13 @@ export function MapSettingsMenu({
   compact = false,
   showEquipment = true,
   allEquipmentUnlocked = false,
+  equipmentCatalog = [],
+  userEquipment = [],
+  equipmentBusyId = null,
+  equipmentError = null,
+  currentLessonOrder = 1,
+  onBuyOrUpgrade,
+  onEquip,
 }: MapSettingsMenuProps) {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<MapMenuTab>('character');
@@ -117,6 +132,40 @@ export function MapSettingsMenu({
   const menuRef = useRef<HTMLDivElement>(null);
   const avatar = getAvatar(avatarId);
   const visibleTabs = showEquipment ? TABS : TABS.filter((tab) => tab.id !== 'equipment');
+  const hasPersistentEquipment = equipmentCatalog.length > 0;
+  const equipmentItems = hasPersistentEquipment
+    ? equipmentCatalog.map((catalogItem) => {
+        const owned = userEquipment.find((item) => item.equipment_id === catalogItem.id);
+        const unlockOrder = Number(catalogItem.unlock_lesson.replace(/\D/g, '')) || 1;
+        const tile = catalogItem.id === 'algorithm-sword'
+          ? TILE.sword
+          : catalogItem.id === 'condition-shield'
+            ? TILE.shield
+            : TILE.key;
+        return {
+          ...catalogItem,
+          tileIndex: tile.index,
+          unlocked: Boolean(owned),
+          available: currentLessonOrder >= unlockOrder,
+          level: owned?.level ?? 0,
+          equipped: owned?.equipped ?? false,
+          upgradeCost: catalogItem.base_cost * Math.max(1, (owned?.level ?? 0) + 1),
+          status: owned
+            ? owned.equipped
+              ? 'Đang trang bị'
+              : `Đã sở hữu · Cấp ${owned.level}`
+            : currentLessonOrder >= unlockOrder
+              ? 'Đã mở khoá · Có thể mua bằng Gem'
+              : `Mở ở khu vực ${unlockOrder}`,
+        };
+      })
+    : EQUIPMENT_ROADMAP.map((item) => ({
+        ...item,
+        available: item.unlocked || allEquipmentUnlocked,
+        level: equipmentLevels[item.id] ?? (item.unlocked ? 1 : 0),
+        equipped: equippedItemId === item.id,
+        max_level: 3,
+      }));
 
   useEffect(() => {
     if (!open) return;
@@ -135,6 +184,10 @@ export function MapSettingsMenu({
       document.removeEventListener('pointerdown', onPointerDown);
     };
   }, [open]);
+
+  useEffect(() => {
+    if (typeof account.gems === 'number') setDemoGemBalance(account.gems);
+  }, [account.gems]);
 
   const chooseAvatar = async (nextAvatarId: string) => {
     if (nextAvatarId === avatarId || savingAvatarId) return;
@@ -389,7 +442,7 @@ export function MapSettingsMenu({
                 </div>
 
                 <ul className="mt-3 space-y-2 list-none">
-                  {EQUIPMENT_ROADMAP.map((item) => {
+                  {equipmentItems.map((item) => {
                     const unlocked = item.unlocked || allEquipmentUnlocked;
                     return (
                       <li
@@ -423,7 +476,7 @@ export function MapSettingsMenu({
                           )}>
                             {allEquipmentUnlocked && !item.unlocked ? 'Mở trong Demo Sandbox' : item.status}
                           </p>
-                          {allEquipmentUnlocked && (
+                          {allEquipmentUnlocked && !hasPersistentEquipment && (
                             <div className="mt-2 flex flex-wrap items-center gap-1.5">
                               <button
                                 type="button"
@@ -458,11 +511,52 @@ export function MapSettingsMenu({
                               </button>
                             </div>
                           )}
+                          {hasPersistentEquipment && item.available && (
+                            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                              {item.unlocked && (
+                                <button
+                                  type="button"
+                                  disabled={item.equipped || equipmentBusyId === item.id}
+                                  onClick={() => void onEquip?.(item.id)}
+                                  className={cn(
+                                    'rounded-md px-2 py-1 text-[9px] font-bold disabled:cursor-not-allowed',
+                                    item.equipped
+                                      ? 'bg-verdant-500/18 text-verdant-200'
+                                      : 'bg-quest-500/15 text-quest-200 hover:bg-quest-500/25 disabled:opacity-50',
+                                  )}
+                                >
+                                  {item.equipped ? 'Đang trang bị' : 'Trang bị'}
+                                </button>
+                              )}
+                              {item.level < item.max_level && (
+                                <button
+                                  type="button"
+                                  disabled={demoGemBalance < item.upgradeCost || equipmentBusyId === item.id}
+                                  onClick={() => void onBuyOrUpgrade?.(item.id)}
+                                  className="rounded-md bg-treasure-500/12 px-2 py-1 text-[9px] font-bold text-treasure-200 hover:bg-treasure-500/20 disabled:cursor-not-allowed disabled:opacity-45"
+                                >
+                                  {equipmentBusyId === item.id
+                                    ? 'Đang xử lý…'
+                                    : item.unlocked
+                                      ? `Nâng cấp · ${item.upgradeCost} Gem`
+                                      : `Mua · ${item.upgradeCost} Gem`}
+                                </button>
+                              )}
+                              {item.level >= item.max_level && (
+                                <span className="rounded-md bg-mage-500/12 px-2 py-1 text-[9px] font-bold text-mage-200">Cấp tối đa</span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </li>
                     );
                   })}
                 </ul>
+                {equipmentError && (
+                  <p className="mt-2 rounded-lg border border-danger-400/20 bg-danger-500/8 px-2.5 py-2 text-[10px] text-danger-200" role="alert">
+                    {equipmentError}
+                  </p>
+                )}
               </div>
             )}
           </div>

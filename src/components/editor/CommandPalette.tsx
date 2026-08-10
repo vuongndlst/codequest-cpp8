@@ -1,62 +1,79 @@
-import { MousePointerClick } from 'lucide-react';
+import { Keyboard, Sparkles } from 'lucide-react';
 import type { PaletteCommand } from '@/data/commandPalette';
-import { playSound } from '@/services/audio';
 
 interface CommandPaletteProps {
   commands: PaletteCommand[];
-  onInsert: (snippet: string) => void;
-  /** Màn đầu tiên hiện nghĩa của lệnh ngay cạnh cú pháp để tạo cầu nối code → hành động. */
-  teachingMode?: boolean;
+  /** Từ khóa ngay trước con trỏ. Rỗng nghĩa là học sinh chưa chủ động gõ lệnh. */
+  activeToken: string;
 }
 
 /**
- * Bảng lệnh bấm-để-chèn, đặt ngay trên ô viết code.
+ * Nhắc lệnh theo điều học sinh đang gõ — tuyệt đối không chèn code hộ.
  *
- * Lý do tồn tại: học sinh lớp 8 sai dấu `;` và sai chính tả tên lệnh nhiều hơn
- * là sai tư duy. Mỗi lần như vậy là một vòng "chạy → đọc lỗi → sửa" tiêu tốn
- * sự tập trung mà chẳng dạy được gì về thuật toán.
- *
- * Bảng CỐ Ý chỉ có từng lệnh rời. Việc ghép chúng theo thứ tự nào vẫn hoàn
- * toàn là việc của học sinh — đó mới là phần dạy tư duy, và đề bài cũng cấm
- * làm bài hộ.
+ * Chỉ khi em bắt đầu gõ ít nhất 2 ký tự, coach mới đối chiếu các lệnh thật sự
+ * cần cho nhiệm vụ. Kết quả là văn bản đọc-only, không có button/click-to-insert.
  */
-export function CommandPalette({ commands, onInsert, teachingMode = false }: CommandPaletteProps) {
+export function CommandPalette({ commands, activeToken }: CommandPaletteProps) {
   if (commands.length === 0) return null;
 
+  const query = activeToken.trim().toLowerCase();
+  const matches = query.length < 2
+    ? []
+    : commands.filter((command) => commandTrigger(command).startsWith(query)).slice(0, 2);
+
   return (
-    <section aria-labelledby="palette-heading" className="rounded-xl border border-abyss-700 bg-abyss-900/70 px-3 py-2.5">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+    <section
+      aria-labelledby="palette-heading"
+      className="min-h-16 rounded-xl border border-abyss-700 bg-abyss-950/55 px-3 py-2.5"
+    >
+      <div className="flex items-start gap-2.5">
+        <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg bg-quest-500/12 text-quest-300">
+          <Keyboard className="size-3.5" aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
         <h3
           id="palette-heading"
-          className="flex shrink-0 items-center gap-2 text-xs font-bold text-slate-400"
+          className="text-xs font-bold text-slate-300"
         >
-          <MousePointerClick className="size-3.5 text-quest-400" aria-hidden="true" />
-          Lệnh cần cho nhiệm vụ
+          Nhắc lệnh khi em gõ
         </h3>
 
-        <ul className="flex flex-1 flex-wrap gap-1.5 list-none sm:border-l sm:border-abyss-700 sm:pl-3">
-          {commands.map((command) => (
-            <li key={command.label} className={teachingMode ? 'min-w-0 flex-1 sm:flex-none' : undefined}>
-              <button
-                type="button"
-                title={command.hint}
-                onClick={() => {
-                  onInsert(command.snippet);
-                  playSound('click');
-                }}
-                className={
-                  teachingMode
-                    ? 'flex min-h-11 w-full items-center gap-3 rounded-lg border border-quest-500/30 bg-quest-500/5 px-3 text-left transition-colors hover:border-quest-500 hover:bg-quest-500/10'
-                    : 'h-8 rounded-lg border border-abyss-600 bg-abyss-800 px-2.5 font-mono text-xs text-quest-400 transition-colors hover:border-quest-500 hover:bg-abyss-700'
-                }
-              >
-                <code className="shrink-0 font-mono text-xs font-bold text-quest-400">{command.label}</code>
-                <span className={teachingMode ? 'text-xs text-slate-400' : 'sr-only'}>— {command.hint}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
+          {query.length < 2 && (
+            <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+              Em hãy tự bắt đầu gõ. Byte chỉ nhắc cú pháp sau 2 ký tự và không chèn code hộ.
+            </p>
+          )}
+
+          {query.length >= 2 && matches.length === 0 && (
+            <p className="mt-1 text-[11px] leading-relaxed text-treasure-300" role="status">
+              Chưa có lệnh phù hợp với <code className="font-mono">{activeToken}</code>. Em kiểm tra lại chính tả nhé.
+            </p>
+          )}
+
+          {matches.length > 0 && (
+            <ul className="mt-2 space-y-1.5" aria-live="polite">
+              {matches.map((command) => (
+                <li
+                  key={command.label}
+                  className="flex flex-col gap-0.5 rounded-lg border border-quest-500/20 bg-quest-500/6 px-2.5 py-2 sm:flex-row sm:items-center sm:gap-2"
+                >
+                  <span className="inline-flex items-center gap-1.5">
+                    <Sparkles className="size-3 text-quest-300" aria-hidden="true" />
+                    <code className="font-mono text-xs font-bold text-quest-300">{command.label}</code>
+                  </span>
+                  <span className="text-[11px] text-slate-400 sm:border-l sm:border-abyss-600 sm:pl-2">
+                    {command.hint}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </section>
   );
+}
+
+function commandTrigger(command: PaletteCommand): string {
+  return command.label.match(/^[A-Za-z_][A-Za-z0-9_]*/)?.[0]?.toLowerCase() ?? '';
 }

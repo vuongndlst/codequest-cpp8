@@ -3,6 +3,9 @@ import type { WorldEvent } from '@/validators/world';
 import { createWorldState } from '@/validators/world';
 import { AvatarIcon } from './AvatarIcon';
 import { cn } from '@/utils/cn';
+import { zonePresentation } from '@/data/zonePresentation';
+import { TileSprite } from './TileSprite';
+import { propTile, TILE } from './mapTiles';
 
 interface WorldStageProps {
   spec: WorldSpec;
@@ -11,6 +14,7 @@ interface WorldStageProps {
   /** Số sự kiện đã phát — trang giữ tiến độ, sân khấu chỉ vẽ đúng thời điểm đó */
   playedCount: number;
   hideTitle?: boolean;
+  lessonId?: string;
 }
 
 /**
@@ -21,12 +25,13 @@ interface WorldStageProps {
  * nằm ở `useStageReplay` phía trang, để thanh điều khiển ngoài sân khấu ra
  * lệnh chạy nhanh hay nhích từng bước được.
  */
-export function WorldStage({ spec, events, avatarId, playedCount, hideTitle }: WorldStageProps) {
+export function WorldStage({ spec, events, avatarId, playedCount, hideTitle, lessonId }: WorldStageProps) {
   const state = replayEvents(spec, events.slice(0, playedCount));
   const lastEvent = playedCount > 0 ? events[playedCount - 1] : null;
   const cellWidth = 100 / spec.cols;
   const initialWorld = createWorldState(spec);
   const hasBoss = spec.props?.some((prop) => prop.type === 'bug') ?? false;
+  const zone = zonePresentation(lessonId);
 
   return (
     <section aria-labelledby="stage-heading">
@@ -38,9 +43,15 @@ export function WorldStage({ spec, events, avatarId, playedCount, hideTitle }: W
         <BossHealthBar current={state.bugHp} max={initialWorld.bugHp} className="mb-3" />
       )}
 
-      <div className="relative rounded-xl bg-abyss-950 border border-abyss-700 p-3 overflow-hidden">
+      <div className={cn('relative overflow-hidden rounded-2xl border-2 bg-slate-950 bg-gradient-to-b p-4', zone.atmosphereClass, zone.borderClass)}>
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.14),transparent_68%)]" aria-hidden="true" />
+        <div className="pointer-events-none absolute inset-x-4 top-10 flex justify-around opacity-35" aria-hidden="true">
+          {zone.props.map((tile, index) => (
+            <TileSprite key={`${tile.sheet}-${tile.index}-${index}`} index={tile.index} sheet={tile.sheet} scale={3} />
+          ))}
+        </div>
         {/* Các ô đường đi */}
-        <div className="relative h-24">
+        <div className="relative h-40">
           <div className="absolute inset-x-0 bottom-0 flex">
             {Array.from({ length: spec.cols }, (_, index) => {
               const prop = spec.props?.find((item) => item.col === index);
@@ -54,15 +65,13 @@ export function WorldStage({ spec, events, avatarId, playedCount, hideTitle }: W
                 >
                   {prop && <PropIcon type={prop.type} active={isPropActive(prop, state)} />}
                   {isGoal && !prop && (
-                    <span className="text-lg" aria-hidden="true">
-                      🚩
-                    </span>
+                    <TileSprite index={TILE.gate.index} sheet={TILE.gate.sheet} scale={3} title="Cổng đích" />
                   )}
                   <div
                     className={cn(
-                      'w-full h-6 border-t-2 border-x border-abyss-600',
-                      index <= state.col ? 'bg-quest-500/15' : 'bg-abyss-800',
-                      isGoal && 'bg-treasure-400/15 border-treasure-400/40',
+                      'h-6 w-full border-x border-t-2 border-slate-600',
+                      index <= state.col ? 'bg-cyan-500/30' : 'bg-slate-800/95',
+                      isGoal && 'border-amber-300/60 bg-amber-400/25',
                     )}
                   />
                 </div>
@@ -79,7 +88,7 @@ export function WorldStage({ spec, events, avatarId, playedCount, hideTitle }: W
             }}
           >
             <div className="flex justify-center">
-              <AvatarIcon avatarId={avatarId} size={40} />
+              <AvatarIcon avatarId={avatarId} size={64} glow />
             </div>
           </div>
         </div>
@@ -96,7 +105,7 @@ export function WorldStage({ spec, events, avatarId, playedCount, hideTitle }: W
             <dt className="text-slate-500">Năng lượng:</dt>
             <dd className="text-slate-300 tabular-nums">{state.energy}</dd>
           </div>
-          {state.hasKey && <dd className="text-treasure-300">🔑 Có chìa khoá</dd>}
+          {state.hasKey && <dd className="text-treasure-300">Đã có chìa khoá</dd>}
         </dl>
       </div>
 
@@ -131,7 +140,7 @@ function BossHealthBar({
     <div className={className}>
       <div className="flex items-center justify-between mb-1">
         <span className="flex items-center gap-1.5 text-xs font-bold text-slate-300">
-          <span aria-hidden="true">{defeated ? '💀' : '🐛'}</span>
+          <TileSprite index={TILE.boss.index} sheet={TILE.boss.sheet} scale={2} />
           Bug King
         </span>
         <span className="text-xs tabular-nums text-slate-400">
@@ -160,24 +169,21 @@ function BossHealthBar({
 }
 
 function PropIcon({ type, active }: { type: string; active: boolean }) {
-  const icons: Record<string, [string, string]> = {
-    door: ['🚪', '🚪'],
-    light: ['💡', '💡'],
-    bridge: ['🌉', '🌉'],
-    wall: ['🧱', '🧱'],
-    bug: ['🐛', '💀'],
-    gem: ['💎', '✨'],
-  };
-
-  const [inactive, activeIcon] = icons[type] ?? ['⬜', '⬜'];
+  const tile = propTile(type === 'bug' ? 'boss' : type === 'bridge' ? 'gate' : type);
+  if (!tile) return null;
 
   return (
     <span
-      className={cn('text-lg leading-none transition-opacity', active ? 'opacity-100' : 'opacity-40')}
+      className={cn(
+        'leading-none transition-all',
+        active
+          ? 'opacity-100 drop-shadow-[0_0_10px_rgba(250,204,21,.65)]'
+          : 'opacity-55 grayscale-[.35]',
+      )}
       role="img"
       aria-label={`${describeProp(type)}${active ? ' (đã kích hoạt)' : ''}`}
     >
-      {active ? activeIcon : inactive}
+      <TileSprite index={tile.index} sheet={tile.sheet} scale={3} />
     </span>
   );
 }

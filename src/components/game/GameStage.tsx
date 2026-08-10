@@ -4,6 +4,7 @@ import { WorldStage } from './WorldStage';
 import { SignalTowerStage } from './SignalTowerStage';
 import { WorkshopStage } from './WorkshopStage';
 import { TileMapStage } from './TileMapStage';
+import { BossMissionProgress } from './BossMissionProgress';
 
 interface GameStageProps {
   spec: WorldSpec;
@@ -23,6 +24,7 @@ interface GameStageProps {
   /** Đồng bộ hiệu ứng sân khấu với tốc độ phát lại do trang điều khiển. */
   isPlaying?: boolean;
   motionDurationMs?: number;
+  lessonId?: string;
 }
 
 /**
@@ -43,7 +45,9 @@ export function GameStage({
   presentation = 'default',
   isPlaying = false,
   motionDurationMs = 280,
+  lessonId,
 }: GameStageProps) {
+  const stage = (() => {
   switch (spec.kind) {
     case 'signal-tower':
       return <SignalTowerStage events={events} playedCount={playedCount} hideTitle={hideTitle} />;
@@ -62,6 +66,7 @@ export function GameStage({
           presentation={presentation}
           isPlaying={isPlaying}
           motionDurationMs={motionDurationMs}
+          lessonId={lessonId}
         />
       );
 
@@ -74,7 +79,18 @@ export function GameStage({
           avatarId={avatarId}
           playedCount={playedCount}
           hideTitle={hideTitle}
+          lessonId={lessonId}
         />
       );
   }
+  })();
+
+  return (
+    <>
+      {presentation === 'boss' && (
+        <BossMissionProgress lessonId={lessonId} playedCount={playedCount} totalEvents={events.length} />
+      )}
+      {stage}
+    </>
+  );
 }

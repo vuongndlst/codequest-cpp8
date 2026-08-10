@@ -13,6 +13,7 @@ import { useUiStore } from '@/stores/uiStore';
 import { cn } from '@/utils/cn';
 import { tileStyle } from './TileSprite';
 import { TILE, groundTile, heroTile, propTile } from './mapTiles';
+import { zonePresentation } from '@/data/zonePresentation';
 
 interface TileMapStageProps {
   spec: WorldSpec;
@@ -24,6 +25,7 @@ interface TileMapStageProps {
   presentation?: 'default' | 'first-mission' | 'boss';
   isPlaying?: boolean;
   motionDurationMs?: number;
+  lessonId?: string;
 }
 
 const TILE_PX = 16;
@@ -161,11 +163,13 @@ export function TileMapStage({
   presentation = 'default',
   isPlaying = false,
   motionDurationMs = 280,
+  lessonId,
 }: TileMapStageProps) {
   const reducedMotion = useUiStore((state) => state.reducedMotion);
   const isFirstMission = presentation === 'first-mission';
   const isBossMission = presentation === 'boss';
   const maxScale = isFirstMission ? FIRST_MISSION_MAX_SCALE : MAX_SCALE;
+  const zone = zonePresentation(lessonId);
 
   /*
     Kêu tiếng theo ĐÚNG NHỊP animation, không phải kêu hết một lượt lúc chạy
@@ -279,6 +283,9 @@ export function TileMapStage({
           Bản đồ ByteLand
         </h3>
         <div className="flex flex-wrap items-center justify-end gap-2 text-xs">
+          <span className={cn('hidden rounded-full bg-white/5 px-2.5 py-1 font-semibold sm:inline', zone.accentClass)}>
+            {zone.name}
+          </span>
           {isFirstMission && (
             <span className="rounded-full bg-quest-500/10 px-2.5 py-1 font-semibold text-quest-300">
               1 lệnh = 1 bước
@@ -306,6 +313,7 @@ export function TileMapStage({
         <div
           className={cn(
             'relative mx-auto overflow-hidden rounded-xl border-2 border-abyss-700',
+            zone.borderClass,
             isFirstMission && 'shadow-[0_18px_70px_rgba(6,182,212,0.16)] ring-1 ring-quest-500/20',
             isBossMission && 'shadow-[0_18px_80px_rgba(139,92,246,0.22)] ring-2 ring-mage-500/35 border-mage-500/55',
           )}

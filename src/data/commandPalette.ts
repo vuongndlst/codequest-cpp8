@@ -2,18 +2,14 @@ import { LESSONS_META } from '@/data/lessons.meta';
 import type { Challenge } from '@/types/content';
 
 /**
- * Bảng lệnh bấm-để-chèn.
+ * Danh mục lệnh để coach đối chiếu khi học sinh chủ động gõ code.
  *
  * Học sinh lớp 8 gõ sai dấu `;` và sai chính tả tên lệnh nhiều hơn là sai tư
  * duy. Mỗi lần như vậy là một vòng "chạy → đọc lỗi → sửa" tiêu tốn sự tập
  * trung mà chẳng dạy được gì về thuật toán.
  *
- * Bảng này đưa sẵn khối lệnh viết đúng: bấm là chèn nguyên vẹn, kèm dấu `;`.
- * Đây chính là cách Swift Playgrounds làm — thanh phím tắt phía trên bàn phím.
- *
- * CỐ Ý KHÔNG đưa lời giải: bảng chỉ có từng lệnh rời, việc GHÉP CHÚNG THEO THỨ
- * TỰ NÀO vẫn hoàn toàn là việc của học sinh. Đề bài cấm tự động hoàn thành bài
- * hộ, và ghép thứ tự mới là phần dạy tư duy.
+ * Danh mục không bao giờ chèn code vào editor. Coach chỉ hiện cú pháp và ý nghĩa
+ * sau khi học sinh đã tự gõ ít nhất hai ký tự của tên lệnh.
  */
 
 export interface PaletteCommand {

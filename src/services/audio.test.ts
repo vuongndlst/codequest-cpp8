@@ -33,6 +33,7 @@ function stubAudio() {
     volume = 1;
     currentTime = 0;
     preload = '';
+    loop = false;
 
     constructor(src: string) {
       this.src = src;
@@ -42,6 +43,8 @@ function stubAudio() {
       played.push(this.src);
       return Promise.resolve();
     }
+
+    pause() {}
   }
 
   vi.stubGlobal('Audio', FakeAudio);
@@ -117,6 +120,18 @@ describe('Nhạc nền trong phòng máy', () => {
     setMusicEnabled(false);
     expect(isBackgroundMusicEnabled()).toBe(false);
   });
+
+  it('phát tệp nhạc CC0 sau khi học sinh bật nhạc trong màn chơi', async () => {
+    const played = stubAudio();
+    const { setGameMusicActive } = await import('./audio');
+
+    unlockAudio();
+    setGameMusicActive(true);
+    setMusicEnabled(true);
+
+    expect(played.some((source) => source.endsWith('/audio/bytelands-arcanum.mp3'))).toBe(true);
+    setGameMusicActive(false);
+  });
 });
 
 describe('Không bao giờ làm gãy màn hình nhiệm vụ', () => {
@@ -173,5 +188,11 @@ describe('Tệp âm thanh có thật', () => {
 
   it('không có tệp thừa nằm lại trong thư mục', () => {
     expect(files.size).toBe(ALL_SOUNDS.length);
+  });
+
+  it('có bản nhạc nền CC0 dùng trong game', () => {
+    expect(
+      readdirSync(join(process.cwd(), 'public', 'audio')).includes('bytelands-arcanum.mp3'),
+    ).toBe(true);
   });
 });

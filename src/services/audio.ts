@@ -38,10 +38,12 @@ const VOLUMES: Record<SoundName, number> = {
 };
 
 const cache = new Map<SoundName, HTMLAudioElement>();
+const BACKGROUND_MUSIC_FILE = 'bytelands-arcanum.mp3';
 let enabled = true;
 let unlocked = false;
 let musicEnabled = false;
 let gameMusicActive = false;
+let musicTrack: HTMLAudioElement | null = null;
 let musicContext: AudioContext | null = null;
 let musicTimer: number | null = null;
 let musicMaster: GainNode | null = null;
@@ -317,12 +319,36 @@ function scheduleMusicAhead(): void {
 }
 
 export function startBackgroundMusic(): void {
-  if (!musicEnabled || !gameMusicActive || !unlocked || musicTimer !== null) return;
-  scheduleMusicAhead();
-  musicTimer = window.setInterval(scheduleMusicAhead, 180);
+  if (!musicEnabled || !gameMusicActive || !unlocked || musicTrack || musicTimer !== null) return;
+
+  try {
+    const track = new Audio(audioUrl(BACKGROUND_MUSIC_FILE));
+    track.preload = 'auto';
+    track.loop = true;
+    track.volume = 0.24;
+    musicTrack = track;
+    void track.play().catch(() => {
+      // Một số thiết bị cũ không giải mã được MP3. Khi đó dùng bản nhạc Web Audio
+      // nguyên bản để học sinh vẫn có âm thanh, không làm gãy màn nhiệm vụ.
+      if (musicTrack === track) musicTrack = null;
+      startSynthBackgroundMusic();
+    });
+  } catch {
+    startSynthBackgroundMusic();
+  }
 }
 
 export function stopBackgroundMusic(): void {
+  if (musicTrack) {
+    try {
+      musicTrack.pause();
+      musicTrack.currentTime = 0;
+    } catch {
+      // Audio đã bị trình duyệt thu hồi; chỉ cần bỏ tham chiếu.
+    }
+    musicTrack = null;
+  }
+
   if (musicTimer !== null) {
     window.clearInterval(musicTimer);
     musicTimer = null;
@@ -349,6 +375,12 @@ export function stopBackgroundMusic(): void {
   nextBarTime = 0;
 }
 
+function startSynthBackgroundMusic(): void {
+  if (!musicEnabled || !gameMusicActive || !unlocked || musicTimer !== null || musicTrack) return;
+  scheduleMusicAhead();
+  musicTimer = window.setInterval(scheduleMusicAhead, 180);
+}
+
 /**
  * Fanfare nguyên bản khi qua màn. Đây là hiệu ứng nên tuân theo nút Tắt âm thanh,
  * không bắt buộc học sinh phải bật nhạc nền.
@@ -372,6 +404,12 @@ export function playVictoryFanfare(isBoss = false): void {
     master.connect(context.destination);
 
     // Duck nhạc nền để câu chúc mừng nghe rõ, sau đó tự đưa về âm lượng cũ.
+    if (musicTrack) {
+      musicTrack.volume = 0.08;
+      window.setTimeout(() => {
+        if (musicTrack) musicTrack.volume = 0.24;
+      }, 3200);
+    }
     if (musicMaster) {
       musicMaster.gain.cancelScheduledValues(now);
       musicMaster.gain.setValueAtTime(Math.max(0.0001, musicMaster.gain.value), now);
@@ -427,6 +465,7 @@ export function resetAudioForTest(): void {
   musicNoiseBuffer = null;
   musicEnabled = false;
   gameMusicActive = false;
+  musicTrack = null;
   nextBarTime = 0;
   musicBar = 0;
   musicSources.clear();

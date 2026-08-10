@@ -41,3 +41,6 @@ coverage/
 # Supabase CLI (nếu dùng)
 supabase/.branches/
 supabase/.temp/
+
+# Generated QA scratch files (screenshots, renders, contact sheets)
+tmp/

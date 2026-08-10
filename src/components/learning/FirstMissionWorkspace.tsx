@@ -4,7 +4,6 @@ import {
   ChevronsRight,
   Footprints,
   Gauge,
-  HelpCircle,
   Lightbulb,
   Play,
   RotateCcw,
@@ -15,7 +14,8 @@ import type { Challenge } from '@/types/content';
 import type { useChallengeSession } from '@/hooks/useChallengeSession';
 import type { ReplaySpeed, StageReplay } from '@/components/game/useStageReplay';
 import type { MapAccountSummary } from '@/components/game/MapSettingsMenu';
-import { CodeEditor, type CodeEditorHandle } from '@/components/editor/CodeEditor';
+import { CodeEditor } from '@/components/editor/CodeEditor';
+import { CommandPalette } from '@/components/editor/CommandPalette';
 import { HintPanel } from '@/components/learning/HintPanel';
 import { GameStage } from '@/components/game/GameStage';
 import { MapSettingsMenu } from '@/components/game/MapSettingsMenu';
@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/Button';
 import { SaveIndicator } from '@/components/common/StateViews';
 import { playSound } from '@/services/audio';
 import { cn } from '@/utils/cn';
+import { paletteForChallenge } from '@/data/commandPalette';
 
 type ChallengeSession = ReturnType<typeof useChallengeSession>;
 type RunPurpose = 'observe' | 'experiment' | 'finish';
@@ -79,13 +80,13 @@ export function FirstMissionWorkspace({
 }: FirstMissionWorkspaceProps) {
   const [briefingOpen, setBriefingOpen] = useState(true);
   const [prediction, setPrediction] = useState<number | null>(null);
-  const [commandHelpOpen, setCommandHelpOpen] = useState(false);
+  const [activeCommandToken, setActiveCommandToken] = useState('');
   const [hintOpen, setHintOpen] = useState(false);
   const [hasObserved, setHasObserved] = useState(false);
   const [hasExperimented, setHasExperimented] = useState(false);
   const [pendingRun, setPendingRun] = useState<PendingRun | null>(null);
-  const editorRef = useRef<CodeEditorHandle>(null);
   const briefingButtonRef = useRef<HTMLButtonElement>(null);
+  const relevantCommands = useMemo(() => paletteForChallenge(challenge), [challenge]);
 
   const movementLines = useMemo(
     () => session.code
@@ -248,27 +249,6 @@ export function FirstMissionWorkspace({
               <SaveIndicator state={session.saveState} />
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                playSound('click');
-                setCommandHelpOpen((open) => !open);
-              }}
-              aria-expanded={commandHelpOpen}
-              className="mt-3 inline-flex h-9 items-center gap-2 rounded-lg border border-quest-500/35 bg-quest-500/10 px-3 font-mono text-xs font-bold text-quest-300 hover:bg-quest-500/16"
-            >
-              moveForward();
-              <HelpCircle className="size-3.5" aria-hidden="true" />
-            </button>
-
-            {commandHelpOpen && (
-              <div className="absolute left-3 top-full z-40 mt-1 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-quest-400/35 bg-abyss-950 p-3 shadow-2xl sm:left-4">
-                <p className="text-xs font-bold text-slate-100">Tiến về phía trước đúng 1 ô</p>
-                <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
-                  <code className="text-quest-300">moveForward</code> là tên lệnh, <code className="text-quest-300">()</code> gọi lệnh và <code className="text-quest-300">;</code> kết thúc câu lệnh C++.
-                </p>
-              </div>
-            )}
           </div>
 
           <div className="border-b border-abyss-700 bg-abyss-800/55 px-3 py-2.5 sm:px-4">
@@ -326,9 +306,9 @@ export function FirstMissionWorkspace({
           <div className="min-h-0 flex-1 p-3 sm:p-4">
             <div className={cn(!hasObserved && 'relative')}>
               <CodeEditor
-                handleRef={editorRef}
                 value={session.code}
                 onChange={session.setCode}
+                onActiveTokenChange={setActiveCommandToken}
                 highlightedLines={session.highlightedLines}
                 executingLine={executingLine}
                 focusLines={movementLines}
@@ -342,6 +322,11 @@ export function FirstMissionWorkspace({
                 </div>
               )}
             </div>
+            {hasObserved && (
+              <div className="mt-2">
+                <CommandPalette commands={relevantCommands} activeToken={activeCommandToken} />
+              </div>
+            )}
           </div>
 
           <div className="border-t border-abyss-700 bg-abyss-800/70 p-3 sm:p-4">
