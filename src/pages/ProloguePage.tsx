@@ -15,7 +15,7 @@ import { cn } from '@/utils/cn';
 /**
  * Trang mở đầu — "Thuật toán là gì?".
  *
- * Đặt TRƯỚC Khu vực 1 và mở cho tất cả mọi người: đây là nội dung nền, không
+ * Đặt TRƯỚC Area 0 và mở cho tất cả mọi người: đây là nội dung nền, không
  * gắn tiến trình, không cấp chứng chỉ. Cả trang KHÔNG có một dòng C++ nào —
  * chủ ý là tách hẳn việc "nghĩ ra các bước" khỏi việc "viết bằng ngôn ngữ nào".
  */
@@ -248,7 +248,7 @@ export function ProloguePage() {
 
         <div className="flex flex-wrap gap-2 justify-center mt-4">
           {isSignedIn ? (
-            <Link to="/app/lesson/l1">
+            <Link to="/app/lesson/a0">
               <Button
                 leadingIcon={<Play className="size-4" aria-hidden="true" />}
                 trailingIcon={<ArrowRight className="size-4" aria-hidden="true" />}

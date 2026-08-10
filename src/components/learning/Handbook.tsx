@@ -110,7 +110,7 @@ export function Handbook({ upToLessonId, compact = false, focusCardIds }: Handbo
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Tìm lệnh… (ví dụ: cout, vòng lặp, if)"
+            placeholder="Tìm lệnh… (ví dụ: cout, moveRight, int)"
             className="w-full h-11 pl-10 pr-3 rounded-xl bg-abyss-900 border border-abyss-600 text-slate-100 placeholder:text-slate-500 focus:border-quest-500"
           />
         </div>

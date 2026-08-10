@@ -169,11 +169,11 @@ export function CertificatesPage() {
         <div className="cq-card p-5 text-center border-treasure-400/50 bg-treasure-400/5">
           <Sparkles className="size-8 text-treasure-400 mx-auto" aria-hidden="true" />
           <p className="mt-2 font-bold text-treasure-300">
-            Em đã sưu tập đủ cả 5 chứng chỉ của ByteLand!
+            Em đã sưu tập đủ cả 3 chứng chỉ của vertical slice!
           </p>
           <p className="text-sm text-slate-300 mt-1">
-            Từ chỗ chưa biết dấu chấm phẩy dùng để làm gì, giờ em đã ghép được hàm, vòng lặp và
-            điều kiện trong cùng một chương trình. Đó là một chặng đường dài đấy.
+            Từ chương trình `cout` đầu tiên, em đã điều khiển Byte bằng thuật toán và dùng biến để
+            theo dõi trạng thái. Nền móng C++ của em đã rất chắc rồi.
           </p>
         </div>
       )}

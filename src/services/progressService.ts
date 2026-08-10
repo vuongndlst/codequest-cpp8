@@ -1,6 +1,6 @@
 import type { Challenge } from '@/types/content';
 import type { LessonProgressRow, ProfileRow } from '@/types/database';
-import { getLesson, getRequiredChallengeIds } from '@/lessons';
+import { getRequiredChallengeIds } from '@/lessons';
 import {
   upsertLessonProgress,
   type LessonProgressPatch,
@@ -42,7 +42,7 @@ export interface CompleteChallengeResult {
  *
  * ⭐   vượt ≥ 70% nhiệm vụ bắt buộc
  * ⭐⭐  hoàn thành 100%
- * ⭐⭐⭐ hoàn thành 100% VÀ qua được node Clean Code Check
+ * ⭐⭐⭐ hoàn thành 100% VÀ vượt checkpoint (được cập nhật ở ExitTicketPage)
  *
  * Cố ý không tính số lần thử hay số gợi ý: đề bài yêu cầu không khiến học sinh
  * sợ sai và không làm các em thấy dùng gợi ý là kém.
@@ -55,12 +55,7 @@ export function calculateLessonStars(lessonId: string, completedChallenges: stri
   if (percent < 70) return 0;
   if (percent < 100) return 1;
 
-  const cleanCodeNode = getLesson(lessonId)?.challenges.find(
-    (challenge) => challenge.kind === 'cleancode',
-  );
-  const cleanCodeDone = cleanCodeNode ? completedChallenges.includes(cleanCodeNode.id) : false;
-
-  return cleanCodeDone ? 3 : 2;
+  return 2;
 }
 
 export async function completeChallenge(

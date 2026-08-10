@@ -85,8 +85,8 @@ describe('Phần mở đầu — Thuật toán là gì', () => {
     }
   });
 
-  it('có cầu nối sang Khu vực 1 để học sinh hiểu vì sao cú pháp lại khắt khe', () => {
-    expect(PROLOGUE.whyComputersAreStrict.bridge).toContain('Khu vực 1');
+  it('có cầu nối sang Area 0 để học sinh hiểu vì sao cú pháp lại khắt khe', () => {
+    expect(PROLOGUE.whyComputersAreStrict.bridge).toContain('Area 0');
     expect(PROLOGUE.whyComputersAreStrict.bridge.length).toBeGreaterThan(80);
   });
 });

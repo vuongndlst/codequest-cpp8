@@ -446,6 +446,45 @@ int main() {
     expect(result.worldEvents.filter((event) => event.type === 'move')).toHaveLength(3);
     expect(result.finalWorld.col).toBe(3);
   });
+
+  it('bốn lệnh tuyệt đối di chuyển đúng hướng trên bản đồ 2D', () => {
+    const { tokens } = tokenize(`int main() {
+    moveRight();
+    moveDown();
+    moveLeft();
+    moveUp();
+    return 0;
+}`);
+    const result = interpret(parse(tokens), {
+      world: { kind: 'map', cols: 3, rows: 3, startCol: 0, startRow: 0, goalCol: 2, goalRow: 2 },
+    });
+
+    expect(result.completed).toBe(true);
+    expect(result.finalWorld.col).toBe(0);
+    expect(result.finalWorld.row).toBe(0);
+    expect(result.worldEvents.filter((event) => event.type === 'move')).toHaveLength(4);
+  });
+
+  it('mỗi viên ngọc có id chỉ được nhặt một lần và gemsCollected đọc đúng trạng thái', () => {
+    const { tokens } = tokenize(`int main() {
+    moveRight();
+    collectGem();
+    collectGem();
+    cout << gemsCollected();
+    return 0;
+}`);
+    const result = interpret(parse(tokens), {
+      world: {
+        kind: 'map', cols: 3, rows: 1, startCol: 0, startRow: 0, goalCol: 2, goalRow: 0,
+        props: [{ id: 'gem-test', type: 'gem', col: 1, row: 0 }],
+      },
+    });
+
+    expect(result.completed).toBe(true);
+    expect(result.stdout).toEqual(['1']);
+    expect(result.finalWorld.collectedGems).toBe(1);
+    expect(result.worldEvents.filter((event) => event.type === 'collect-gem')).toHaveLength(1);
+  });
 });
 
 // ============================================================================

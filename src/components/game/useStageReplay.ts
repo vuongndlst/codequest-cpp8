@@ -33,10 +33,18 @@ export interface StageReplay {
   isPlaying: boolean;
   /** Đã phát hết chuỗi sự kiện */
   isDone: boolean;
+  /** Đang dừng tại một bước do học sinh chủ động bấm Stop/Reset map. */
+  isPaused: boolean;
   /** Nhích thêm một sự kiện — dùng ở chế độ từng bước */
   stepForward: () => void;
   /** Nhảy thẳng tới cuối, bỏ qua phần còn lại */
   skipToEnd: () => void;
+  /** Dừng hoạt ảnh tại trạng thái hiện tại, không xoá code. */
+  stop: () => void;
+  /** Đưa riêng bản đồ về trạng thái đầu, không xoá code trong editor. */
+  resetMap: () => void;
+  /** Tiếp tục phát từ bước đang dừng. */
+  resume: () => void;
 }
 
 /**
@@ -60,6 +68,7 @@ export function useStageReplay(
 ): StageReplay {
   const reducedMotion = useUiStore((state) => state.reducedMotion);
   const [playedCount, setPlayedCount] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
   const total = events.length;
 
   /*
@@ -81,11 +90,17 @@ export function useStageReplay(
   // --- Có chuỗi sự kiện mới (mỗi lần bấm Chạy) thì quay về vạch xuất phát ---
   useEffect(() => {
     setPlayed(0);
+    setIsPaused(false);
   }, [events, playKey, setPlayed]);
+
+  useEffect(() => {
+    if (speed === 'step') setIsPaused(true);
+    else if (total > 0 && playedRef.current < total) setIsPaused(false);
+  }, [speed, total]);
 
   // --- Tự động nhích từng nhịp ---
   useEffect(() => {
-    if (total === 0 || speed === 'step') return;
+    if (total === 0 || speed === 'step' || isPaused) return;
 
     if (reducedMotion) {
       setPlayed(total);
@@ -108,20 +123,33 @@ export function useStageReplay(
 
     timer = setTimeout(tick, REPLAY_STEP_MS[speed]);
     return () => clearTimeout(timer);
-  }, [events, playKey, reducedMotion, speed, total, setPlayed]);
+  }, [events, playKey, reducedMotion, speed, total, setPlayed, isPaused]);
 
   const stepForward = useCallback(() => {
+    setIsPaused(true);
     setPlayed(Math.min(playedRef.current + 1, total));
   }, [total, setPlayed]);
 
   const skipToEnd = useCallback(() => setPlayed(total), [total, setPlayed]);
+  const stop = useCallback(() => setIsPaused(true), []);
+  const resetMap = useCallback(() => {
+    setIsPaused(true);
+    setPlayed(0);
+  }, [setPlayed]);
+  const resume = useCallback(() => {
+    if (speed !== 'step' && playedRef.current < total) setIsPaused(false);
+  }, [speed, total]);
 
   return {
     playedCount,
     total,
-    isPlaying: total > 0 && playedCount < total && speed !== 'step',
+    isPlaying: total > 0 && playedCount < total && speed !== 'step' && !isPaused,
     isDone: total > 0 && playedCount >= total,
+    isPaused,
     stepForward,
     skipToEnd,
+    stop,
+    resetMap,
+    resume,
   };
 }

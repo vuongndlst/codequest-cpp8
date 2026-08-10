@@ -20,7 +20,7 @@ import { ProfilePage } from '@/pages/app/ProfilePage';
 /**
  * Bốn trang này được tách khỏi bundle chính:
  *   · ChallengePage và DemoPage kéo theo CodeMirror (~140 KB gzip)
- *   · LessonPage và ExitTicketPage kéo theo toàn bộ nội dung 5 khu vực (~20 KB gzip)
+ *   · LessonPage và ExitTicketPage kéo theo curriculum Area 0–2
  *
  * Nhờ vậy màn hình đăng nhập và dashboard không phải tải cả code editor lẫn
  * nội dung bài học — khác biệt cảm nhận rõ trên máy phòng ICT dùng Wi-Fi chung.

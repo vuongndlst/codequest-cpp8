@@ -31,14 +31,14 @@ insert into public.badges (code, name, description, icon, tier, sort_order) valu
    'Sparkles', 'bronze', 3),
 
   ('function-builder',
-   'Function Builder',
-   'Đánh bại Boss Khu vực 2 — Xưởng Phép Thuật. Em biết chia nhỏ nhiệm vụ rồi!',
-   'Wrench', 'gold', 4),
+   'Algorithm Navigator',
+   'Đánh bại Boss Area 1 — Cổng Đồng Cỏ. Em đã biến bản đồ thành thuật toán đúng thứ tự!',
+   'Map', 'gold', 4),
 
-  ('loop-explorer',
-   'Loop Explorer',
-   'Đánh bại Boss Khu vực 3 — Thung Lũng Lặp. Vòng lặp không làm khó em nữa.',
-   'RefreshCw', 'gold', 5),
+  ('data-keeper',
+   'Data Keeper',
+   'Đánh bại Boss Area 2 — Kho Ngọc Ký Ức. Em đã biết lưu và cập nhật trạng thái!',
+   'Gem', 'gold', 5),
 
   ('decision-maker',
    'Decision Maker',

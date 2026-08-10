@@ -49,7 +49,7 @@ function makeSampleCertificate(lessonId: string): CertificateRow {
 }
 
 export function CertificatePreviewDevPage() {
-  const [lessonId, setLessonId] = useState('l3');
+  const [lessonId, setLessonId] = useState('a0');
   const [isExporting, setIsExporting] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [message, setMessage] = useState<string | null>(null);

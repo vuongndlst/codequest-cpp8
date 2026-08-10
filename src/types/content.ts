@@ -355,6 +355,7 @@ export interface Lesson {
 export type CertificateCode =
   | 'cpp-starter'
   | 'function-builder'
+  | 'data-keeper'
   | 'loop-explorer'
   | 'decision-maker'
   | 'byteland-code-guardian';
@@ -364,7 +365,7 @@ export type CertificateCode =
  *
  * Cố ý KHÔNG chứa `challenges`, `exitTicket` và `conceptGuide` — đó là những
  * phần nội dung nặng. Nhờ vậy dashboard và bản đồ chỉ tải vài KB metadata thay
- * vì toàn bộ nội dung 5 khu vực.
+ * vì toàn bộ curriculum Area 0–2.
  */
 export type LessonMeta = Omit<Lesson, 'challenges' | 'exitTicket' | 'conceptGuide'> & {
   challengeCount: number;

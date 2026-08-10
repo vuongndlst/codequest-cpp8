@@ -279,11 +279,11 @@ export function LandingPage() {
                 Hành trình giải cứu ByteLand
               </p>
               <h2 id="zones-heading" className="mt-2 text-3xl font-extrabold text-slate-100">
-                Năm khu vực, một lộ trình C++ vừa sức
+                Ba Area nền móng, một lộ trình C++ vừa sức
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-slate-400">
-                Kiến thức mở dần theo đúng thứ tự: thuật toán → hàm → vòng lặp → điều kiện → bài
-                tổng hợp. Mỗi khu vực có 9 nhiệm vụ và một bài tự kiểm tra ngắn.
+                Kiến thức mở dần theo đúng thứ tự: chương trình đầu tiên → thuật toán đường đi →
+                biến và dữ liệu. Mỗi Area có 4–5 nhiệm vụ cùng một checkpoint ngắn.
               </p>
             </div>
             <Link
@@ -295,7 +295,7 @@ export function LandingPage() {
             </Link>
           </div>
 
-          <ol className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <ol className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {LESSONS_META.map((lesson) => {
               const Icon = getIcon(lesson.icon);
               return (

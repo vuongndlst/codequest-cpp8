@@ -13,7 +13,7 @@ import type {
   ProfileRow,
 } from '@/types/database';
 
-const LESSON_ID = 'l1';
+const LESSON_ID = 'a0';
 
 function makeProgress(completedChallenges: string[]): LessonProgressRow {
   return {
@@ -48,7 +48,7 @@ function makeAttempt(overrides: Partial<ChallengeAttemptRow> = {}): ChallengeAtt
     id: 'a1',
     user_id: 'u1',
     lesson_id: LESSON_ID,
-    challenge_id: 'l1-c4-mission',
+    challenge_id: 'a0-c2-cout',
     submitted_code: 'int main() {}',
     is_correct: true,
     passed_tests: 1,
@@ -135,7 +135,7 @@ describe('Năm điều kiện cấp chứng chỉ', () => {
   it('chưa làm xong bài mà tỉ lệ test dưới ngưỡng thì chưa được cấp', () => {
     const result = checkEligibility({
       lessonId: LESSON_ID,
-      progress: makeProgress(['l1-c1-observe']),
+      progress: makeProgress(['a0-c1-first-program']),
       exitTicket: makeExitTicket(),
       attempts: [makeAttempt({ passed_tests: 1, total_tests: 10 })],
     });
@@ -164,16 +164,11 @@ describe('Năm điều kiện cấp chứng chỉ', () => {
   });
 
   it('chưa từng làm Clean Code Check thì chưa được cấp', () => {
-    const cleanCodeNode = getLesson(LESSON_ID)!.challenges.find((c) => c.kind === 'cleancode')!;
-    const withoutCleanCode = getRequiredChallengeIds(LESSON_ID).filter(
-      (id) => id !== cleanCodeNode.id,
-    );
-
     const result = checkEligibility({
       lessonId: LESSON_ID,
-      progress: makeProgress(withoutCleanCode),
+      progress: makeProgress(getRequiredChallengeIds(LESSON_ID)),
       exitTicket: makeExitTicket(),
-      attempts: [makeAttempt({ challenge_id: 'l1-c4-mission', clean_code_score: null })],
+      attempts: [makeAttempt({ challenge_id: 'a0-c2-cout', clean_code_score: null })],
     });
 
     expect(result.requirements.find((item) => item.id === 'clean-code')!.met).toBe(false);
@@ -195,18 +190,18 @@ describe('Năm điều kiện cấp chứng chỉ', () => {
 describe('Mã chứng chỉ', () => {
   it('theo đúng định dạng CPP8-[LESSON]-[USER6]-[TIMESTAMP]', () => {
     const code = buildCertificateCode(
-      'l3',
+      'a2',
       '7f3a2199-0000-4000-8000-000000000000',
       new Date('2026-01-01T00:00:00Z'),
     );
 
-    expect(code).toBe('CPP8-L3-7F3A21-1767225600');
+    expect(code).toBe('CPP8-A2-7F3A21-1767225600');
     expect(code).toMatch(/^CPP8-[A-Z0-9]+-[A-F0-9]{6}-\d+$/);
   });
 
   it('chỉ lộ 6 ký tự đầu của user id, không lộ UUID đầy đủ', () => {
     const userId = '7f3a2199-abcd-4000-8000-000000000000';
-    const code = buildCertificateCode('l1', userId);
+    const code = buildCertificateCode('a0', userId);
 
     expect(code).toContain('7F3A21');
     expect(code).not.toContain('abcd');
@@ -215,8 +210,8 @@ describe('Mã chứng chỉ', () => {
 
   it('hai học sinh khác nhau cho ra hai mã khác nhau', () => {
     const issuedAt = new Date('2026-01-01T00:00:00Z');
-    const first = buildCertificateCode('l1', '11111111-0000-4000-8000-000000000000', issuedAt);
-    const second = buildCertificateCode('l1', '22222222-0000-4000-8000-000000000000', issuedAt);
+    const first = buildCertificateCode('a0', '11111111-0000-4000-8000-000000000000', issuedAt);
+    const second = buildCertificateCode('a0', '22222222-0000-4000-8000-000000000000', issuedAt);
 
     expect(first).not.toBe(second);
   });
@@ -224,28 +219,26 @@ describe('Mã chứng chỉ', () => {
 
 describe('Thông tin in trên chứng chỉ', () => {
   it('có đủ mọi mục đề bài yêu cầu', () => {
-    const metadata = buildCertificateMetadata(makeProfile(), 'l3');
+    const metadata = buildCertificateMetadata(makeProfile(), 'a2');
 
     expect(metadata.studentName).toBe('Nguyễn Văn An');
     expect(metadata.className).toBe('8A1');
-    expect(metadata.certificateName).toBe('Loop Explorer');
-    expect(metadata.lessonTitle).toContain('Thung Lũng Lặp');
+    expect(metadata.certificateName).toBe('Data Keeper');
+    expect(metadata.lessonTitle).toContain('Kho Dữ Liệu Pha Lê');
     expect(metadata.teacherName).toBe('Nguyễn Đình Vương');
     expect(metadata.courseName).toBe('CodeQuest C++ 8');
   });
 
   it('mỗi khu vực ứng với một chứng chỉ khác nhau', () => {
-    const names = ['l1', 'l2', 'l3', 'l4', 'l5'].map(
+    const names = ['a0', 'a1', 'a2'].map(
       (lessonId) => buildCertificateMetadata(makeProfile(), lessonId).certificateName,
     );
 
-    expect(new Set(names).size).toBe(5);
+    expect(new Set(names).size).toBe(3);
     expect(names).toEqual([
       'C++ Starter',
-      'Function Builder',
-      'Loop Explorer',
-      'Decision Maker',
-      'ByteLand Code Guardian',
+      'Algorithm Navigator',
+      'Data Keeper',
     ]);
   });
 });

@@ -77,4 +77,24 @@ describe('Điều khiển phát lại sân khấu', () => {
     rerender({ playKey: 1 });
     expect(result.current.playedCount).toBe(0);
   });
+
+  it('dừng, tiếp tục và reset chỉ tác động hoạt ảnh bản đồ', () => {
+    const { result } = renderHook(() => useStageReplay(EVENTS, 0, 'normal'));
+
+    act(() => vi.advanceTimersByTime(REPLAY_STEP_MS.normal));
+    expect(result.current.playedCount).toBe(1);
+
+    act(() => result.current.stop());
+    act(() => vi.advanceTimersByTime(REPLAY_STEP_MS.normal * 3));
+    expect(result.current.playedCount).toBe(1);
+    expect(result.current.isPaused).toBe(true);
+
+    act(() => result.current.resume());
+    act(() => vi.advanceTimersByTime(REPLAY_STEP_MS.normal));
+    expect(result.current.playedCount).toBe(2);
+
+    act(() => result.current.resetMap());
+    expect(result.current.playedCount).toBe(0);
+    expect(result.current.isPaused).toBe(true);
+  });
 });

@@ -15,9 +15,10 @@ import {
   Play,
   RotateCcw,
   SkipForward,
+  Square,
   Target,
 } from 'lucide-react';
-import { getChallenge, getChallengeIds, getLesson } from '@/lessons';
+import { getChallenge, getChallengeIds, getLesson, LESSONS } from '@/lessons';
 import { relevantHandbookCards } from '@/data/challengeHandbook';
 import { paletteForChallenge } from '@/data/commandPalette';
 import { useChallengeSession } from '@/hooks/useChallengeSession';
@@ -35,7 +36,6 @@ import { CodeEditor, type CodeEditorHandle } from '@/components/editor/CodeEdito
 import { CommandPalette } from '@/components/editor/CommandPalette';
 import { ResultPanel } from '@/components/editor/ResultPanel';
 import { HintPanel } from '@/components/learning/HintPanel';
-import { FirstMissionWorkspace } from '@/components/learning/FirstMissionWorkspace';
 import { HandbookModal } from '@/components/learning/Handbook';
 import { GameStage } from '@/components/game/GameStage';
 import { ZoneSceneStage } from '@/components/game/ZoneSceneStage';
@@ -74,8 +74,22 @@ const KIND_LABELS: Record<string, string> = {
  * xem nên nhìn vào đâu trước. Bản đồ là sân chơi chính; mọi công cụ còn lại
  * xếp theo đúng thứ tự sử dụng.
  */
-export function ChallengePage() {
-  const { lessonId = '', challengeId = '' } = useParams();
+interface ChallengePageProps {
+  lessonIdOverride?: string;
+  challengeIdOverride?: string;
+  persist?: boolean;
+  demo?: boolean;
+}
+
+export function ChallengePage({
+  lessonIdOverride,
+  challengeIdOverride,
+  persist = true,
+  demo = false,
+}: ChallengePageProps = {}) {
+  const params = useParams();
+  const lessonId = lessonIdOverride ?? params.lessonId ?? '';
+  const challengeId = challengeIdOverride ?? params.challengeId ?? '';
   const navigate = useNavigate();
   const profile = useAuthStore((state) => state.profile);
   const user = useAuthStore((state) => state.user);
@@ -103,11 +117,14 @@ export function ChallengePage() {
   const challenge = getChallenge(lessonId, challengeId);
   const session = useChallengeSession({
     challenge: challenge ?? FALLBACK_CHALLENGE,
-    persist: true,
+    persist,
   });
 
   const stageEvents = session.result?.worldEvents ?? NO_WORLD_EVENTS;
   const replay = useStageReplay(stageEvents, session.playKey, replaySpeed);
+  const currentStageEvent = replay.playedCount > 0
+    ? stageEvents[Math.min(replay.playedCount - 1, stageEvents.length - 1)]
+    : null;
 
   // Nhạc chỉ thuộc về sân chơi. Rời route nhiệm vụ phải dừng ngay nhưng vẫn
   // giữ lựa chọn của học sinh để lần sau vào game có thể phát lại.
@@ -158,8 +175,10 @@ export function ChallengePage() {
   const challengeIds = getChallengeIds(lessonId);
   const index = challengeIds.indexOf(challenge.id);
   const nextChallengeId = challengeIds[index + 1];
+  const nextLesson = LESSONS.find((item) => item.order === lesson.order + 1);
+  const nextDemoChallengeId = nextChallengeId ?? nextLesson?.challenges[0]?.id;
+  const nextDemoLessonId = nextChallengeId ? lessonId : nextLesson?.id;
   const relevantCommands = paletteForChallenge(challenge);
-  const isFirstMission = challenge.id === 'l1-c1-observe';
   const visibleInstructions = requirementsExpanded
     ? challenge.instructions
     : challenge.instructions.slice(0, 3);
@@ -297,10 +316,14 @@ export function ChallengePage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={session.reset}
+            onClick={() => {
+              if (window.confirm('Khôi phục code ban đầu? Bản code hiện tại sẽ được thay thế.')) {
+                session.reset();
+              }
+            }}
             leadingIcon={<RotateCcw className="size-4" aria-hidden="true" />}
           >
-            Đặt lại
+            Khôi phục code
           </Button>
           <Button
             variant="ghost"
@@ -324,73 +347,12 @@ export function ChallengePage() {
           />
         </div>
 
-        <Button
-          onClick={runAndWatch}
-          isLoading={session.isRunning || replay.isPlaying}
-          loadingLabel={replay.isPlaying ? 'Byte đang chạy' : 'Đang chạy'}
-          leadingIcon={<Play className="size-4" aria-hidden="true" />}
-          className="sm:min-w-48"
-        >
-          Chạy và xem bản đồ
-        </Button>
+        <p className="max-w-xs text-right text-xs leading-relaxed text-slate-500">
+          Chạy chương trình ở thanh điều khiển ngay dưới bản đồ để vừa chạy vừa quan sát.
+        </p>
       </div>
     </section>
   );
-
-  if (isFirstMission) {
-    return (
-      <div className="mx-auto max-w-[96rem] space-y-2">
-        <Link
-          to={`/app/lesson/${lessonId}`}
-          className="inline-flex items-center gap-2 text-xs text-slate-400 hover:text-slate-200"
-        >
-          <ArrowLeft className="size-3.5" aria-hidden="true" />
-          Trở về {lesson.zoneName}
-        </Link>
-
-        <FirstMissionWorkspace
-          challenge={challenge}
-          session={session}
-          replay={replay}
-          replaySpeed={replaySpeed}
-          onReplaySpeedChange={setReplaySpeed}
-          avatarId={profile?.avatar_id ?? 'guardian-cyan'}
-          account={{
-            name: profile?.full_name ?? 'Học viên ByteLand',
-            className: profile?.class_name,
-            studentCode: profile?.student_code,
-            level: profile?.level ?? 1,
-            totalXp: profile?.total_xp ?? 0,
-            gems: profile?.gem_balance ?? 0,
-          }}
-          soundEnabled={soundEnabled}
-          onToggleSound={toggleSound}
-          musicEnabled={musicEnabled}
-          onToggleMusic={toggleMusic}
-          onAvatarChange={changeAvatarOnMap}
-          accountHref="/app/profile"
-          accountActionLabel="Mở hồ sơ đầy đủ"
-          successPanel={
-            <VictoryPanel
-              challenge={challenge}
-              result={session.result}
-              xpAwarded={session.xpAwarded}
-              gemsAwarded={session.gemsAwarded}
-              nextLabel={nextChallengeId ? 'Nhiệm vụ tiếp theo' : 'Về trang khu vực'}
-              onNext={() =>
-                navigate(
-                  nextChallengeId
-                    ? `/app/lesson/${lessonId}/challenge/${nextChallengeId}`
-                    : `/app/lesson/${lessonId}`,
-                )
-              }
-            />
-          }
-        />
-        <BadgeToast badges={session.newBadges} onDismiss={session.dismissBadges} />
-      </div>
-    );
-  }
 
   if (isEditorExpanded) {
     return (
@@ -414,11 +376,11 @@ export function ChallengePage() {
   return (
     <div className="mx-auto max-w-[96rem] space-y-2">
       <Link
-        to={`/app/lesson/${lessonId}`}
+        to={demo ? '/' : `/app/lesson/${lessonId}`}
         className="inline-flex items-center gap-2 text-xs text-slate-400 hover:text-slate-200"
       >
         <ArrowLeft className="size-3.5" aria-hidden="true" />
-        Trở về {lesson.zoneName}
+        {demo ? 'Về trang giới thiệu' : `Trở về ${lesson.zoneName}`}
       </Link>
 
       <section
@@ -452,7 +414,7 @@ export function ChallengePage() {
             </div>
           </div>
           <p className="rounded-lg border border-abyss-600 bg-abyss-950 px-2.5 py-1.5 text-xs font-bold text-slate-400">
-            Mục tiêu {session.result?.isCorrect ? '1/1' : '0/1'}
+            Mục tiêu {session.result?.passedRequired ?? 0}/{session.result?.totalRequired ?? challenge.testCases.filter((test) => test.required).length}
           </p>
         </header>
 
@@ -489,6 +451,22 @@ export function ChallengePage() {
                 </li>
               ))}
             </ul>
+            <div className="mt-3 rounded-xl border border-quest-500/20 bg-quest-500/5 p-3">
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-quest-400">Điều kiện hoàn thành</p>
+              <ul className="space-y-1.5">
+                {challenge.testCases.filter((test) => test.visible && test.required).map((test) => {
+                  const passed = session.result?.testResults.find((result) => result.id === test.id)?.passed ?? false;
+                  return (
+                    <li key={test.id} className="flex items-center gap-2 text-xs text-slate-300">
+                      <span className={cn('grid size-4 place-items-center rounded-full border text-[9px]', passed ? 'border-verdant-500 bg-verdant-500/20 text-verdant-300' : 'border-slate-600 text-slate-500')}>
+                        {passed ? '✓' : '·'}
+                      </span>
+                      {test.name}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
             {challenge.instructions.length > 3 && (
               <button
                 type="button"
@@ -509,7 +487,7 @@ export function ChallengePage() {
                   : `Xem thêm ${hiddenInstructionCount} yêu cầu`}
               </button>
             )}
-            {!isFirstMission && (
+            {(
               <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-abyss-700 pt-3">
                 {(challenge.thinkingPrompt || lesson.conceptGuide.thinkingSteps[0]) && (
                   <p className="min-w-0 flex-1 text-xs leading-relaxed text-mage-300">
@@ -530,14 +508,14 @@ export function ChallengePage() {
         </div>
       </section>
 
-      <div className="grid min-h-[calc(100dvh-16rem)] lg:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.85fr)]">
+      <div className="flex min-h-[calc(100dvh-16rem)] flex-col">
 
       {/* ② BẢN ĐỒ LỚN — nút chạy và debug nằm ngay trên sân chơi. */}
       <section
         ref={mapRef}
         className={cn(
-          'scroll-mt-20 overflow-hidden border-b border-abyss-700 bg-[radial-gradient(circle_at_50%_18%,rgba(34,211,238,0.1),transparent_60%)] transition-shadow duration-300 lg:border-b-0 lg:border-r',
-          isFirstMission && replay.isPlaying && 'shadow-[0_0_48px_rgba(34,211,238,0.2)] ring-2 ring-quest-400/30',
+          'scroll-mt-20 overflow-hidden border-b border-abyss-700 bg-[radial-gradient(circle_at_50%_18%,rgba(34,211,238,0.1),transparent_60%)] transition-shadow duration-300',
+          replay.isPlaying && 'shadow-[0_0_48px_rgba(34,211,238,0.2)] ring-2 ring-quest-400/30',
         )}
         aria-labelledby="game-board-heading"
       >
@@ -609,6 +587,36 @@ export function ChallengePage() {
               </button>
             )}
 
+            {replay.total > 0 && !replay.isDone && (
+              <button
+                type="button"
+                onClick={() => {
+                  playSound('click');
+                  replay.isPaused ? replay.resume() : replay.stop();
+                }}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-abyss-600 bg-abyss-950 px-3 text-xs font-semibold text-slate-300 hover:border-quest-500/60 hover:text-white"
+                aria-label={replay.isPaused ? 'Tiếp tục hoạt ảnh' : 'Dừng hoạt ảnh'}
+              >
+                {replay.isPaused ? <Play className="size-3.5" /> : <Square className="size-3.5" />}
+                {replay.isPaused ? 'Tiếp tục' : 'Dừng'}
+              </button>
+            )}
+
+            {replay.total > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  playSound('click');
+                  replay.resetMap();
+                }}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-slate-400 hover:bg-abyss-700 hover:text-white"
+                title="Đưa riêng bản đồ về trạng thái đầu, giữ nguyên code"
+              >
+                <RotateCcw className="size-3.5" />
+                Reset map
+              </button>
+            )}
+
             <Button
               onClick={runAndWatch}
               isLoading={session.isRunning || replay.isPlaying}
@@ -624,7 +632,7 @@ export function ChallengePage() {
         <div
           className={cn(
             'flex min-h-80 items-center bg-[radial-gradient(circle_at_50%_15%,rgba(34,211,238,0.08),transparent_58%)] p-3 sm:p-5',
-            isFirstMission ? 'sm:min-h-[34rem] lg:p-7' : 'sm:min-h-[28rem]',
+            'min-h-[32rem] sm:min-h-[38rem] lg:min-h-[44rem] lg:p-7',
           )}
         >
           {challenge.world ? (
@@ -644,8 +652,8 @@ export function ChallengePage() {
                 musicEnabled={musicEnabled}
                 onToggleMusic={toggleMusic}
                 onAvatarChange={changeAvatarOnMap}
-                accountHref="/app/profile"
-                accountActionLabel="Mở hồ sơ đầy đủ"
+                accountHref={demo ? '/auth/register' : '/app/profile'}
+                accountActionLabel={demo ? 'Tạo tài khoản miễn phí' : 'Mở hồ sơ đầy đủ'}
                 showEquipment={lesson.order >= 2 || challenge.kind === 'boss'}
                 equipmentCatalog={equipmentCatalog}
                 userEquipment={userEquipment}
@@ -661,7 +669,7 @@ export function ChallengePage() {
                 avatarId={profile?.avatar_id}
                 playedCount={replay.playedCount}
                 hideTitle
-                presentation={isFirstMission ? 'first-mission' : challenge.kind === 'boss' ? 'boss' : 'default'}
+                presentation={challenge.kind === 'boss' ? 'boss' : 'default'}
                 isPlaying={replay.isPlaying}
                 motionDurationMs={replaySpeed === 'fast' ? 100 : replaySpeed === 'step' ? 220 : 280}
                 lessonId={lesson.id}
@@ -681,20 +689,27 @@ export function ChallengePage() {
         </div>
 
         {replay.total > 0 && (
-          <div className="flex items-center justify-between border-t border-abyss-700 px-4 py-2 text-xs text-slate-400">
-            <span aria-live="polite">
-              {replay.isDone ? 'Đã chạy xong' : replay.isPlaying ? 'Đang chạy…' : 'Đang tạm dừng'}
-            </span>
-            <span className="font-mono tabular-nums">
-              Bước {replay.playedCount}/{replay.total}
-            </span>
+          <div className="border-t border-abyss-700 bg-abyss-950/65 px-4 py-2.5 text-xs text-slate-400">
+            <div className="flex items-center justify-between gap-3">
+              <span aria-live="polite">
+                {replay.isDone ? 'Đã chạy xong' : replay.isPlaying ? 'Đang chạy…' : 'Đang tạm dừng'}
+              </span>
+              <span className="font-mono tabular-nums">
+                Bước {replay.playedCount}/{replay.total}
+              </span>
+            </div>
+            <p className="mt-1 truncate font-mono text-[11px] text-quest-300" aria-live="polite">
+              {currentStageEvent
+                ? `→ ${currentStageEvent.message}`
+                : '→ Byte đang ở vị trí xuất phát. Bấm Bước tiếp để quan sát từng lệnh.'}
+            </p>
           </div>
         )}
       </section>
 
       {/* ③ CODE — editor, lệnh cần dùng và công cụ nằm trong cùng một luồng. */}
-      <section className="min-w-0 bg-abyss-900 p-3 sm:p-4">
-        {editorPanel}
+      <section className="min-w-0 bg-abyss-900 p-3 sm:p-5 lg:p-7">
+        <div className="mx-auto max-w-6xl">{editorPanel}</div>
       </section>
       </div>
       </section>
@@ -715,16 +730,22 @@ export function ChallengePage() {
           result={session.result}
           xpAwarded={session.xpAwarded}
           gemsAwarded={session.gemsAwarded}
-          nextLabel={nextChallengeId ? 'Nhiệm vụ tiếp theo' : 'Về trang khu vực'}
+          nextLabel={demo && nextDemoChallengeId ? 'Nhiệm vụ Demo tiếp theo' : nextChallengeId ? 'Nhiệm vụ tiếp theo' : 'Về trang khu vực'}
           onNext={() =>
-            navigate(
-              nextChallengeId
+            navigate(demo
+              ? nextDemoChallengeId && nextDemoLessonId
+                ? `/demo?lesson=${nextDemoLessonId}&challenge=${nextDemoChallengeId}`
+                : '/'
+              : nextChallengeId
                 ? `/app/lesson/${lessonId}/challenge/${nextChallengeId}`
-                : `/app/lesson/${lessonId}`,
-            )
+                : `/app/lesson/${lessonId}`)
           }
           secondaryAction={
-            nextChallengeId ? (
+            demo ? (
+              <Link to="/">
+                <Button variant="secondary">Về trang giới thiệu</Button>
+              </Link>
+            ) : nextChallengeId ? (
               <Link to={`/app/lesson/${lessonId}`}>
                 <Button variant="secondary">Xem danh sách nhiệm vụ</Button>
               </Link>

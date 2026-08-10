@@ -135,8 +135,8 @@ export function TeacherSettingsPage() {
                   <div className="flex flex-wrap gap-2">
                     {LESSONS_META.map((lesson) => {
                       const isUnlocked = unlocked.includes(lesson.id);
-                      // Khu vực 1 luôn mở cho mọi học sinh, không cần cài đặt
-                      const isAlwaysOpen = lesson.order === 1;
+                      // Area 0 luôn mở cho mọi học sinh, không cần cài đặt
+                      const isAlwaysOpen = lesson.order === 0;
 
                       return (
                         <button
@@ -172,7 +172,7 @@ export function TeacherSettingsPage() {
                     })}
                   </div>
                   <p className="text-xs text-slate-500 mt-2">
-                    Khu vực 1 luôn mở nên không cần cài đặt.
+                    Area 0 luôn mở nên không cần cài đặt.
                   </p>
                 </div>
 

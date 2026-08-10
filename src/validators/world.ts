@@ -53,6 +53,8 @@ export interface WorldState {
   litLights: string[];
   activatedBridges: string[];
   collectedGems: number;
+  /** ID vật phẩm đã nhặt, ngăn một vật phẩm bị tính nhiều lần. */
+  collectedPropIds: string[];
   bugHp: number;
   /** Nhân vật có đang bị chặn ngay phía trước không */
   blocked: boolean;
@@ -74,7 +76,7 @@ export type WorldEventType =
   /*
     --- Sân khấu Tháp Tín Hiệu và Xưởng Rèn (khu vực 1–2) ---
 
-    Khu vực 1 và 2 dạy `cout`, biến và hàm — không có nhân vật đi lại nên
+    Area 0 và một số màn Area 2 dạy `cout` và biến — không có nhân vật đi lại nên
     không dùng được sân khấu đường đi. Nhóm sự kiện dưới đây cho phép dựng
     hình cho chính những khái niệm đó.
   */
@@ -127,6 +129,7 @@ export function createWorldState(spec: WorldSpec = DEFAULT_WORLD): WorldState {
     litLights: [],
     activatedBridges: [],
     collectedGems: 0,
+    collectedPropIds: [],
     bugHp: typeof initial.bugHp === 'number' ? initial.bugHp : 3,
     blocked: false,
   };

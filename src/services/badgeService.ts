@@ -67,15 +67,11 @@ const BADGE_RULES: BadgeRule[] = [
   },
   {
     code: 'function-builder',
-    isEarned: (context) => isBossCleared('l2', context),
+    isEarned: (context) => isBossCleared('a1', context),
   },
   {
-    code: 'loop-explorer',
-    isEarned: (context) => isBossCleared('l3', context),
-  },
-  {
-    code: 'decision-maker',
-    isEarned: (context) => isBossCleared('l4', context),
+    code: 'data-keeper',
+    isEarned: (context) => isBossCleared('a2', context),
   },
   {
     code: 'clean-code-rookie',

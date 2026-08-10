@@ -1,201 +1,45 @@
 export type ConceptCategory = 'cpp-language' | 'game-api';
-
-export interface LearningConcept {
-  id: string;
-  category: ConceptCategory;
-  name: string;
-  englishName: string;
-  explanation: string;
-  syntax: string;
-  example: string;
-  commonMistakes: string[];
-  introducedInLesson: string;
-}
-
+export interface LearningConcept { id:string; category:ConceptCategory; name:string; englishName:string; explanation:string; syntax:string; example:string; commonMistakes:string[]; introducedInLesson:string; }
 export type MicroPractice =
-  | {
-      id: string;
-      type: 'single-choice';
-      prompt: string;
-      code?: string;
-      options: string[];
-      correctIndex: number;
-      explanation: string;
-    }
-  | {
-      id: string;
-      type: 'ordering';
-      prompt: string;
-      items: string[];
-      correctOrder: string[];
-      explanation: string;
-    }
-  | {
-      id: string;
-      type: 'fill-code';
-      prompt: string;
-      code: string;
-      acceptedAnswers: string[];
-      explanation: string;
-    };
+  | { id:string; type:'single-choice'; prompt:string; code?:string; options:string[]; correctIndex:number; explanation:string }
+  | { id:string; type:'ordering'; prompt:string; items:string[]; correctOrder:string[]; explanation:string }
+  | { id:string; type:'fill-code'; prompt:string; code:string; acceptedAnswers:string[]; explanation:string };
+export interface LessonLearningPath { lessonId:string; conceptIds:string[]; predictionPrompt:string; practices:MicroPractice[]; }
 
-export interface LessonLearningPath {
-  lessonId: string;
-  conceptIds: string[];
-  predictionPrompt: string;
-  practices: MicroPractice[];
-}
+const concept = (id:string, lesson:string, category:ConceptCategory, name:string, englishName:string, explanation:string, syntax:string, example:string, commonMistakes:string[]):LearningConcept =>
+  ({ id, introducedInLesson:lesson, category, name, englishName, explanation, syntax, example, commonMistakes });
 
-/**
- * Kho kiến thức trung tâm: lesson, sổ tay và checkpoint có thể cùng tham chiếu
- * một khái niệm thay vì sao chép lời giải thích ở nhiều component.
- */
 export const CONCEPTS: Record<string, LearningConcept> = {
-  program: {
-    id: 'program',
-    category: 'cpp-language',
-    name: 'Chương trình',
-    englishName: 'program',
-    explanation:
-      'Một chương trình là danh sách chỉ dẫn đủ rõ để máy tính thực hiện theo đúng thứ tự.',
-    syntax: 'int main() {\n    // các câu lệnh\n    return 0;\n}',
-    example: 'int main() {\n    cout << "Xin chao!";\n    return 0;\n}',
-    commonMistakes: ['Nghĩ rằng máy tự đoán bước còn thiếu', 'Bỏ qua thứ tự các câu lệnh'],
-    introducedInLesson: 'l1',
-  },
-  statement: {
-    id: 'statement',
-    category: 'cpp-language',
-    name: 'Câu lệnh',
-    englishName: 'statement',
-    explanation: 'Một câu lệnh mô tả một việc cụ thể. Phần lớn câu lệnh C++ kết thúc bằng dấu `;`.',
-    syntax: 'cout << "Hello";',
-    example: 'moveForward();',
-    commonMistakes: ['Quên dấu `;`', 'Gộp nhiều việc vào một câu lệnh không hợp lệ'],
-    introducedInLesson: 'l1',
-  },
-  sequence: {
-    id: 'sequence',
-    category: 'cpp-language',
-    name: 'Trình tự',
-    englishName: 'sequence',
-    explanation: 'C++ chạy các câu lệnh từ trên xuống dưới; đổi thứ tự có thể làm đổi kết quả.',
-    syntax: 'buocMot();\nbuocHai();\nbuocBa();',
-    example: 'moveForward();\nturnRight();\nmoveForward();',
-    commonMistakes: ['Đúng đủ lệnh nhưng sai thứ tự', 'Tưởng `turnRight()` cũng làm nhân vật tiến lên'],
-    introducedInLesson: 'l1',
-  },
-  cout: {
-    id: 'cout',
-    category: 'cpp-language',
-    name: 'Xuất dữ liệu với cout',
-    englishName: 'standard output',
-    explanation: '`cout` đưa thông tin từ chương trình ra màn hình kết quả.',
-    syntax: 'cout << "Noi dung" << endl;',
-    example: 'cout << "MO CONG" << endl;',
-    commonMistakes: ['Quên `<<`', 'Quên dấu ngoặc kép hoặc dấu `;`'],
-    introducedInLesson: 'l1',
-  },
-  'game-function-call': {
-    id: 'game-function-call',
-    category: 'game-api',
-    name: 'Gọi hàm điều khiển Byte',
-    englishName: 'game API function call',
-    explanation:
-      'ByteLand cung cấp sẵn các hàm điều khiển. Chúng dùng cú pháp C++ hợp lệ nhưng không phải hàm chuẩn của C++.',
-    syntax: 'tenHam();',
-    example: 'moveForward();',
-    commonMistakes: ['Quên cặp `()`', 'Nhầm Game API với lệnh có sẵn trong mọi chương trình C++'],
-    introducedInLesson: 'l1',
-  },
-  function: {
-    id: 'function',
-    category: 'cpp-language',
-    name: 'Hàm',
-    englishName: 'function',
-    explanation: 'Hàm gom một công việc có tên để chương trình có thể gọi lại khi cần.',
-    syntax: 'void tenHam() {\n    // công việc\n}',
-    example: 'void showStatus() {\n    cout << "San sang" << endl;\n}',
-    commonMistakes: ['Viết hàm nhưng quên gọi', 'Đặt tên hàm không thể hiện hành động'],
-    introducedInLesson: 'l2',
-  },
-  parameter: {
-    id: 'parameter',
-    category: 'cpp-language',
-    name: 'Tham số',
-    englishName: 'parameter',
-    explanation: 'Tham số là dữ liệu đầu vào giúp cùng một hàm xử lý nhiều giá trị khác nhau.',
-    syntax: 'void showPower(int power) {\n    cout << power;\n}',
-    example: 'showPower(30);\nshowPower(90);',
-    commonMistakes: ['Quên kiểu dữ liệu của tham số', 'Dùng sai tên tham số trong thân hàm'],
-    introducedInLesson: 'l2',
-  },
+  program: concept('program','a0','cpp-language','Chương trình C++','program','Một chương trình là chuỗi chỉ dẫn đủ rõ để máy thực hiện theo thứ tự.','int main() {\n    return 0;\n}','int main() {\n    cout << "Hi";\n    return 0;\n}',['Bỏ hàm main','Nghĩ máy tự đoán ý']),
+  main: concept('main','a0','cpp-language','Hàm main','entry point','`main` là điểm chương trình C++ bắt đầu thực thi.','int main() {\n    // statements\n    return 0;\n}','int main() { return 0; }',['Viết statement bên ngoài main','Thiếu cặp ngoặc nhọn']),
+  cout: concept('cout','a0','cpp-language','Xuất dữ liệu với cout','standard output','`cout` đưa dữ liệu từ chương trình ra màn hình để ta quan sát.','cout << "Noi dung" << endl;','cout << "Byte" << endl;',['Quên <<','Quên ngoặc kép']),
+  statement: concept('statement','a0','cpp-language','Câu lệnh','statement','Một statement mô tả một việc cụ thể và phần lớn kết thúc bằng dấu chấm phẩy.','lenh();','cout << "Hi";',['Quên dấu ;','Đặt ; sai vị trí']),
+  comment: concept('comment','a0','cpp-language','Chú thích','comment','Chú thích giúp con người đọc code; máy không thực hiện nội dung sau `//`.','// Ghi chú','// In lời chào',['Nghĩ comment sẽ chạy','Quên //']),
+  'function-call': concept('function-call','a1','cpp-language','Lời gọi hàm','function call','Tên hàm, cặp ngoặc tròn và dấu chấm phẩy tạo thành lời gọi hàm.','tenHam();','moveRight();',['Quên ()','Sai chữ hoa–thường']),
+  'game-api': concept('game-api','a1','game-api','Game API CodeQuest','game API','Các hàm điều khiển Byte dùng cú pháp C++ thật nhưng do CodeQuest cung cấp, không thuộc thư viện chuẩn.','moveRight();','moveDown();',['Nhầm với từ khóa C++','Chép cả chuỗi lệnh thay vì lập kế hoạch']),
+  sequence: concept('sequence','a1','cpp-language','Trình tự','sequence','C++ thực thi các statement từ trên xuống; đổi thứ tự có thể đổi kết quả.','buoc1();\nbuoc2();','moveRight();\nmoveDown();',['Đúng lệnh nhưng sai thứ tự','Không dự đoán trước']),
+  variable: concept('variable','a2','cpp-language','Biến','variable','Biến là vùng nhớ có tên, kiểu và giá trị có thể thay đổi.','int gems = 0;','int score = 10;',['Tên biến khó hiểu','Dùng trước khi khai báo']),
+  'data-type': concept('data-type','a2','cpp-language','Kiểu dữ liệu','data type','Kiểu cho C++ biết biến lưu số nguyên, số thập phân, đúng–sai hay văn bản.','int · double · bool · string','string hero = "Byte";',['Gán chuỗi cho int','Quên ngoặc kép của string']),
+  assignment: concept('assignment','a2','cpp-language','Phép gán và cập nhật','assignment','Dấu `=` đặt giá trị mới vào biến; vế phải được tính trước rồi mới lưu.','gems = gems + 1;','score = score + 10;',['Nhầm = với so sánh','Ghi đè khi muốn cộng thêm']),
 };
 
 export const LESSON_LEARNING_PATHS: Record<string, LessonLearningPath> = {
-  l1: {
-    lessonId: 'l1',
-    conceptIds: ['program', 'statement', 'sequence', 'cout', 'game-function-call'],
-    predictionPrompt:
-      'Trước khi chạy, em luôn đọc từ dòng đầu xuống và dự đoán: Byte quay lúc nào, đi lúc nào, dừng ở ô nào?',
-    practices: [
-      {
-        id: 'l1-practice-predict',
-        type: 'single-choice',
-        prompt: 'Byte đang quay sang phải. Đoạn code dưới đây làm Byte thay đổi vị trí mấy lần?',
-        code: 'moveForward();\nturnRight();\nmoveForward();',
-        options: ['1 lần', '2 lần', '3 lần', 'Không lần nào'],
-        correctIndex: 1,
-        explanation: '`turnRight()` chỉ đổi hướng. Hai lời gọi `moveForward()` mới làm Byte đổi ô.',
-      },
-      {
-        id: 'l1-practice-order',
-        type: 'ordering',
-        prompt: 'Sắp xếp để Byte đi một ô, quay phải rồi đi tiếp một ô.',
-        items: ['moveForward(); // bước thứ hai', 'turnRight();', 'moveForward(); // bước thứ nhất'],
-        correctOrder: ['moveForward(); // bước thứ nhất', 'turnRight();', 'moveForward(); // bước thứ hai'],
-        explanation: 'Thứ tự là một phần của thuật toán: đi → quay → đi.',
-      },
-      {
-        id: 'l1-practice-semicolon',
-        type: 'fill-code',
-        prompt: 'Điền ký tự còn thiếu để câu lệnh C++ kết thúc đúng.',
-        code: 'cout << "Byte san sang" << endl___',
-        acceptedAnswers: [';'],
-        explanation: 'Dấu `;` báo cho C++ biết câu lệnh đã kết thúc.',
-      },
-    ],
-  },
-  l2: {
-    lessonId: 'l2',
-    conceptIds: ['function', 'parameter', 'statement'],
-    predictionPrompt:
-      'Khi thấy tên một hàm trong `main()`, em thử tìm phần khai báo của hàm đó và lần theo những câu lệnh bên trong.',
-    practices: [
-      {
-        id: 'l2-practice-call',
-        type: 'single-choice',
-        prompt: 'Điều gì xảy ra nếu một hàm đã được viết nhưng không được gọi trong `main()`?',
-        options: ['Hàm tự chạy một lần', 'Hàm không chạy', 'C++ chạy hàm hai lần', 'Chương trình luôn bị treo'],
-        correctIndex: 1,
-        explanation: 'Khai báo hàm chỉ mô tả công việc; lời gọi hàm mới yêu cầu máy thực hiện công việc đó.',
-      },
-      {
-        id: 'l2-practice-parameter',
-        type: 'fill-code',
-        prompt: 'Điền kiểu dữ liệu còn thiếu của tham số `power`.',
-        code: 'void showPower(___ power) {\n    cout << power;\n}',
-        acceptedAnswers: ['int'],
-        explanation: 'Mỗi tham số C++ cần có kiểu dữ liệu. Ở đây `power` là số nguyên nên dùng `int`.',
-      },
-    ],
-  },
+  a0: { lessonId:'a0', conceptIds:['program','main','cout','statement','comment'], predictionPrompt:'Trước khi chạy, em đọc từ trên xuống và ghi ra chính xác Output dự đoán.', practices:[
+    { id:'a0-p1', type:'single-choice', prompt:'Chương trình bắt đầu ở đâu?', options:['main','cout','comment','include'], correctIndex:0, explanation:'`main` là điểm vào chương trình.' },
+    { id:'a0-p2', type:'fill-code', prompt:'Điền ký hiệu kết thúc statement.', code:'cout << "Byte" << endl___', acceptedAnswers:[';'], explanation:'Dấu `;` kết thúc statement.' },
+    { id:'a0-p3', type:'ordering', prompt:'Xếp để in A rồi B.', items:['cout << "B";','cout << "A";'], correctOrder:['cout << "A";','cout << "B";'], explanation:'C++ chạy từ trên xuống.' },
+  ]},
+  a1: { lessonId:'a1', conceptIds:['function-call','game-api','sequence'], predictionPrompt:'Em hãy chia đường đi thành các đoạn thẳng và dự đoán vị trí sau mỗi lời gọi hàm.', practices:[
+    { id:'a1-p1', type:'single-choice', prompt:'`moveRight()` thuộc nhóm nào?', options:['Game API CodeQuest','Từ khóa C++','Biến','Comment'], correctIndex:0, explanation:'Game cung cấp hàm; cú pháp gọi vẫn là C++.' },
+    { id:'a1-p2', type:'ordering', prompt:'Đi phải rồi xuống.', items:['moveDown();','moveRight();'], correctOrder:['moveRight();','moveDown();'], explanation:'Thứ tự code là thứ tự hành động.' },
+    { id:'a1-p3', type:'fill-code', prompt:'Đi lên một ô.', code:'___;', acceptedAnswers:['moveUp()','moveUp();'], explanation:'Lời gọi hàm cần cặp ngoặc tròn.' },
+  ]},
+  a2: { lessonId:'a2', conceptIds:['variable','data-type','assignment'], predictionPrompt:'Trước mỗi bước, em ghi giá trị hiện tại của biến và giá trị mới sau câu lệnh.', practices:[
+    { id:'a2-p1', type:'single-choice', prompt:'Kiểu phù hợp lưu số ngọc?', options:['int','string','bool','void'], correctIndex:0, explanation:'Số ngọc là số nguyên.' },
+    { id:'a2-p2', type:'fill-code', prompt:'Điền kiểu dữ liệu văn bản.', code:'___ hero = "Byte";', acceptedAnswers:['string'], explanation:'`string` lưu văn bản.' },
+    { id:'a2-p3', type:'ordering', prompt:'Nhặt, cập nhật, rồi báo cáo.', items:['cout << gems;','gems = gemsCollected();','collectGem();'], correctOrder:['collectGem();','gems = gemsCollected();','cout << gems;'], explanation:'Thế giới đổi trước, dữ liệu cập nhật sau.' },
+  ]},
 };
 
-export function getLearningPath(lessonId: string): LessonLearningPath | undefined {
-  return LESSON_LEARNING_PATHS[lessonId];
-}
-
-export function getConcept(conceptId: string): LearningConcept | undefined {
-  return CONCEPTS[conceptId];
-}
+export const getLearningPath = (lessonId:string) => LESSON_LEARNING_PATHS[lessonId];
+export const getConcept = (conceptId:string) => CONCEPTS[conceptId];

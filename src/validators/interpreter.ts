@@ -195,6 +195,10 @@ class Scope {
 /** Hàm hành động của game — tên tiếng Anh theo quy ước đã chốt. */
 export const GAME_ACTIONS: Record<string, WorldEventType> = {
   moveForward: 'move',
+  moveRight: 'move',
+  moveLeft: 'move',
+  moveUp: 'move',
+  moveDown: 'move',
   // Quay tại chỗ — bản đồ hai chiều cần đổi hướng mới đi được sang hàng khác
   turnRight: 'turn',
   turnLeft: 'turn',
@@ -207,7 +211,14 @@ export const GAME_ACTIONS: Record<string, WorldEventType> = {
 };
 
 /** Hàm truy vấn trạng thái thế giới — trả về giá trị để dùng trong `if`. */
-export const GAME_QUERIES = ['getEnergy', 'hasKey', 'isBlocked', 'getPosition', 'getBugHp'];
+export const GAME_QUERIES = [
+  'getEnergy',
+  'hasKey',
+  'isBlocked',
+  'getPosition',
+  'getBugHp',
+  'gemsCollected',
+];
 
 export const BUILTIN_FUNCTIONS = [...Object.keys(GAME_ACTIONS), ...GAME_QUERIES];
 
@@ -455,6 +466,8 @@ class Interpreter {
         return { type: 'int', value: this.world.col };
       case 'getBugHp':
         return { type: 'int', value: this.world.bugHp };
+      case 'gemsCollected':
+        return { type: 'int', value: this.world.collectedGems };
       default:
         break;
     }
@@ -471,7 +484,18 @@ class Interpreter {
     }
 
     switch (name) {
-      case 'moveForward': {
+      case 'moveForward':
+      case 'moveRight':
+      case 'moveLeft':
+      case 'moveUp':
+      case 'moveDown': {
+        const absoluteFacing = {
+          moveRight: 'east',
+          moveLeft: 'west',
+          moveUp: 'north',
+          moveDown: 'south',
+        } as const;
+        if (name !== 'moveForward') this.world.facing = absoluteFacing[name];
         if (this.world.energy <= 0) {
           this.pushEvent('out-of-energy', 'Nhân vật đã hết năng lượng, không đi tiếp được.');
           break;
@@ -544,15 +568,30 @@ class Interpreter {
         break;
       }
 
-      case 'collectKey':
+      case 'collectKey': {
+        const key = this.findPropAt('key');
+        if (!key || this.world.collectedPropIds.includes(key.id)) {
+          this.pushEvent('blocked', 'Không có chìa khoá mới tại ô Byte đang đứng.', { line, function: name });
+          break;
+        }
         this.world.hasKey = true;
-        this.pushEvent('collect-key', 'Nhân vật đã nhặt được chìa khoá.');
+        this.world.collectedPropIds.push(key.id);
+        this.pushEvent('collect-key', 'Nhân vật đã nhặt được chìa khoá.', { id: key.id, line, function: name });
         break;
+      }
 
-      case 'collectGem':
+      case 'collectGem': {
+        const gem = this.findPropAt('gem');
+        const hasAuthoredGems = this.worldSpec?.props?.some((prop) => prop.type === 'gem') ?? false;
+        if (hasAuthoredGems && (!gem || this.world.collectedPropIds.includes(gem.id))) {
+          this.pushEvent('blocked', 'Không có viên ngọc mới tại ô Byte đang đứng.', { line, function: name });
+          break;
+        }
+        if (gem) this.world.collectedPropIds.push(gem.id);
         this.world.collectedGems += 1;
-        this.pushEvent('collect-gem', `Nhặt được viên ngọc thứ ${this.world.collectedGems}.`);
+        this.pushEvent('collect-gem', `Nhặt được viên ngọc thứ ${this.world.collectedGems}.`, { id: gem?.id, line, function: name });
         break;
+      }
 
       case 'attackBug':
         this.world.bugHp = Math.max(0, this.world.bugHp - 1);

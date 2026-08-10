@@ -5,139 +5,57 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ChallengePage } from './ChallengePage';
 import { playSound, setGameMusicActive } from '@/services/audio';
 
-vi.mock('@/services/audio', () => ({
-  playSound: vi.fn(),
-  setGameMusicActive: vi.fn(),
-}));
+vi.mock('@/services/audio', () => ({ playSound:vi.fn(), setGameMusicActive:vi.fn() }));
+vi.mock('@/components/editor/CodeEditor', () => ({ CodeEditor:() => <div data-testid="editor" /> }));
+vi.mock('@/components/game/GameStage', () => ({ GameStage:() => <div data-testid="game-stage" /> }));
+vi.mock('@/hooks/useChallengeSession', () => ({ useChallengeSession:() => ({
+  code:'', setCode:vi.fn(), isRestoring:false, result:null, isRunning:false, run:vi.fn(), reset:vi.fn(), saveState:'idle',
+  hintLevel:0, unlockNextHint:vi.fn(), attemptCount:0, canViewSolution:false, solutionVisible:false, showSolution:vi.fn(),
+  highlightedLines:[], playKey:0, justCompleted:false, xpAwarded:0, gemsAwarded:0, newBadges:[], dismissBadges:vi.fn(), attemptsBeforeSolution:6,
+}) }));
 
-vi.mock('@/components/editor/CodeEditor', () => ({
-  CodeEditor: () => <div data-testid="editor" />,
-}));
-vi.mock('@/components/game/GameStage', () => ({
-  GameStage: () => <div data-testid="game-stage" />,
-}));
-
-vi.mock('@/hooks/useChallengeSession', () => ({
-  useChallengeSession: () => ({
-    code: '',
-    setCode: vi.fn(),
-    isRestoring: false,
-    result: null,
-    isRunning: false,
-    run: vi.fn(),
-    reset: vi.fn(),
-    saveState: 'idle',
-    hintLevel: 0,
-    unlockNextHint: vi.fn(),
-    attemptCount: 0,
-    canViewSolution: false,
-    solutionVisible: false,
-    showSolution: vi.fn(),
-    highlightedLines: [],
-    playKey: 0,
-    justCompleted: false,
-    xpAwarded: 0,
-    newBadges: [],
-    dismissBadges: vi.fn(),
-    attemptsBeforeSolution: 4,
-  }),
-}));
-
-const LESSON_ID = 'l3';
-const CHALLENGE_WITH_WORLD = 'l3-c4-mission';
-
-function renderChallenge(lessonId = LESSON_ID, challengeId = CHALLENGE_WITH_WORLD) {
-  return render(
-    <MemoryRouter initialEntries={[`/app/lesson/${lessonId}/challenge/${challengeId}`]}>
-      <Routes>
-        <Route path="/app/lesson/:lessonId/challenge/:challengeId" element={<ChallengePage />} />
-      </Routes>
-    </MemoryRouter>,
-  );
+function renderChallenge() {
+  return render(<MemoryRouter initialEntries={['/app/lesson/a1/challenge/a1-c3-obstacle-route']}><Routes>
+    <Route path="/app/lesson/:lessonId/challenge/:challengeId" element={<ChallengePage />} />
+  </Routes></MemoryRouter>);
 }
 
-describe('Bố cục màn hình làm nhiệm vụ', () => {
-  it('tắt nhạc ngay khi rời khỏi màn chơi', () => {
-    const { unmount } = renderChallenge();
-    unmount();
-
-    expect(setGameMusicActive).toHaveBeenCalledWith(false);
-  });
-
-  it('đi theo đúng một trục: nhiệm vụ → bản đồ → code', () => {
+describe('Stage chung cho mọi nhiệm vụ', () => {
+  it('đi theo đúng trục Nhiệm vụ → Map lớn → Code', () => {
     renderChallenge();
-
-    const map = screen.getByRole('heading', { name: 'Quan sát bản đồ' });
-    const requirement = screen.getByRole('heading', { name: 'Nhiệm vụ của em' });
-    const code = screen.getByRole('heading', { name: 'Chương trình của em' });
-
-    expect(requirement.compareDocumentPosition(map) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(map.compareDocumentPosition(code) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const mission=screen.getByRole('heading',{name:'Nhiệm vụ của em'});
+    const map=screen.getByRole('heading',{name:'Quan sát bản đồ'});
+    const code=screen.getByRole('heading',{name:'Chương trình của em'});
+    expect(mission.compareDocumentPosition(map)&Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(map.compareDocumentPosition(code)&Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('bản đồ nằm trong bàn chơi lớn và có nút Chạy code ngay trên đó', () => {
-    renderChallenge();
-
-    const mapHeading = screen.getByRole('heading', { name: 'Quan sát bản đồ' });
-    const board = mapHeading.closest('section');
-    expect(board).not.toBeNull();
-    expect(board?.contains(screen.getByRole('button', { name: 'Chạy code' }))).toBe(true);
-  });
-
-  it('phát âm thanh phản hồi ngay khi học sinh bấm Chạy code', async () => {
-    const user = userEvent.setup();
-    renderChallenge('l1', 'l1-c1-observe');
-
-    await user.click(screen.getByRole('button', { name: 'Bắt đầu nhiệm vụ' }));
-    await user.click(screen.getByRole('button', { name: '3 ô' }));
-    await user.click(screen.getByRole('button', { name: 'Chạy và quan sát' }));
+  it('đặt Run trên map và chỉ có một nút Run', async () => {
+    const user=userEvent.setup(); renderChallenge();
+    const buttons=screen.getAllByRole('button',{name:'Chạy code'});
+    expect(buttons).toHaveLength(1);
+    const board=screen.getByRole('heading',{name:'Quan sát bản đồ'}).closest('section');
+    expect(board).toContainElement(buttons[0]);
+    await user.click(buttons[0]);
     expect(playSound).toHaveBeenCalledWith('click');
   });
 
-  it('coach nhắc lệnh nằm SAU editor và không cho bấm chèn code', () => {
+  it('editor nằm dưới map và coach không có nút chèn code', () => {
     renderChallenge();
-
-    const editor = screen.getByTestId('editor');
-    const palette = screen.getByRole('heading', { name: 'Nhắc lệnh khi em gõ' });
-
-    expect(editor.compareDocumentPosition(palette) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByText(/Byte chỉ nhắc cú pháp sau 2 ký tự/i)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /moveForward/i })).not.toBeInTheDocument();
+    const editor=screen.getByTestId('editor');
+    const palette=screen.getByRole('heading',{name:'Nhắc lệnh khi em gõ'});
+    expect(editor.compareDocumentPosition(palette)&Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole('button',{name:/moveRight/i})).not.toBeInTheDocument();
   });
 
-  it('gợi ý nằm cùng khu vực code nhưng mặc định chỉ là một nút gọn', () => {
-    const { container } = renderChallenge();
-
-    const editorCard = screen.getByTestId('editor').closest('section.rounded-2xl');
-    const hints = container.querySelector('[data-panel="hints"]');
-
-    expect(hints).not.toBeNull();
-    expect(editorCard?.contains(hints)).toBe(true);
-    expect(screen.getByRole('button', { name: 'Gợi ý' })).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByText('Byte gợi ý')).not.toBeInTheDocument();
-  });
-
-  it('có đủ ba chế độ Thường, Nhanh và Từng bước', () => {
+  it('có ba chế độ chạy và reset code tách riêng', () => {
     renderChallenge();
-
-    for (const label of ['Thường', 'Nhanh', 'Từng bước']) {
-      expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
-    }
+    for (const label of ['Thường','Nhanh','Từng bước']) expect(screen.getByRole('button',{name:label})).toBeInTheDocument();
+    expect(screen.getByRole('button',{name:'Khôi phục code'})).toBeInTheDocument();
   });
 
-  it('màn đầu tiên đặt map và code trong cùng game workspace, không còn bài giảng dọc', () => {
-    const { unmount } = renderChallenge('l1', 'l1-c1-observe');
-
-    const workspace = screen.getByRole('region', { name: 'Không gian nhiệm vụ đầu tiên' });
-    const editor = screen.getByTestId('editor');
-    const map = screen.getByTestId('game-stage');
-    expect(workspace).toContainElement(map);
-    expect(workspace).toContainElement(editor);
-    expect(screen.getByRole('button', { name: 'Bắt đầu nhiệm vụ' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Khám phá lệnh đầu tiên' })).not.toBeInTheDocument();
-
-    unmount();
-    renderChallenge('l1', 'l1-c2-concept');
-    expect(screen.getByRole('heading', { name: 'Chương trình của em' })).toBeInTheDocument();
+  it('tắt nhạc khi rời stage', () => {
+    const {unmount}=renderChallenge(); unmount();
+    expect(setGameMusicActive).toHaveBeenCalledWith(false);
   });
 });

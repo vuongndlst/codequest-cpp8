@@ -1,9 +1,5 @@
 import type { Challenge, Lesson } from '@/types/content';
-import { lesson1 } from './lesson-1';
-import { lesson2 } from './lesson-2';
-import { lesson3 } from './lesson-3';
-import { lesson4 } from './lesson-4';
-import { lesson5 } from './lesson-5';
+import { CORE_LESSONS } from './coreCurriculum';
 
 /**
  * Sổ đăng ký nội dung bài học.
@@ -11,10 +7,10 @@ import { lesson5 } from './lesson-5';
  * Nội dung nằm trong mã nguồn (không nằm trong database) để: quản lý bằng Git,
  * sửa bài không cần migration, tải tức thì, và test được bằng Vitest.
  *
- * Thêm bài mới: tạo `src/lessons/lesson-N/index.ts` rồi khai báo ở đây.
+ * Vertical slice Area 0–2 được khai báo data-driven trong `coreCurriculum.ts`.
  */
 
-export const LESSONS: Lesson[] = [lesson1, lesson2, lesson3, lesson4, lesson5];
+export const LESSONS: Lesson[] = CORE_LESSONS;
 
 const LESSON_BY_ID = new Map(LESSONS.map((lesson) => [lesson.id, lesson]));
 
@@ -49,4 +45,4 @@ export function getBossChallenge(lessonId: string): Challenge | undefined {
   return getLesson(lessonId)?.challenges.find((challenge) => challenge.kind === 'boss');
 }
 
-export { lesson1, lesson2, lesson3, lesson4, lesson5 };
+export { CORE_LESSONS };

@@ -43,7 +43,7 @@ function makeProgress(lessonId: string, completedChallenges: string[]): LessonPr
 
 function makeContext(overrides: Partial<BadgeContext> = {}): BadgeContext {
   return {
-    challenge: getChallenge('l1', 'l1-c4-mission')!,
+    challenge: getChallenge('a1', 'a1-c3-obstacle-route')!,
     result: makeResult(),
     attemptNumber: 1,
     hintLevelUsed: 0,
@@ -88,13 +88,13 @@ describe('persistent-coder — thưởng cho sự kiên trì', () => {
 
 describe('no-hint-hero', () => {
   it('chỉ trao ở Boss Challenge và khi chưa mở gợi ý nào', () => {
-    const boss = getChallenge('l3', 'l3-c9-boss')!;
+    const boss = getChallenge('a1', 'a1-c5-portal')!;
     const codes = evaluateBadges(makeContext({ challenge: boss, hintLevelUsed: 0 }));
     expect(codes).toContain('no-hint-hero');
   });
 
   it('không trao khi học sinh đã xem gợi ý', () => {
-    const boss = getChallenge('l3', 'l3-c9-boss')!;
+    const boss = getChallenge('a1', 'a1-c5-portal')!;
     const codes = evaluateBadges(makeContext({ challenge: boss, hintLevelUsed: 1 }));
     expect(codes).not.toContain('no-hint-hero');
   });
@@ -105,20 +105,29 @@ describe('no-hint-hero', () => {
   });
 });
 
-describe('Huy hiệu theo Boss từng khu vực', () => {
-  it('trao Function Builder khi đã hạ Boss Khu vực 2', () => {
+describe('Huy hiệu theo Boss từng Area', () => {
+  it('trao Algorithm Navigator khi đã hạ Boss Area 1', () => {
     const codes = evaluateBadges(
       makeContext({
-        progressByLesson: { l2: makeProgress('l2', ['l2-c9-boss']) },
+        progressByLesson: { a1: makeProgress('a1', ['a1-c5-portal']) },
       }),
     );
     expect(codes).toContain('function-builder');
   });
 
+  it('trao Data Keeper khi đã hạ Boss Area 2', () => {
+    const codes = evaluateBadges(
+      makeContext({
+        progressByLesson: { a2: makeProgress('a2', ['a2-c5-vault']) },
+      }),
+    );
+    expect(codes).toContain('data-keeper');
+  });
+
   it('không trao khi mới làm các nhiệm vụ khác của khu vực đó', () => {
     const codes = evaluateBadges(
       makeContext({
-        progressByLesson: { l2: makeProgress('l2', ['l2-c1-observe', 'l2-c2-concept']) },
+        progressByLesson: { a1: makeProgress('a1', ['a1-c1-move-right', 'a1-c2-change-direction']) },
       }),
     );
     expect(codes).not.toContain('function-builder');
@@ -137,9 +146,9 @@ describe('Huy hiệu clean code', () => {
     expect(codes).toContain('clean-code-rookie');
   });
 
-  it('Clean Code Guardian đòi từ 90 điểm ở CẢ 5 khu vực', () => {
+  it('Clean Code Guardian đòi từ 90 điểm ở cả ba khu vực', () => {
     const almostThere = Object.fromEntries(LESSONS.map((lesson) => [lesson.id, 95]));
-    almostThere.l5 = 88;
+    almostThere.a2 = 88;
 
     expect(
       evaluateBadges(makeContext({ history: makeHistory({ bestCleanCodeByLesson: almostThere }) })),
@@ -173,13 +182,13 @@ describe('Dùng gợi ý không bị phạt', () => {
   it('học sinh mở hết 3 gợi ý vẫn nhận được mọi huy hiệu, trừ No Hint Hero', () => {
     const withHints = evaluateBadges(
       makeContext({
-        challenge: getChallenge('l2', 'l2-c9-boss')!,
+        challenge: getChallenge('a1', 'a1-c5-portal')!,
         hintLevelUsed: 3,
         attemptNumber: 6,
         result: makeResult({
           cleanCode: { score: 95, checks: [], suggestions: [], isClean: true },
         }),
-        progressByLesson: { l2: makeProgress('l2', ['l2-c9-boss']) },
+        progressByLesson: { a1: makeProgress('a1', ['a1-c5-portal']) },
         history: makeHistory({ debugChallengesCompleted: 5, semicolonFixCount: 3 }),
       }),
     );

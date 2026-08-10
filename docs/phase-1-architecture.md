@@ -1,4 +1,9 @@
-# CODEQUEST C++ 8 — Giai đoạn 1: Phân tích & Kiến trúc
+# CODEQUEST C++ 8 — Giai đoạn 1: Phân tích & Kiến trúc (tài liệu lịch sử)
+
+> Tài liệu này mô tả kiến trúc trước đợt tái cấu trúc Area 0–2 và được giữ để
+> tra cứu quyết định kỹ thuật. Số lượng 5 khu vực/45 challenge và các ID `l1`–`l5`
+> không còn là trạng thái hiện tại. Xem [master-prompt-audit.md](master-prompt-audit.md)
+> và `src/lessons/coreCurriculum.ts` để biết nguồn sự thật đang chạy.
 
 > Hành trình giải cứu ByteLand — website học lập trình C++ tương tác cho học sinh lớp 8
 > Giáo viên: Nguyễn Đình Vương · Trạng thái: **Bản thiết kế, chờ xác nhận trước khi code**

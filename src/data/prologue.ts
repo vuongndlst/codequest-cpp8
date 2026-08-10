@@ -1,14 +1,14 @@
 /**
  * PHẦN MỞ ĐẦU — "Thuật toán là gì?"
  *
- * Đặt TRƯỚC Khu vực 1, không tính điểm, không khoá, không cấp chứng chỉ.
+ * Đặt TRƯỚC Area 0, không tính điểm, không khoá, không cấp chứng chỉ.
  *
  * Vì sao cần phần này:
  *   Học sinh lớp 8 thường nghĩ "học lập trình = học cú pháp C++". Hiểu vậy thì
  *   khi quên cú pháp là bế tắc hoàn toàn. Thực ra thứ khó là NGHĨ RA CÁC BƯỚC;
  *   cú pháp chỉ là cách viết các bước đó xuống cho máy tính đọc.
  *
- *   Phần này cũng là cầu nối tự nhiên vào Khu vực 1: máy tính không tự suy diễn
+ *   Phần này cũng là cầu nối tự nhiên vào Area 0: máy tính không tự suy diễn
  *   được, nên các bước phải rõ ràng tuyệt đối — và đó chính là lý do C++ khó
  *   tính với từng dấu chấm phẩy.
  *
@@ -140,18 +140,18 @@ export const PROLOGUE = {
     },
   ] satisfies AlgorithmProperty[],
 
-  /** Vì sao máy tính khắt khe hơn con người — cầu nối sang Khu vực 1 */
+  /** Vì sao máy tính khắt khe hơn con người — cầu nối sang Area 0 */
   whyComputersAreStrict: {
     title: 'Vì sao máy tính khó tính hơn con người rất nhiều',
     body: 'Khi em bảo bạn "lấy giúp mình quyển sách trên bàn", bạn tự hiểu là bàn nào, sách nào, lấy rồi đưa cho ai. Bạn lấp mọi chỗ trống bằng kinh nghiệm sống. Máy tính không có kinh nghiệm sống nào cả. Nó chỉ làm đúng những gì được ghi ra, không thêm không bớt. Vì vậy khi viết thuật toán cho máy, em phải ghi rõ tới mức không còn chỗ nào để hiểu nhầm.',
     bridge:
-      'Và đây chính là lý do C++ khó tính với từng dấu chấm phẩy, từng cặp ngoặc. Những ký hiệu đó không phải để làm khó em — chúng là cách đánh dấu ranh giới giữa các bước, để không còn chỗ hiểu nhầm nào cả. Em sẽ gặp lại đúng ý này ở Khu vực 1.',
+      'Đó là lý do C++ chú ý từng dấu chấm phẩy và từng cặp ngoặc. Những ký hiệu ấy đánh dấu ranh giới giữa các bước để máy không hiểu nhầm. Em sẽ kiểm chứng điều này ngay ở Area 0.',
   },
 
   /**
    * Ba khối xây dựng. Đây là ý lớn nhất của cả phần mở đầu: mọi thuật toán,
    * dù phức tạp tới đâu, cũng chỉ ghép từ ba kiểu bước này. Và ba kiểu đó
-   * ánh xạ thẳng vào bản đồ 5 khu vực.
+   * cho học sinh thấy lộ trình: phần đã mở trong Area 0–2 và phần sẽ học sau.
    */
   buildingBlocksIntro:
     'Đây là điều đáng ngạc nhiên nhất: mọi thuật toán trên đời, dù phức tạp tới đâu, cũng chỉ ghép lại từ BA kiểu bước. Không có kiểu thứ tư.',
@@ -162,8 +162,8 @@ export const PROLOGUE = {
       name: 'Tuần tự — làm lần lượt từng bước',
       everydayExample: 'Đun nước → cho mì vào tô → chế nước → chờ 3 phút',
       body: 'Kiểu đơn giản nhất: làm xong bước này thì sang bước kế tiếp, theo đúng thứ tự đã ghi. Phần lớn thuật toán là tuần tự.',
-      lessonId: 'l1',
-      zoneLabel: 'Khu vực 1 và 2',
+      lessonId: 'a0',
+      zoneLabel: 'Area 0–1 · đang mở',
       icon: 'ArrowDown',
     },
     {
@@ -171,8 +171,8 @@ export const PROLOGUE = {
       name: 'Lặp lại — làm cùng một việc nhiều lần',
       everydayExample: 'Khuấy đều 20 vòng · Chép bài 3 lần · Đi 47 bước',
       body: 'Khi cùng một việc phải làm nhiều lần, em không liệt kê từng lần mà mô tả quy luật: làm việc này, lặp lại bấy nhiêu lần.',
-      lessonId: 'l3',
-      zoneLabel: 'Khu vực 3',
+      lessonId: 'a2',
+      zoneLabel: 'Sẽ mở ở Area tiếp theo',
       icon: 'RefreshCw',
     },
     {
@@ -180,14 +180,14 @@ export const PROLOGUE = {
       name: 'Rẽ nhánh — tuỳ tình huống mà làm khác đi',
       everydayExample: 'Nếu đèn đỏ thì dừng, nếu đèn xanh thì đi tiếp',
       body: 'Khi hành động phụ thuộc vào tình huống, thuật toán phải đặt câu hỏi rồi mới chọn đường. Đây là chỗ chương trình bắt đầu biết "suy nghĩ".',
-      lessonId: 'l4',
-      zoneLabel: 'Khu vực 4 và 5',
+      lessonId: 'a2',
+      zoneLabel: 'Sẽ mở sau vertical slice',
       icon: 'GitBranch',
     },
   ] satisfies BuildingBlock[],
 
   buildingBlocksPunchline:
-    'Nhìn lại bản đồ ByteLand mà xem: năm khu vực chính là hành trình học ba khối này. Khu vực 1 và 2 dạy tuần tự, Khu vực 3 dạy lặp, Khu vực 4 và 5 dạy rẽ nhánh. Học xong là em có đủ bộ công cụ để mô tả bất kỳ thuật toán nào ở mức này.',
+    'Trong phiên bản này, Area 0 giúp em làm quen C++ thật, Area 1 luyện trình tự điều khiển Byte và Area 2 luyện biến cùng dữ liệu. Vòng lặp và rẽ nhánh được báo trước nhưng chưa bắt em dùng khi nền móng chưa vững.',
 
   /** Hoạt động 1: sắp xếp các bước — luyện tính chất "có thứ tự" */
   orderingActivity: {

@@ -194,7 +194,7 @@ export function DashboardPage() {
         </div>
       </section>
 
-      {/* --- Bản đồ 5 khu vực --- */}
+      {/* --- Bản đồ Area 0–2 --- */}
       <section aria-labelledby="map-heading">
         <div className="flex items-end justify-between mb-3">
           <div>
@@ -242,7 +242,7 @@ export function DashboardPage() {
               title="Chưa có hoạt động nào"
               description="Em hoàn thành nhiệm vụ đầu tiên ở Làng Khởi Động để bắt đầu ghi dấu nhé."
               action={
-                <Link to="/app/lesson/l1">
+                <Link to="/app/lesson/a0">
                   <Button size="sm">Tới Làng Khởi Động</Button>
                 </Link>
               }

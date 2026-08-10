@@ -107,7 +107,7 @@ export function LessonPage() {
       <UpcomingPage
         phase="Đang soạn nội dung"
         title={`${meta.zoneName} sắp mở`}
-        description={`Khu vực ${meta.order} — ${meta.title} — đang được thầy soạn nội dung. Em quay lại Khu vực 1 luyện thêm nhé.`}
+        description={`Area ${meta.order} — ${meta.title} — đang được thầy soạn nội dung. Em quay lại Area 0 luyện thêm nhé.`}
       />
     );
   }

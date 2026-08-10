@@ -159,7 +159,16 @@ export function useChallengeSession({
     const nextAttempt = attemptCount + 1;
     setAttemptCount(nextAttempt);
 
-    if (!persist || !user || !profile) return;
+    if (!persist) {
+      if (runResult.isCorrect) {
+        setXpAwarded(challenge.xpReward);
+        setGemsAwarded(3);
+        setJustCompleted(true);
+      }
+      return;
+    }
+
+    if (!user || !profile) return;
 
     // Ghi lại lần làm bài TRƯỚC khi xét huy hiệu, để thống kê lịch sử đã có
     // lần chạy này. Hỏng thì bỏ qua, không chặn việc học.

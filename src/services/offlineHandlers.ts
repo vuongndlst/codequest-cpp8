@@ -13,7 +13,7 @@ import type { SubmitExitTicketInput } from '@/services/supabase/exitTickets.repo
  *
  * File này được nạp ngay lúc ứng dụng khởi động (App.tsx gọi `initOfflineSync`).
  * Nếu import tĩnh, `progressService` sẽ kéo theo `@/lessons` — tức toàn bộ nội
- * dung 45 nhiệm vụ của 5 khu vực — vào bundle chính. Đo thực tế: bundle chính
+ * dung toàn bộ nhiệm vụ — vào bundle chính. Nội dung vẫn được lazy-load theo route,
  * phình từ 91 KB lên 128 KB gzip, và màn hình đăng nhập phải tải cả nội dung
  * bài học dù chưa ai học gì.
  *

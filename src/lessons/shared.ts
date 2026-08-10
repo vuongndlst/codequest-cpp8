@@ -14,7 +14,7 @@ export const STANDARD_CLEAN_CODE: CleanCodeRule[] = [
   { rule: 'spacing', weight: 20 },
 ];
 
-/** Từ Khu vực 2 trở đi, tên hàm cũng được tính vào điểm clean code. */
+/** Quy tắc bổ sung cho các Area về sau khi học sinh tự khai báo hàm. */
 export const CLEAN_CODE_WITH_FUNCTIONS: CleanCodeRule[] = [
   { rule: 'indent', weight: 25 },
   { rule: 'one-statement-per-line', weight: 20 },

@@ -27,7 +27,7 @@ export interface LessonUnlockContext {
 }
 
 /** Bài học đầu tiên luôn mở — học sinh mới vào phải có việc để làm ngay. */
-export const FIRST_LESSON_ID = 'l1';
+export const FIRST_LESSON_ID = 'a0';
 
 export function isLessonUnlocked(lessonId: string, ctx: LessonUnlockContext): boolean {
   if (ctx.isTeacher) return true;

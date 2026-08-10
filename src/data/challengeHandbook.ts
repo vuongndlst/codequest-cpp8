@@ -9,7 +9,7 @@ import type { Challenge, HandbookCard } from '@/types/content';
  * bỏ cuộc và quay ra hỏi thầy cô một câu mà sổ tay đã trả lời sẵn.
  *
  * Danh sách thẻ được SUY RA từ `requiredPatterns` của chính nhiệm vụ, không
- * khai báo tay cho từng bài. Lý do: 45 nhiệm vụ mà khai báo tay thì chắc chắn
+ * khai báo tay cho từng bài. Lý do: số nhiệm vụ sẽ tiếp tục tăng và khai báo tay dễ
  * có bài bị sót, và mỗi lần sửa yêu cầu của bài lại phải nhớ sửa kèm — kiểu dữ
  * liệu đó luôn lệch dần theo thời gian.
  */
@@ -23,7 +23,7 @@ const PATTERN_TO_CARD: Array<{ test: RegExp; card: string }> = [
     sang thẻ "Gọi hàm" — một khái niệm mãi khu vực 2 mới dạy. Học sinh mở ra
     đọc sẽ càng rối.
   */
-  { test: /call:(moveForward|turnRight|turnLeft|collectGem|collectKey|openDoor)/, card: 'robot-commands' },
+  { test: /call:(moveRight|moveLeft|moveUp|moveDown|collectGem|gemsCollected)/, card: 'robot-commands' },
   { test: /stmt:for/, card: 'for-loop' },
   { test: /stmt:if-else/, card: 'if-else' },
   /*
@@ -37,6 +37,7 @@ const PATTERN_TO_CARD: Array<{ test: RegExp; card: string }> = [
   { test: /stmt:if(?!-else)/, card: 'if' },
   { test: /stmt:cout/, card: 'cout' },
   { test: /decl:var/, card: 'variables' },
+  { test: /op:(\+|-|\*|\/)/, card: 'assignment' },
   { test: /decl:func:[^:]+:params/, card: 'function-params' },
   { test: /decl:func/, card: 'function-declare' },
   { test: /call:/, card: 'function-call' },

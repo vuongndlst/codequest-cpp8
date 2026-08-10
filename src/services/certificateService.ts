@@ -16,7 +16,7 @@ import { logActivityEvent } from '@/services/supabase/gamification.repo';
 /**
  * Cấp chứng chỉ (mục 12 của đề bài).
  *
- * Năm điều kiện, đúng như thiết kế ở docs/phase-1-architecture.md mục 7.1.
+ * Năm điều kiện theo vertical slice Area 0–2.
  * Toàn bộ phần XÉT ĐIỀU KIỆN là hàm thuần — không đụng mạng, không đụng React —
  * nên test được đầy đủ mọi tổ hợp mà không cần dựng database.
  */
@@ -49,9 +49,8 @@ export interface EligibilityInput {
 /**
  * Xét năm điều kiện cấp chứng chỉ.
  *
- * Lưu ý về mục 11 của đề bài: điều kiện thứ năm chỉ yêu cầu học sinh ĐÃ TỪNG
- * làm Clean Code Check, KHÔNG yêu cầu đạt điểm cao. Điểm clean code không bao
- * giờ được phép làm học sinh mất chứng chỉ khi chương trình đã chạy đúng.
+ * Điều kiện thứ năm chỉ xác nhận học sinh đã từng chạy code và nhận phản hồi
+ * về cách trình bày. Điểm clean code không bao giờ là điểm phạt.
  */
 export function checkEligibility(input: EligibilityInput): CertificateEligibility {
   const { lessonId, progress, exitTicket, attempts } = input;
@@ -80,12 +79,8 @@ export function checkEligibility(input: EligibilityInput): CertificateEligibilit
   // nên điều kiện này chỉ thực sự chặn khi học sinh chưa làm xong bài.
   const testRateOk = allChallengesDone || passRate >= REQUIRED_TEST_PASS_RATE;
 
-  // ⑤ Đã thực hiện ít nhất một lần Clean Code Check
-  const cleanCodeNode = lesson?.challenges.find((challenge) => challenge.kind === 'cleancode');
-  const cleanCodeChecked = cleanCodeNode
-    ? completed.includes(cleanCodeNode.id) ||
-      attempts.some((attempt) => attempt.challenge_id === cleanCodeNode.id)
-    : attempts.some((attempt) => attempt.clean_code_score !== null);
+  // ⑤ Đã nhận phản hồi trình bày code ít nhất một lần ở bất kỳ nhiệm vụ nào.
+  const cleanCodeChecked = attempts.some((attempt) => attempt.clean_code_score !== null);
 
   const requirements: CertificateRequirement[] = [
     {
@@ -118,7 +113,7 @@ export function checkEligibility(input: EligibilityInput): CertificateEligibilit
     },
     {
       id: 'clean-code',
-      label: 'Thực hiện Clean Code Check ít nhất một lần',
+      label: 'Nhận phản hồi trình bày code ít nhất một lần',
       met: cleanCodeChecked,
       detail: cleanCodeChecked ? 'Đã làm' : 'Chưa làm',
     },

@@ -17,7 +17,7 @@ import type { Challenge, WorldKind, WorldSpec } from '@/types/content';
  */
 
 /**
- * Bản đồ BOSS thật của Khu vực 1, lấy nguyên từ nội dung bài học.
+ * Bản đồ BOSS thật của Area 1, lấy nguyên từ nội dung bài học.
  *
  * Dùng bản đồ thật thay vì bản đồ bịa: xem trước mà không khớp với thứ học
  * sinh gặp thì xem để làm gì.
@@ -25,7 +25,7 @@ import type { Challenge, WorldKind, WorldSpec } from '@/types/content';
  * Khai báo TRƯỚC `SAMPLES` vì `SAMPLES` dùng tới nó — `const` nằm trong vùng
  * chết tạm thời, đọc trước khi khai báo là ném lỗi ngay lúc nạp module.
  */
-const BOSS = LESSONS.find((lesson) => lesson.id === 'l1')!.challenges.find(
+const BOSS = LESSONS.find((lesson) => lesson.id === 'a1')!.challenges.find(
   (challenge) => challenge.kind === 'boss',
 )!;
 
@@ -78,7 +78,7 @@ int main() {
 
 const BASE: Challenge = {
   id: 'preview',
-  lessonId: 'l1',
+  lessonId: 'a1',
   kind: 'mission',
   title: 'Xem trước sân khấu',
   story: '',

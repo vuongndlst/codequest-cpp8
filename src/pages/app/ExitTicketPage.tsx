@@ -131,6 +131,7 @@ export function ExitTicketPage() {
         const progressPatch = {
           status: 'completed',
           progress_percent: 100,
+          stars: 3,
           completed_at: new Date().toISOString(),
         } as const;
         let completedProgress: LessonProgressRow | null = null;

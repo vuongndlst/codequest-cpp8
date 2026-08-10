@@ -68,8 +68,8 @@ describe('Tổng hợp số liệu học sinh', () => {
     const [summary] = buildStudentSummaries({
       students: [student],
       progress: [
-        makeProgress({ lesson_id: 'l1', status: 'completed', stars: 3, progress_percent: 100 }),
-        makeProgress({ id: 'p2', lesson_id: 'l2', status: 'in_progress', stars: 1, progress_percent: 40 }),
+        makeProgress({ lesson_id: 'a0', status: 'completed', stars: 3, progress_percent: 100 }),
+        makeProgress({ id: 'p2', lesson_id: 'a1', status: 'in_progress', stars: 1, progress_percent: 40 }),
       ],
       certificates: [certificate],
       attempts: [],
@@ -78,8 +78,8 @@ describe('Tổng hợp số liệu học sinh', () => {
     expect(summary.lessonsCompleted).toBe(1);
     expect(summary.totalStars).toBe(4);
     expect(summary.certificatesCount).toBe(1);
-    // (100 + 40) / 5 khu vực = 28%
-    expect(summary.overallPercent).toBe(28);
+    // (100 + 40) / 3 khu vực = 47%
+    expect(summary.overallPercent).toBe(47);
   });
 
   it('tính số lần thử trung bình cho mỗi nhiệm vụ làm được', () => {
@@ -176,12 +176,12 @@ describe('Tổng quan theo khu vực', () => {
     const overview = computeLessonOverview(
       [makeStudent({ id: 'u1' }), makeStudent({ id: 'u2' })],
       [
-        makeProgress({ user_id: 'u1', lesson_id: 'l1', status: 'completed', progress_percent: 100 }),
-        makeProgress({ user_id: 'u2', lesson_id: 'l1', status: 'in_progress', progress_percent: 50 }),
+        makeProgress({ user_id: 'u1', lesson_id: 'a0', status: 'completed', progress_percent: 100 }),
+        makeProgress({ user_id: 'u2', lesson_id: 'a0', status: 'in_progress', progress_percent: 50 }),
       ],
     );
 
-    const lesson1 = overview.find((row) => row.lessonId === 'l1')!;
+    const lesson1 = overview.find((row) => row.lessonId === 'a0')!;
     expect(lesson1.studentsStarted).toBe(2);
     expect(lesson1.studentsCompleted).toBe(1);
     expect(lesson1.averagePercent).toBe(75);
