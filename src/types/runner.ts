@@ -2,6 +2,7 @@ import type { Challenge, ErrorCode } from './content';
 import type { Diagnostic } from '@/validators/tokens';
 import type { CleanCodeReport } from '@/validators/cleanCodeCoach';
 import type { WorldEvent, WorldState } from '@/validators/world';
+import type { StatementCountResult } from '@/validators/statementCount';
 
 /**
  * Hợp đồng giữa giao diện và bộ chạy code.
@@ -36,6 +37,13 @@ export interface RunResult {
   diagnostics: Diagnostic[];
   testResults: TestResult[];
   cleanCode: CleanCodeReport;
+  /**
+   * Số câu lệnh học sinh viết, so với "số dòng vàng" của nhiệm vụ.
+   *
+   * `null` khi chương trình không phân tích được, hoặc khi nhiệm vụ không đặt
+   * mức chuẩn (bài kể chuyện, bài thử nghiệm tự do).
+   */
+  par: StatementCountResult | null;
   passedRequired: number;
   totalRequired: number;
   /** Mã lỗi để ghi vào challenge_attempts.error_types cho dashboard giáo viên */
@@ -67,6 +75,7 @@ export function emptyRunResult(): RunResult {
     diagnostics: [],
     testResults: [],
     cleanCode: { score: 0, checks: [], suggestions: [], isClean: false },
+    par: null,
     passedRequired: 0,
     totalRequired: 0,
     errorCodes: [],

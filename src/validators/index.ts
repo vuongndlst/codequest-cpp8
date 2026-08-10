@@ -8,6 +8,7 @@ import { analyzeSemantics } from './semantics';
 import { BUILTIN_FUNCTIONS, interpret, type InterpretResult } from './interpreter';
 import { matchPattern, matchPatterns } from './patternMatcher';
 import { analyzeCleanCode, type CleanCodeReport } from './cleanCodeCoach';
+import { evaluatePar } from './statementCount';
 import { matchesExpectedWorld } from './world';
 import type { Program } from './ast';
 
@@ -31,7 +32,17 @@ const EMPTY_CLEAN_CODE: CleanCodeReport = {
 export function analyzeChallenge(code: string, challenge: Challenge): RunResult {
   const startedAt = Date.now();
 
-  const finish = (result: Omit<RunResult, 'durationMs' | 'errorCodes'>): RunResult => ({
+  /*
+    `par` mặc định null: những lần thoát sớm (lỗi lexer, lỗi parser) chưa có
+    AST nên không đếm được câu lệnh. Chỉ những nhánh đã dựng xong AST mới
+    truyền giá trị thật vào.
+  */
+  const finish = (
+    result: Omit<RunResult, 'durationMs' | 'errorCodes' | 'par'> & {
+      par?: RunResult['par'];
+    },
+  ): RunResult => ({
+    par: null,
     ...result,
     errorCodes: dedupe(result.diagnostics.filter((d) => d.severity !== 'tip').map((d) => d.code)),
     durationMs: Date.now() - startedAt,
@@ -123,6 +134,9 @@ export function analyzeChallenge(code: string, challenge: Challenge): RunResult 
     rules: challenge.cleanCodeRules,
   });
 
+  // Đếm số câu lệnh để so với "số dòng vàng" của nhiệm vụ
+  const par = evaluatePar(program, challenge.parStatements);
+
   // --- ⑤ Ngữ nghĩa ---
   const semantics = analyzeSemantics(program, { builtinFunctions: BUILTIN_FUNCTIONS });
   const semanticErrors = semantics.diagnostics.filter((d) => d.severity === 'error');
@@ -137,6 +151,7 @@ export function analyzeChallenge(code: string, challenge: Challenge): RunResult 
       diagnostics: sortDiagnostics(semanticErrors).map((d) => applyCommonMistakes(d, challenge)),
       testResults: emptyTestResults(challenge),
       cleanCode,
+      par,
       passedRequired: 0,
       totalRequired: countRequired(challenge),
     });
@@ -166,6 +181,7 @@ export function analyzeChallenge(code: string, challenge: Challenge): RunResult 
       diagnostics: sortDiagnostics(runtimeErrors).map((d) => applyCommonMistakes(d, challenge)),
       testResults: emptyTestResults(challenge),
       cleanCode,
+      par,
       passedRequired: 0,
       totalRequired: countRequired(challenge),
     });
@@ -280,6 +296,7 @@ export function analyzeChallenge(code: string, challenge: Challenge): RunResult 
     diagnostics: sortDiagnostics(diagnostics),
     testResults,
     cleanCode,
+    par,
     passedRequired,
     totalRequired: requiredTests.length,
   });

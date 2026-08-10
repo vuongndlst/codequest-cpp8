@@ -1,4 +1,4 @@
-import { Check, CircleDashed, Feather, Lightbulb, Terminal, X } from 'lucide-react';
+import { Check, CircleDashed, Feather, Lightbulb, Target, Terminal, X } from 'lucide-react';
 import type { RunResult } from '@/types/runner';
 import type { Diagnostic } from '@/validators/tokens';
 import { Button } from '@/components/ui/Button';
@@ -113,6 +113,9 @@ export function ResultPanel({
         </div>
       </div>
 
+      {/* --- Số dòng vàng --- */}
+      {result.isCorrect && result.par?.par != null && <ParCard par={result.par} />}
+
       {/* --- Test case --- */}
       {visibleTests.length > 0 && (
         <section className="cq-panel p-4" aria-labelledby="tests-heading">
@@ -198,6 +201,69 @@ export function ResultPanel({
         <CleanCodeCard report={result.cleanCode} />
       )}
     </div>
+  );
+}
+
+/**
+ * "Số dòng vàng" — cơ chế sư phạm trung tâm của khoá học.
+ *
+ * Chỉ hiện SAU KHI đã giải được. Giải bằng tám dòng lặp đi lặp lại thì vẫn qua
+ * bài, không trừng phạt — nhưng màn hình nói thẳng "có cách ba dòng đấy". Đó
+ * là lúc học sinh TỰ MUỐN tìm vòng lặp, thay vì bị bắt học vòng lặp.
+ *
+ * Giọng văn cố ý là lời mời, không phải lời chê: "thử rút gọn xem", không phải
+ * "code của em dài quá".
+ */
+function ParCard({ par }: { par: NonNullable<RunResult['par']> }) {
+  const target = par.par!;
+  const achieved = par.meetsPar === true;
+
+  return (
+    <section
+      className={cn(
+        'rounded-xl border p-4',
+        achieved
+          ? 'bg-treasure-400/10 border-treasure-400/50'
+          : 'bg-abyss-800/60 border-abyss-600',
+      )}
+      aria-labelledby="par-heading"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <h3
+          id="par-heading"
+          className="flex items-center gap-2 text-sm font-bold text-slate-200"
+        >
+          <Target
+            className={cn('size-4', achieved ? 'text-treasure-400' : 'text-slate-400')}
+            aria-hidden="true"
+          />
+          Số dòng vàng
+        </h3>
+
+        <span className="text-sm tabular-nums text-slate-300">
+          Em dùng <strong className={achieved ? 'text-treasure-300' : 'text-slate-100'}>
+            {par.count}
+          </strong>{' '}
+          / mục tiêu <strong className="text-treasure-300">{target}</strong> câu lệnh
+        </span>
+      </div>
+
+      <p className="text-sm text-slate-300 leading-relaxed mt-2">
+        {achieved ? (
+          <>
+            Gọn đúng mức rồi! Em không chỉ làm cho chạy được, em còn làm cho{' '}
+            <strong className="text-treasure-300">ngắn gọn</strong> — đó mới là suy nghĩ của
+            người viết thuật toán.
+          </>
+        ) : (
+          <>
+            Nhiệm vụ hoàn thành rồi nhé — phần này không bắt buộc. Nhưng có cách giải chỉ cần{' '}
+            <strong className="text-treasure-300">{target} câu lệnh</strong>. Em thử nhìn lại
+            xem có đoạn nào mình viết đi viết lại không?
+          </>
+        )}
+      </p>
+    </section>
   );
 }
 

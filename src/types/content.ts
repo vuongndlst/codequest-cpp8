@@ -171,6 +171,16 @@ export interface Challenge {
    * không được làm học sinh trượt khi chương trình đã đúng.
    */
   minCleanCodeScore?: number;
+  /**
+   * "So dong vang" — so cau lenh toi da de duoc sao thu hai.
+   *
+   * Giai duoc thi VAN QUA BAI, khong trung phat. Nhung viet `moveForward()`
+   * tam lan thi man hinh noi "co cach ba dong day" — do la luc hoc sinh TU
+   * MUON tim vong lap, thay vi bi bat hoc vong lap.
+   *
+   * Bo trong voi bai ke chuyen va bai thu nghiem tu do.
+   */
+  parStatements?: number;
   xpReward: number;
   /**
    * Chỉ định tay các thẻ sổ tay lệnh liên quan tới nhiệm vụ.
