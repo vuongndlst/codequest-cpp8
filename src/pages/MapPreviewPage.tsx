@@ -20,12 +20,12 @@ export function MapPreviewPage() {
             Bản đồ hành trình ByteLand
           </h1>
           <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-slate-400 sm:text-base">
-            Ba Area đầu tạo nền móng vừa sức: làm quen chương trình C++ thật, biến đường đi thành
-            chuỗi lệnh, rồi dùng biến để ghi nhớ trạng thái thay đổi trong game.
+            Hành trình bắt đầu bằng chương trình C++ thật và thuật toán đường đi, sau đó mở dần
+            tới hàm, tham chiếu, mảng, tìm kiếm và sắp xếp dành cho học sinh muốn đi xa hơn.
           </p>
 
           <div className="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-slate-400">
-            {['14 nhiệm vụ', '3 bài hướng dẫn tư duy', '3 checkpoint', '3 chứng chỉ'].map((item) => (
+            {['50 nhiệm vụ', '11 bài hướng dẫn', '11 checkpoint', '11 chứng chỉ'].map((item) => (
               <span key={item} className="inline-flex items-center gap-1.5">
                 <Check className="size-3.5 text-verdant-400" aria-hidden="true" />
                 {item}
@@ -43,7 +43,7 @@ export function MapPreviewPage() {
                 Mở khóa tuần tự
               </p>
               <h2 id="journey-heading" className="mt-1 text-2xl font-extrabold text-slate-100">
-                Ba chặng nền móng của một Code Guardian
+                11 chặng trưởng thành của một Code Guardian
               </h2>
             </div>
             <p className="max-w-lg text-sm leading-relaxed text-slate-400 sm:text-right">

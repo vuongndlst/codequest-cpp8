@@ -67,8 +67,8 @@ const LEARNING_LOOP = [
 ];
 
 const COURSE_STATS = [
-  { value: '45', label: 'nhiệm vụ C++' },
-  { value: '5', label: 'khu vực phiêu lưu' },
+  { value: '50', label: 'nhiệm vụ C++' },
+  { value: '11', label: 'khu vực phiêu lưu' },
   { value: '3', label: 'cấp gợi ý' },
   { value: '100%', label: 'phản hồi tiếng Việt' },
 ];
@@ -279,11 +279,11 @@ export function LandingPage() {
                 Hành trình giải cứu ByteLand
               </p>
               <h2 id="zones-heading" className="mt-2 text-3xl font-extrabold text-slate-100">
-                Ba Area nền móng, một lộ trình C++ vừa sức
+                11 khu vực, một hành trình C++ từ nền móng đến nâng cao
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-slate-400">
-                Kiến thức mở dần theo đúng thứ tự: chương trình đầu tiên → thuật toán đường đi →
-                biến và dữ liệu. Mỗi Area có 4–5 nhiệm vụ cùng một checkpoint ngắn.
+                Kiến thức mở dần từ chương trình đầu tiên, biến và điều kiện đến hàm, mảng,
+                tìm kiếm và sắp xếp. Mỗi khu vực có 4–5 nhiệm vụ cùng một checkpoint ngắn.
               </p>
             </div>
             <Link
@@ -304,7 +304,9 @@ export function LandingPage() {
                     <span className="grid size-11 place-items-center rounded-xl bg-quest-500/15 text-quest-400 transition group-hover:bg-quest-500/25">
                       <Icon className="size-5" aria-hidden="true" />
                     </span>
-                    <span className="font-mono text-xs font-bold text-slate-500">0{lesson.order}</span>
+                    <span className="font-mono text-xs font-bold text-slate-500">
+                      {String(lesson.order).padStart(2, '0')}
+                    </span>
                   </div>
                   <h3 className="mt-4 font-bold text-slate-100">{lesson.zoneName}</h3>
                   <p className="mt-1 text-sm text-slate-400">{lesson.title}</p>
