@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { LESSONS_META, CERTIFICATE_NAMES } from '@/data/lessons.meta';
 import { fetchUserCertificates } from '@/services/supabase/gamification.repo';
 import { fetchAllLessonProgress, indexProgressByLesson } from '@/services/supabase/progress.repo';
+import { issueCertificate } from '@/services/certificateService';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { StarRating } from '@/components/game/StarRating';
@@ -17,6 +18,7 @@ import type { CertificateRow, LessonProgressRow } from '@/types/database';
 /** Bộ sưu tập chứng chỉ — 5 ô, ô nào chưa mở thì hiện điều kiện còn thiếu. */
 export function CertificatesPage() {
   const user = useAuthStore((state) => state.user);
+  const profile = useAuthStore((state) => state.profile);
 
   const [certificates, setCertificates] = useState<CertificateRow[]>([]);
   const [progressByLesson, setProgressByLesson] = useState<
@@ -33,10 +35,23 @@ export function CertificatesPage() {
       setIsLoading(true);
       setError(null);
       try {
-        const [certs, progress] = await Promise.all([
+        const [storedCertificates, progress] = await Promise.all([
           fetchUserCertificates(user.id),
           fetchAllLessonProgress(user.id),
         ]);
+        const storedLessons = new Set(storedCertificates.map((certificate) => certificate.lesson_id));
+        const missingCompletedAreas = progress.filter(
+          (row) => row.status === 'completed' && !storedLessons.has(row.lesson_id),
+        );
+        const syncResults = profile
+          ? await Promise.allSettled(
+              missingCompletedAreas.map((row) => issueCertificate(profile, row.lesson_id, row)),
+            )
+          : [];
+        const syncedCertificates = syncResults.flatMap((result) =>
+          result.status === 'fulfilled' ? [result.value] : [],
+        );
+        const certs = [...storedCertificates, ...syncedCertificates];
         if (cancelled) return;
         setCertificates(certs);
         setProgressByLesson(indexProgressByLesson(progress));
@@ -54,7 +69,7 @@ export function CertificatesPage() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, profile]);
 
   if (isLoading) return <LoadingState label="Đang mở tủ chứng chỉ…" />;
   if (error) return <ErrorState description={error} onRetry={() => window.location.reload()} />;
@@ -66,8 +81,7 @@ export function CertificatesPage() {
       <header>
         <h1 className="text-2xl font-extrabold text-slate-100">Bộ sưu tập chứng chỉ</h1>
         <p className="text-sm text-slate-400 mt-1">
-          Mỗi khu vực giải cứu xong là một chứng chỉ. Đã nhận rồi thì tải lại bao nhiêu lần cũng
-          được.
+          Mỗi khu vực giải cứu xong, chứng chỉ được cấp tự động. Em chỉ cần vào đây để xem hoặc tải PDF.
         </p>
       </header>
 
@@ -153,7 +167,7 @@ export function CertificatesPage() {
                       />
                       <p className="text-xs text-slate-500">
                         {progress?.status === 'completed'
-                          ? 'Bấm để nhận chứng chỉ'
+                          ? 'Đang đồng bộ tự động · bấm để kiểm tra'
                           : `Hoàn thành khu vực để mở khoá · ${progress?.progress_percent ?? 0}%`}
                       </p>
                     </div>
@@ -169,7 +183,7 @@ export function CertificatesPage() {
         <div className="cq-card p-5 text-center border-treasure-400/50 bg-treasure-400/5">
           <Sparkles className="size-8 text-treasure-400 mx-auto" aria-hidden="true" />
           <p className="mt-2 font-bold text-treasure-300">
-            Em đã sưu tập đủ cả 3 chứng chỉ của vertical slice!
+            Em đã sưu tập đủ cả {LESSONS_META.length} chứng chỉ của hành trình!
           </p>
           <p className="text-sm text-slate-300 mt-1">
             Từ chương trình `cout` đầu tiên, em đã điều khiển Byte bằng thuật toán và dùng biến để

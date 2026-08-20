@@ -10,6 +10,7 @@ import {
   checkEligibility,
   fetchCertificate,
   issueCertificate,
+  syncCertificateIdentity,
   type CertificateEligibility,
 } from '@/services/certificateService';
 import { exportCertificateToPdf } from '@/services/pdfExport';
@@ -20,7 +21,7 @@ import { ByteMascot } from '@/components/game/ByteMascot';
 import { ErrorState, LoadingState } from '@/components/common/StateViews';
 import { NotFoundPage } from '@/pages/UpcomingPage';
 import { cn } from '@/utils/cn';
-import type { CertificateRow, LessonProgressRow } from '@/types/database';
+import type { CertificateRow } from '@/types/database';
 
 /**
  * Xem và tải một chứng chỉ.
@@ -37,10 +38,8 @@ export function CertificateDetailPage() {
 
   const [certificate, setCertificate] = useState<CertificateRow | null>(null);
   const [eligibility, setEligibility] = useState<CertificateEligibility | null>(null);
-  const [progress, setProgress] = useState<LessonProgressRow | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isIssuing, setIsIssuing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
@@ -62,43 +61,40 @@ export function CertificateDetailPage() {
 
       const lessonProgress = indexProgressByLesson(allProgress)[lessonId] ?? null;
 
-      setCertificate(existing);
-      setProgress(lessonProgress);
-      setEligibility(
-        checkEligibility({ lessonId, progress: lessonProgress, exitTicket, attempts }),
-      );
+      const nextEligibility = checkEligibility({
+        lessonId,
+        progress: lessonProgress,
+        exitTicket,
+        attempts,
+      });
+      const resolvedCertificate =
+        !existing && nextEligibility.eligible && profile
+          ? await issueCertificate(profile, lessonId, lessonProgress)
+          : existing;
+
+      setCertificate(resolvedCertificate);
+      setEligibility(nextEligibility);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Không tải được chứng chỉ.');
     } finally {
       setIsLoading(false);
     }
-  }, [user, lessonId]);
+  }, [user, profile, lessonId]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const handleIssue = async () => {
-    if (!profile) return;
-    setIsIssuing(true);
-    setError(null);
-
-    try {
-      const issued = await issueCertificate(profile, lessonId, progress);
-      setCertificate(issued);
-    } catch (issueError) {
-      setError(issueError instanceof Error ? issueError.message : 'Không cấp được chứng chỉ.');
-    } finally {
-      setIsIssuing(false);
-    }
-  };
+  const displayCertificate = certificate && profile
+    ? syncCertificateIdentity(certificate, profile)
+    : certificate;
 
   const handleDownload = async () => {
-    if (!templateRef.current || !certificate) return;
+    if (!templateRef.current || !displayCertificate) return;
     setIsExporting(true);
     setExportError(null);
 
-    const result = await exportCertificateToPdf(templateRef.current, certificate);
+    const result = await exportCertificateToPdf(templateRef.current, displayCertificate);
     if (!result.ok) setExportError(result.error ?? 'Không tạo được PDF.');
     setIsExporting(false);
   };
@@ -137,7 +133,7 @@ export function CertificateDetailPage() {
                 <p className="font-bold text-verdant-400">Chứng chỉ này là của em rồi!</p>
                 <p className="text-sm text-slate-400">
                   Mã chứng chỉ{' '}
-                  <code className="font-mono text-slate-300">{certificate.certificate_code}</code>
+                  <code className="font-mono text-slate-300">{displayCertificate?.certificate_code}</code>
                 </p>
               </div>
               <Button
@@ -158,7 +154,9 @@ export function CertificateDetailPage() {
               Bản xem trước — file PDF tải về sẽ giống hệt như thế này.
             </p>
 
-            <CertificateStage ref={templateRef} certificate={certificate} />
+            {displayCertificate && (
+              <CertificateStage ref={templateRef} certificate={displayCertificate} />
+            )}
           </section>
         </>
       )}
@@ -176,12 +174,12 @@ export function CertificateDetailPage() {
               </span>
               <div>
                 <h2 id="requirements-heading" className="text-lg font-bold text-slate-100">
-                  Năm điều kiện nhận chứng chỉ
+                  Các mốc hoàn thành khu vực
                 </h2>
                 <p className="text-sm text-slate-400">
                   {eligibility.eligible
-                    ? 'Em đã đạt đủ cả năm điều kiện!'
-                    : `Đã đạt ${eligibility.requirements.filter((r) => r.met).length}/5 điều kiện`}
+                    ? 'Em đã hoàn thành khu vực; hệ thống đang đồng bộ chứng chỉ.'
+                    : `Đã đạt ${eligibility.requirements.filter((r) => r.met).length}/${eligibility.requirements.length} mốc`}
                 </p>
               </div>
             </div>
@@ -223,20 +221,14 @@ export function CertificateDetailPage() {
               ))}
             </ul>
 
-            <p className="text-xs text-slate-500 mt-3">
-              Lưu ý: điều kiện cuối chỉ cần em ĐÃ TỪNG làm Clean Code Check, không cần đạt điểm
-              cao. Điểm clean code không bao giờ làm em mất chứng chỉ.
-            </p>
-
             {eligibility.eligible ? (
               <Button
                 className="mt-4"
-                onClick={() => void handleIssue()}
-                isLoading={isIssuing}
-                loadingLabel="Đang cấp chứng chỉ"
+                onClick={() => void load()}
+                loadingLabel="Đang đồng bộ chứng chỉ"
                 leadingIcon={<ScrollText className="size-4" aria-hidden="true" />}
               >
-                Nhận chứng chỉ
+                Đồng bộ lại chứng chỉ
               </Button>
             ) : (
               <Link to={`/app/lesson/${lessonId}`} className="inline-block mt-4">

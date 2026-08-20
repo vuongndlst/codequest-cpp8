@@ -4,6 +4,7 @@ import {
   buildCertificateMetadata,
   checkEligibility,
   REQUIRED_TEST_PASS_RATE,
+  syncCertificateIdentity,
 } from './certificateService';
 import { getLesson, getRequiredChallengeIds } from '@/lessons';
 import type {
@@ -218,6 +219,32 @@ describe('Mã chứng chỉ', () => {
 });
 
 describe('Thông tin in trên chứng chỉ', () => {
+  it('đồng bộ lại tên và lớp hiện tại mà không đổi mã hay ngày cấp', () => {
+    const original = {
+      id: 'cert-1',
+      user_id: makeProfile().id,
+      lesson_id: 'a0',
+      certificate_code: 'CPP8-A0-7F3A21-1',
+      issued_at: '2026-01-01T00:00:00.000Z',
+      xp_at_issue: 100,
+      stars_at_issue: 3,
+      metadata: {
+        ...buildCertificateMetadata(makeProfile(), 'a0'),
+        studentName: 'H?c sinh ki?m th? ByteLand',
+      },
+    };
+
+    const synced = syncCertificateIdentity(original, {
+      full_name: 'Học sinh Kiểm thử ByteLand',
+      class_name: '8A11',
+    });
+
+    expect(synced.metadata.studentName).toBe('Học sinh Kiểm thử ByteLand');
+    expect(synced.metadata.className).toBe('8A11');
+    expect(synced.certificate_code).toBe(original.certificate_code);
+    expect(synced.issued_at).toBe(original.issued_at);
+  });
+
   it('có đủ mọi mục đề bài yêu cầu', () => {
     const metadata = buildCertificateMetadata(makeProfile(), 'a2');
 
@@ -230,15 +257,23 @@ describe('Thông tin in trên chứng chỉ', () => {
   });
 
   it('mỗi khu vực ứng với một chứng chỉ khác nhau', () => {
-    const names = ['a0', 'a1', 'a2'].map(
+    const names = ['a0', 'a1', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8', 'a9', 'a10'].map(
       (lessonId) => buildCertificateMetadata(makeProfile(), lessonId).certificateName,
     );
 
-    expect(new Set(names).size).toBe(3);
+    expect(new Set(names).size).toBe(11);
     expect(names).toEqual([
       'C++ Starter',
       'Algorithm Navigator',
       'Data Keeper',
+      'Operator Smith',
+      'Decision Maker',
+      'Loop Explorer',
+      'Function Engineer',
+      'Reference Navigator',
+      'Array Cartographer',
+      'Search Strategist',
+      'Algorithm Architect',
     ]);
   });
 });

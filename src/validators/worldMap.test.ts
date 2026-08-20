@@ -181,6 +181,43 @@ describe('Địa hình chắn đường', () => {
     expect(result.finalWorld?.row).toBe(1);
     expect(result.worldEvents.some((event) => event.type === 'reach-goal')).toBe(true);
   });
+
+  it('nước, đá và hàng rào đều chặn; đường đất vẫn đi được', () => {
+    for (const obstacle of ['~', '^', 'F']) {
+      const result = run(wrap('    moveForward();'), {
+        kind: 'map', cols: 3, rows: 1, startCol: 0, terrain: [`.${obstacle}=`],
+      });
+      expect(result.finalWorld?.col, `vật cản ${obstacle}`).toBe(0);
+    }
+
+    const road = run(wrap('    moveForward();\n    moveForward();'), {
+      kind: 'map', cols: 3, rows: 1, startCol: 0, terrain: ['==='],
+    });
+    expect(road.finalWorld?.col).toBe(2);
+  });
+
+  it('bot trạng thái blocking chặn đường nhưng bot trang trí không chặn', () => {
+    const blocking = run(wrap('    moveRight();'), {
+      kind: 'map', cols: 3, rows: 1, startCol: 0,
+      props: [{ id: 'guard', type: 'enemy', col: 1, row: 0, state: 'blocking' }],
+    });
+    expect(blocking.finalWorld?.col).toBe(0);
+
+    const decorative = run(wrap('    moveRight();'), {
+      kind: 'map', cols: 3, rows: 1, startCol: 0,
+      props: [{ id: 'spectator', type: 'enemy', col: 1, row: 0, state: 'decorative' }],
+    });
+    expect(decorative.finalWorld?.col).toBe(1);
+  });
+
+  it('tinh thể dẫn đường tự được thu khi Byte bước qua', () => {
+    const result = run(wrap('    moveRight();\n    moveRight();'), {
+      kind: 'map', cols: 3, rows: 1, startCol: 0, goalCol: 2,
+      props: [{ id: 'trail-1', type: 'trail-gem', col: 1, row: 0 }],
+    });
+    expect(result.finalWorld?.collectedGems).toBe(1);
+    expect(result.worldEvents.some((event) => event.type === 'collect-gem' && event.detail?.automatic === true)).toBe(true);
+  });
 });
 
 describe('Sự kiện gửi kèm toạ độ để vẽ hình', () => {
@@ -197,5 +234,40 @@ describe('Sự kiện gửi kèm toạ độ để vẽ hình', () => {
 
     const move = result.worldEvents.find((event) => event.type === 'move');
     expect(move).toMatchObject({ col: 0, row: 1 });
+  });
+});
+
+describe('Thiết bị của Lò Toán Tử', () => {
+  const forge: WorldSpec = {
+    kind: 'map', cols: 4, rows: 2, startCol: 0, startRow: 0,
+    props: [
+      { id: 'machine-a', type: 'machine', col: 1, row: 0 },
+      { id: 'switch-a', type: 'switch', col: 2, row: 0 },
+    ],
+  };
+
+  it('chargeMachine nhận kết quả biểu thức và cập nhật tổng năng lượng', () => {
+    const result = run(wrap('    int energy = 3 * 2;\n    moveRight();\n    chargeMachine(energy);'), forge);
+    expect(result.finalWorld?.chargedMachineIds).toEqual(['machine-a']);
+    expect(result.finalWorld?.machineCharges).toEqual([6]);
+    expect(result.finalWorld?.totalCharge).toBe(6);
+    expect(result.worldEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'charge-machine', detail: expect.objectContaining({ id: 'machine-a', value: 6 }) }),
+    ]));
+  });
+
+  it('setSwitch chỉ bật thiết bị khi biểu thức bool đúng', () => {
+    const on = run(wrap('    bool ready = 9 >= 8;\n    moveRight();\n    setSwitch(ready);'), forge);
+    expect(on.finalWorld?.activeSwitchIds).toEqual(['switch-a']);
+
+    const off = run(wrap('    bool ready = 3 >= 8;\n    moveRight();\n    setSwitch(ready);'), forge);
+    expect(off.finalWorld?.activeSwitchIds).toEqual([]);
+  });
+
+  it('cấp lại cùng một máy thay thế mức cũ, không cộng trùng máy', () => {
+    const result = run(wrap('    moveRight();\n    chargeMachine(4);\n    chargeMachine(7);'), forge);
+    expect(result.finalWorld?.chargedMachineIds).toEqual(['machine-a']);
+    expect(result.finalWorld?.machineCharges).toEqual([7]);
+    expect(result.finalWorld?.totalCharge).toBe(7);
   });
 });

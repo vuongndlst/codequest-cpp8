@@ -63,10 +63,17 @@ export interface CleanCodeRule {
 }
 
 export interface Hint {
-  level: 1 | 2 | 3;
-  /** 1 = cau hoi dinh huong, 2 = nhac cau truc, 3 = khung code co cho trong */
-  type: 'question' | 'structure' | 'skeleton';
+  /** Thu tu mo goi y. UI ho tro nhieu hon ba nac khi bai can them diem tua. */
+  level: number;
+  /** Cau hoi -> cau truc -> lenh nen dung -> khung code (neu bai can). */
+  type: 'question' | 'structure' | 'command' | 'skeleton';
   content: string;
+  /** Du lieu co cau truc de hien lenh nhu code, khong bien thanh nut chen code. */
+  commands?: Array<{
+    signature: string;
+    description: string;
+    category: 'Game API' | 'C++';
+  }>;
 }
 
 export interface CommonMistake {
@@ -132,13 +139,15 @@ export interface WorldSpec {
   goalCol?: number;
   goalRow?: number;
   /**
-   * Nen ban do, moi chuoi la mot hang: `.` la o di duoc, `#` la tuong.
-   * Vd. ['....', '.##.', '....'] — bo trong thi ca ban do deu di duoc.
+   * Nen ban do, moi chuoi la mot hang:
+   * `.` co/san trong, `=` duong goi y (deu di duoc);
+   * `#` cay/phe tich, `~` nuoc, `^` da va `F` hang rao (deu chan duong).
+   * Bo trong thi ca ban do deu di duoc.
    */
   terrain?: string[];
   /** Cac vat the: den, cua, cau, ngoc, chuong ngai vat... */
   props?: Array<{ id: string; type: string; col: number; row?: number; state?: string }>;
-  /** Bien khoi tao cua the gioi, vd. { energy: 10, hasKey: true } */
+  /** Bien khoi tao cua the gioi, vd. { energy: 10, hasKey: true, bugHp: 5 } */
   initialState?: Record<string, unknown>;
 }
 
@@ -331,7 +340,7 @@ export interface ConceptGuide {
 
 export interface Lesson {
   id: string;
-  /** So thu tu khu vuc 1..5 */
+  /** Số thứ tự khu vực trong curriculum. */
   order: number;
   /** Ten khu vuc trong game, vd. "Lang Khoi Dong" */
   zoneName: string;
@@ -340,6 +349,15 @@ export interface Lesson {
   /** Gioi thieu 2-4 cau */
   intro: string;
   objectives: string[];
+  /** Chuẩn đầu ra KUD dùng để công khai mục tiêu và rà soát từng challenge. */
+  learningObjectives: {
+    /** Kiến thức, cú pháp và khái niệm học sinh cần nhận biết. */
+    know: string[];
+    /** Khái quát lớn: vì sao kiến thức này có ý nghĩa. */
+    understand: string;
+    /** Hành động quan sát được mà học sinh phải tự thực hiện. */
+    do: string[];
+  };
   /** Ma chung chi mo khoa khi hoan thanh bai nay */
   certificateCode: CertificateCode;
   /** Mau chu dao cua khu vuc (token Tailwind) */
@@ -356,8 +374,14 @@ export type CertificateCode =
   | 'cpp-starter'
   | 'function-builder'
   | 'data-keeper'
+  | 'operator-smith'
   | 'loop-explorer'
+  | 'function-engineer'
   | 'decision-maker'
+  | 'reference-navigator'
+  | 'array-cartographer'
+  | 'search-strategist'
+  | 'algorithm-architect'
   | 'byteland-code-guardian';
 
 /**
@@ -365,9 +389,9 @@ export type CertificateCode =
  *
  * Cố ý KHÔNG chứa `challenges`, `exitTicket` và `conceptGuide` — đó là những
  * phần nội dung nặng. Nhờ vậy dashboard và bản đồ chỉ tải vài KB metadata thay
- * vì toàn bộ curriculum Area 0–2.
+ * vì toàn bộ curriculum đang phát hành.
  */
-export type LessonMeta = Omit<Lesson, 'challenges' | 'exitTicket' | 'conceptGuide'> & {
+export type LessonMeta = Omit<Lesson, 'challenges' | 'exitTicket' | 'conceptGuide' | 'learningObjectives'> & {
   challengeCount: number;
   requiredChallengeCount: number;
 };

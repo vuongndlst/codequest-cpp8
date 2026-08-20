@@ -240,7 +240,7 @@ export function validateEmail(email: string): string | null {
   const value = email.trim();
   if (!value) return 'Em chưa nhập email.';
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value)) {
-    return 'Email chưa đúng định dạng. Ví dụ: tenem@gmail.com';
+    return 'Email chưa đúng định dạng. Ví dụ: 2406105@lsts.edu.vn';
   }
   if (value.length > 120) return 'Email dài quá. Em kiểm tra lại nhé.';
   return null;
@@ -260,6 +260,15 @@ export function validateStudentCode(studentCode: string): string | null {
 export function studentEmailFromCode(studentCode: string): string {
   const value = studentCode.trim();
   return value ? `${value}@${LSTS_EMAIL_DOMAIN}` : '';
+}
+
+/**
+ * Học sinh có thể đăng nhập bằng mã 7 chữ số để giảm thao tác ở phòng máy.
+ * Giáo viên và quản trị viên vẫn dùng địa chỉ email đầy đủ như trước.
+ */
+export function normalizeLoginIdentifier(identifier: string): string {
+  const value = identifier.trim().toLowerCase();
+  return /^\d{7}$/.test(value) ? studentEmailFromCode(value) : value;
 }
 
 export function validatePassword(

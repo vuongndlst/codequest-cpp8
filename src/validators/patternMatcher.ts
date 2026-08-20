@@ -149,8 +149,21 @@ function matchesSelector(node: AnyNode, rawSelector: string): boolean {
         const type = args[1];
         return !type || type === '*' || node.varType === type;
       }
+      if (args[0] === 'array') {
+        if (node.kind !== 'VariableDeclaration') return false;
+        const type = args[1];
+        return (!type || type === '*' || node.varType === type)
+          && node.declarations.some((declaration) => declaration.arraySize !== null || declaration.arrayInit !== null);
+      }
+      if (args[0] === 'ref') {
+        if (node.kind !== 'FunctionDeclaration') return false;
+        return node.params.some((param) => param.isReference);
+      }
       return false;
     }
+
+    case 'access':
+      return args[0] === 'array' && node.kind === 'ArrayAccessExpression';
 
     case 'op': {
       const operator = args.join(':');
@@ -260,7 +273,16 @@ function describeSegment(rawSelector: string): string {
           ? 'một biến'
           : `một biến kiểu \`${args[1]}\``;
       }
+      if (args[0] === 'array') {
+        return args[1] && args[1] !== '*'
+          ? `một mảng kiểu \`${args[1]}\``
+          : 'một mảng một chiều';
+      }
+      if (args[0] === 'ref') return 'một hàm có tham số tham chiếu';
       return 'phần khai báo';
+
+    case 'access':
+      return 'một phép truy cập phần tử bằng `[]`';
 
     case 'op':
       return `toán tử \`${args.join(':')}\``;

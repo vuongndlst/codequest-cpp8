@@ -5,7 +5,11 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
 import { ByteMascot } from '@/components/game/ByteMascot';
-import { signIn, validateEmail } from '@/services/supabase/auth.service';
+import {
+  normalizeLoginIdentifier,
+  signIn,
+  validateEmail,
+} from '@/services/supabase/auth.service';
 import { fetchProfile } from '@/services/supabase/profiles.repo';
 import { isSupabaseConfigured } from '@/lib/env';
 
@@ -27,7 +31,8 @@ export function LoginPage() {
     event.preventDefault();
     setFormError(null);
 
-    const emailError = validateEmail(email);
+    const loginEmail = normalizeLoginIdentifier(email);
+    const emailError = validateEmail(loginEmail);
     const passwordError = password ? null : 'Em chưa nhập mật khẩu.';
 
     if (emailError || passwordError) {
@@ -38,7 +43,7 @@ export function LoginPage() {
     setFieldErrors({});
     setIsSubmitting(true);
 
-    const { data, error } = await signIn(email, password);
+    const { data, error } = await signIn(loginEmail, password);
 
     if (error) {
       setIsSubmitting(false);
@@ -98,15 +103,16 @@ export function LoginPage() {
         {formError && <Alert tone="error">{formError}</Alert>}
 
         <Input
-          label="Email"
-          type="email"
-          autoComplete="email"
+          label="Email trường hoặc mã học sinh"
+          type="text"
+          inputMode="email"
+          autoComplete="username"
           required
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           error={fieldErrors.email}
           leadingIcon={<Mail className="size-4" />}
-          placeholder="tenem@gmail.com"
+          placeholder="2406105 hoặc 2406105@lsts.edu.vn"
         />
 
         <Input

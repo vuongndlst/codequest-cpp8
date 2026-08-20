@@ -38,12 +38,24 @@ const VOLUMES: Record<SoundName, number> = {
 };
 
 const cache = new Map<SoundName, HTMLAudioElement>();
-const BACKGROUND_MUSIC_FILE = 'bytelands-arcanum.mp3';
+
+export const BACKGROUND_MUSIC_TRACKS = [
+  'music/bytelands-01-flags.mp3',
+  'music/bytelands-02-great-mission.mp3',
+  'music/bytelands-03-spacetime.mp3',
+  'music/bytelands-04-twists.mp3',
+  'music/bytelands-05-warped.mp3',
+  'music/bytelands-06-doomed.mp3',
+  'music/bytelands-07-waking-the-devil.mp3',
+] as const;
+
+const BOSS_MUSIC_TRACK = BACKGROUND_MUSIC_TRACKS[6];
 let enabled = true;
 let unlocked = false;
 let musicEnabled = false;
 let gameMusicActive = false;
 let musicTrack: HTMLAudioElement | null = null;
+let selectedMusicFile: string = BACKGROUND_MUSIC_TRACKS[0];
 let musicContext: AudioContext | null = null;
 let musicTimer: number | null = null;
 let musicMaster: GainNode | null = null;
@@ -93,6 +105,40 @@ export function setGameMusicActive(value: boolean): void {
   gameMusicActive = value;
   if (value && musicEnabled && unlocked) startBackgroundMusic();
   if (!value) stopBackgroundMusic();
+}
+
+/**
+ * Chọn soundtrack ổn định theo khu vực và nhiệm vụ. Hai nhiệm vụ liền nhau luôn
+ * đổi bài; boss dùng riêng track cao trào. Không chọn ngẫu nhiên để học sinh có
+ * thể ghi nhớ "màu âm thanh" của từng chặng và việc test không bị chập chờn.
+ */
+export function musicTrackForScene(
+  lessonId: string,
+  challengeId: string,
+  isBoss = false,
+): string {
+  if (isBoss) return BOSS_MUSIC_TRACK;
+
+  const area = Number.parseInt(lessonId.match(/\d+/)?.[0] ?? '0', 10);
+  const challenge = Number.parseInt(challengeId.match(/-c(\d+)/)?.[1] ?? '1', 10);
+  const regularTrackCount = BACKGROUND_MUSIC_TRACKS.length - 1;
+  const index = ((area * 2 + challenge - 1) % regularTrackCount + regularTrackCount) % regularTrackCount;
+  return BACKGROUND_MUSIC_TRACKS[index];
+}
+
+export function setGameMusicScene(
+  lessonId: string,
+  challengeId: string,
+  isBoss = false,
+): void {
+  const nextFile = musicTrackForScene(lessonId, challengeId, isBoss);
+  if (nextFile === selectedMusicFile) return;
+  selectedMusicFile = nextFile;
+
+  if (musicTrack || musicTimer !== null) {
+    stopBackgroundMusic();
+    if (musicEnabled && gameMusicActive && unlocked) startBackgroundMusic();
+  }
 }
 
 export function isBackgroundMusicEnabled(): boolean {
@@ -322,7 +368,7 @@ export function startBackgroundMusic(): void {
   if (!musicEnabled || !gameMusicActive || !unlocked || musicTrack || musicTimer !== null) return;
 
   try {
-    const track = new Audio(audioUrl(BACKGROUND_MUSIC_FILE));
+    const track = new Audio(audioUrl(selectedMusicFile));
     track.preload = 'auto';
     track.loop = true;
     track.volume = 0.24;
@@ -466,6 +512,7 @@ export function resetAudioForTest(): void {
   musicEnabled = false;
   gameMusicActive = false;
   musicTrack = null;
+  selectedMusicFile = BACKGROUND_MUSIC_TRACKS[0];
   nextBarTime = 0;
   musicBar = 0;
   musicSources.clear();

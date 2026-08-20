@@ -146,7 +146,7 @@ describe('Huy hiệu clean code', () => {
     expect(codes).toContain('clean-code-rookie');
   });
 
-  it('Clean Code Guardian đòi từ 90 điểm ở cả ba khu vực', () => {
+  it('Clean Code Guardian đòi từ 90 điểm ở mọi khu vực đã phát hành', () => {
     const almostThere = Object.fromEntries(LESSONS.map((lesson) => [lesson.id, 95]));
     almostThere.a2 = 88;
 

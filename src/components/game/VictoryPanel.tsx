@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { ArrowRight, Gem, ScrollText, Sparkles, Star, Target } from 'lucide-react';
 import type { Challenge } from '@/types/content';
 import type { RunResult } from '@/types/runner';
@@ -7,6 +7,8 @@ import { ByteMascot } from '@/components/game/ByteMascot';
 import { playSound, playVictoryFanfare } from '@/services/audio';
 import { useUiStore } from '@/stores/uiStore';
 import { cn } from '@/utils/cn';
+import { getLevelProgress } from '@/utils/xp';
+import { ProgressBar } from '@/components/ui/ProgressBar';
 
 interface VictoryPanelProps {
   challenge: Challenge;
@@ -16,6 +18,9 @@ interface VictoryPanelProps {
   /** Điều hướng bằng router của ứng dụng — KHÔNG dùng thẻ `a` để khỏi tải lại cả trang */
   onNext: () => void;
   nextLabel: string;
+  nextTitle?: string;
+  totalXp?: number;
+  gemBalance?: number;
   /** Nút phụ, ví dụ quay về danh sách nhiệm vụ */
   secondaryAction?: React.ReactNode;
 }
@@ -38,14 +43,28 @@ export function VictoryPanel({
   gemsAwarded = 0,
   onNext,
   nextLabel,
+  nextTitle,
+  totalXp,
+  gemBalance,
   secondaryAction,
 }: VictoryPanelProps) {
   const reducedMotion = useUiStore((state) => state.reducedMotion);
   const [showSolution, setShowSolution] = useState(false);
   const [shownXp, setShownXp] = useState(reducedMotion ? xpAwarded : 0);
+  const dialogRef = useRef<HTMLElement>(null);
 
   const isBoss = challenge.kind === 'boss';
   const par = result?.par ?? null;
+  const levelProgress = getLevelProgress(totalXp ?? xpAwarded);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    dialogRef.current?.focus({ preventScroll: true });
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
 
   // Tiếng reo mừng, kêu đúng một lần khi bảng hiện ra
   useEffect(() => {
@@ -84,11 +103,15 @@ export function VictoryPanel({
   }, [xpAwarded, reducedMotion]);
 
   return (
+    <div className="fixed inset-0 z-[100] grid place-items-center bg-abyss-950/72 p-4 backdrop-blur-sm" data-testid="victory-modal-backdrop">
     <section
-      className="cq-card relative overflow-hidden p-5 border-verdant-500/60 bg-[radial-gradient(circle_at_50%_0%,rgba(52,211,153,0.18),transparent_48%)]"
-      role="status"
-      aria-live="polite"
+      ref={dialogRef}
+      tabIndex={-1}
+      className="cq-card relative max-h-[calc(100dvh-2rem)] w-[min(42rem,calc(100vw-2rem))] overflow-y-auto border-verdant-500/60 bg-[radial-gradient(circle_at_50%_0%,rgba(52,211,153,0.2),transparent_48%)] p-5 shadow-[0_30px_100px_rgba(0,0,0,.65)] outline-none sm:p-6"
+      role="dialog"
+      aria-modal="true"
       aria-labelledby="victory-heading"
+      aria-describedby="victory-description"
     >
       {!reducedMotion && xpAwarded > 0 && (
         <div className="cq-fireworks" aria-hidden="true">
@@ -111,7 +134,7 @@ export function VictoryPanel({
             {isBoss ? 'Em đã đánh bại Boss của khu vực này!' : 'Nhiệm vụ hoàn thành!'}
           </h3>
 
-          <p className="mt-0.5 text-sm text-slate-300">ByteLand đã ghi nhận chiến công của em.</p>
+          <p id="victory-description" className="mt-0.5 text-sm text-slate-300">ByteLand đã ghi nhận chiến công của em.</p>
         </div>
       </div>
 
@@ -135,6 +158,37 @@ export function VictoryPanel({
             label="Mục tiêu"
             tone="green"
           />
+        </div>
+      )}
+
+      {typeof totalXp === 'number' && (
+        <div className="relative z-10 mt-3 rounded-xl border border-quest-400/20 bg-quest-500/7 p-3">
+          <div className="flex items-center justify-between gap-3 text-xs">
+            <strong className="text-quest-200">Cấp {levelProgress.level} · {totalXp} XP</strong>
+            <span className="text-slate-400">
+              {levelProgress.isMaxLevel ? 'Đã đạt cấp tối đa' : `Còn ${levelProgress.xpToNextLevel} XP để lên cấp`}
+            </span>
+          </div>
+          <ProgressBar
+            value={levelProgress.isMaxLevel ? 1 : levelProgress.xpIntoLevel}
+            max={levelProgress.isMaxLevel ? 1 : levelProgress.xpForThisLevel}
+            label="Tiến trình cấp độ"
+            tone="quest"
+            size="sm"
+          />
+        </div>
+      )}
+
+      {gemsAwarded > 0 && (
+        <p className="relative z-10 mt-2 text-xs leading-relaxed text-treasure-200">
+          Gem dùng tại <strong>Kho trang bị</strong> để mở hiệu ứng pixel và phản hồi học tập. Số dư mới: <strong>{gemBalance ?? gemsAwarded} Gem</strong>.
+        </p>
+      )}
+
+      {challenge.whyThisMatters && (
+        <div className="relative z-10 mt-3 rounded-xl border border-verdant-400/20 bg-verdant-500/7 p-3">
+          <p className="text-[10px] font-bold uppercase tracking-[.14em] text-verdant-300">Em vừa mở khóa kiến thức</p>
+          <p className="mt-1 text-sm leading-relaxed text-slate-300">{challenge.whyThisMatters}</p>
         </div>
       )}
 
@@ -203,9 +257,11 @@ export function VictoryPanel({
         >
           {nextLabel}
         </Button>
+        {nextTitle && <p className="self-center text-xs text-slate-400">Tiếp theo: <strong className="text-slate-200">{nextTitle}</strong></p>}
         {secondaryAction}
       </div>
     </section>
+    </div>
   );
 }
 

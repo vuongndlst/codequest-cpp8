@@ -1,13 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, BookOpen, Brain, Check, Lock, Play } from 'lucide-react';
 import { getLesson } from '@/lessons';
 import { getLessonMeta } from '@/data/lessons.meta';
 import { useAuthStore } from '@/stores/authStore';
-import { fetchAllLessonProgress, indexProgressByLesson } from '@/services/supabase/progress.repo';
-import { fetchClassSettings } from '@/services/supabase/gamification.repo';
 import { ensureLessonStarted } from '@/services/supabase/progress.repo';
-import { isChallengeUnlocked, isLessonUnlocked } from '@/utils/progression';
+import { isChallengeUnlocked } from '@/utils/progression';
+import { useLessonAccess } from '@/hooks/useLessonAccess';
 import { hasReadGuide } from '@/utils/guideProgress';
 import { Button } from '@/components/ui/Button';
 import { ProgressBar } from '@/components/ui/ProgressBar';
@@ -17,7 +16,6 @@ import { UpcomingPage, NotFoundPage } from '@/pages/UpcomingPage';
 import { getIcon } from '@/utils/icons';
 import { canOpenCheckpoint } from '@/utils/checkpoint';
 import { cn } from '@/utils/cn';
-import type { LessonProgressRow } from '@/types/database';
 
 const KIND_BADGES: Record<string, { label: string; className: string }> = {
   story: { label: 'Quan sát', className: 'bg-quest-500/15 text-quest-400' },
@@ -34,70 +32,29 @@ export function LessonPage() {
   const user = useAuthStore((state) => state.user);
   const profile = useAuthStore((state) => state.profile);
 
-  const [progressByLesson, setProgressByLesson] = useState<
-    Record<string, LessonProgressRow | undefined>
-  >({});
-  const [teacherUnlocked, setTeacherUnlocked] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
   const meta = getLessonMeta(lessonId);
   const lesson = getLesson(lessonId);
-
-  useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-
-    void (async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const [rows, settings] = await Promise.all([
-          fetchAllLessonProgress(user.id),
-          fetchClassSettings(profile?.class_name ?? null),
-        ]);
-        if (cancelled) return;
-        setProgressByLesson(indexProgressByLesson(rows));
-        setTeacherUnlocked(settings?.unlocked_lessons ?? []);
-      } catch (loadError) {
-        if (!cancelled) {
-          setError(
-            loadError instanceof Error ? loadError.message : 'Không tải được tiến trình.',
-          );
-        }
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user, profile?.class_name]);
+  const access = useLessonAccess(lessonId);
 
   // Đánh dấu học sinh đã bắt đầu bài này
   useEffect(() => {
-    if (!user || !lesson) return;
+    if (!user || !lesson || access.isLoading || !access.isUnlocked) return;
     void ensureLessonStarted(user.id, lesson.id).catch(() => undefined);
-  }, [user, lesson]);
+  }, [user, lesson, access.isLoading, access.isUnlocked]);
 
   if (!meta) return <NotFoundPage />;
-  if (isLoading) return <LoadingState label="Đang mở khu vực…" />;
-  if (error) return <ErrorState description={error} onRetry={() => window.location.reload()} />;
+  if (access.isLoading) return <LoadingState label="Đang mở khu vực…" />;
+  if (access.error) return <ErrorState description={access.error} onRetry={() => window.location.reload()} />;
 
   const isTeacher = profile?.role === 'teacher';
   const guideRead = hasReadGuide(lessonId) || isTeacher;
 
-  const unlocked = isLessonUnlocked(lessonId, {
-    progressByLesson,
-    teacherUnlockedLessons: teacherUnlocked,
-    isTeacher,
-  });
-
-  if (!unlocked) {
+  if (!access.isUnlocked) {
     return (
       <NoAccessState
-        description={`Khu vực này còn khoá. Em hoàn thành Khu vực ${meta.order - 1} trước đã nhé — mỗi khu vực đều cần kiến thức của khu vực trước.`}
+        description={access.control?.access_mode === 'locked'
+          ? 'Khu vực này đang được giáo viên tạm khóa để cả lớp học cùng nhịp. Em làm lại nhiệm vụ đã mở hoặc hỏi thầy cô nhé.'
+          : `Khu vực này còn khoá. Em hoàn thành Khu vực ${meta.order - 1} trước đã nhé — mỗi khu vực đều cần kiến thức của khu vực trước.`}
       />
     );
   }
@@ -112,7 +69,7 @@ export function LessonPage() {
     );
   }
 
-  const progress = progressByLesson[lessonId];
+  const progress = access.progressByLesson[lessonId];
   const completedChallenges = progress?.completed_challenges ?? [];
   const challengeIds = lesson.challenges.map((challenge) => challenge.id);
   const requiredChallenges = lesson.challenges.filter((challenge) => !challenge.optional);
@@ -245,19 +202,28 @@ export function LessonPage() {
         )}
       </section>
 
-      {/* --- Mục tiêu bài học --- */}
+      {/* --- Mục tiêu KUD: biết, hiểu và làm được --- */}
       <section className="cq-panel p-4" aria-labelledby="objectives-heading">
-        <h2 id="objectives-heading" className="text-sm font-bold text-slate-200 mb-2">
-          Sau khu vực này, em sẽ làm được
+        <h2 id="objectives-heading" className="text-sm font-bold text-slate-200 mb-3">
+          Mục tiêu học tập của khu vực
         </h2>
-        <ul className="grid sm:grid-cols-2 gap-x-6 gap-y-1.5">
-          {meta.objectives.map((objective, index) => (
-            <li key={index} className="flex gap-2 text-sm text-slate-400">
-              <Check className="size-4 text-verdant-400 shrink-0 mt-0.5" aria-hidden="true" />
-              <span>{objective}</span>
-            </li>
-          ))}
-        </ul>
+        <div className="grid gap-3 md:grid-cols-3">
+          <LearningObjectiveBlock
+            label="Em cần biết"
+            items={lesson.learningObjectives.know}
+            tone="text-quest-400"
+          />
+          <LearningObjectiveBlock
+            label="Em cần hiểu"
+            items={[lesson.learningObjectives.understand]}
+            tone="text-mage-300"
+          />
+          <LearningObjectiveBlock
+            label="Em sẽ làm được"
+            items={lesson.learningObjectives.do}
+            tone="text-verdant-400"
+          />
+        </div>
       </section>
 
       {/* --- Danh sách node nhiệm vụ --- */}
@@ -399,6 +365,30 @@ export function LessonPage() {
           </li>
         </ol>
       </section>
+    </div>
+  );
+}
+
+function LearningObjectiveBlock({
+  label,
+  items,
+  tone,
+}: {
+  label: string;
+  items: string[];
+  tone: string;
+}) {
+  return (
+    <div className="rounded-xl border border-abyss-700 bg-abyss-900/45 p-3">
+      <p className={cn('text-xs font-bold uppercase tracking-wide', tone)}>{label}</p>
+      <ul className="mt-2 space-y-1.5">
+        {items.map((item) => (
+          <li key={item} className="flex gap-2 text-sm leading-relaxed text-slate-400">
+            <Check className={cn('mt-0.5 size-4 shrink-0', tone)} aria-hidden="true" />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

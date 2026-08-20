@@ -1,27 +1,27 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  AlignLeft,
   ArrowLeft,
   BookOpen,
   Brain,
-  ChevronDown,
-  ChevronUp,
-  ChevronsRight,
+  CircleGauge,
   Footprints,
-  Gauge,
+  Rabbit,
+  ScrollText,
+  Snail,
   Maximize2,
   Minimize2,
   Play,
   RotateCcw,
-  SkipForward,
   Square,
   Target,
 } from 'lucide-react';
 import { getChallenge, getChallengeIds, getLesson, LESSONS } from '@/lessons';
 import { relevantHandbookCards } from '@/data/challengeHandbook';
 import { paletteForChallenge } from '@/data/commandPalette';
+import { guidedHintsForChallenge, newGameApiForChallenge } from '@/data/challengeScaffolding';
 import { useChallengeSession } from '@/hooks/useChallengeSession';
+import { useLessonAccess } from '@/hooks/useLessonAccess';
 import { useAuthStore } from '@/stores/authStore';
 import { useUiStore } from '@/stores/uiStore';
 import { updateProfile } from '@/services/supabase/profiles.repo';
@@ -33,22 +33,24 @@ import {
 } from '@/services/supabase/equipment.repo';
 import type { EquipmentCatalogRow, UserEquipmentRow } from '@/types/database';
 import { CodeEditor, type CodeEditorHandle } from '@/components/editor/CodeEditor';
-import { CommandPalette } from '@/components/editor/CommandPalette';
 import { ResultPanel } from '@/components/editor/ResultPanel';
 import { HintPanel } from '@/components/learning/HintPanel';
 import { HandbookModal } from '@/components/learning/Handbook';
+import { ConceptGuideModal } from '@/components/learning/ConceptGuideModal';
+import { MissionBriefingModal } from '@/components/learning/MissionBriefingModal';
+import { ApiDiscoveryModal } from '@/components/learning/ApiDiscoveryModal';
 import { GameStage } from '@/components/game/GameStage';
 import { ZoneSceneStage } from '@/components/game/ZoneSceneStage';
 import { MapSettingsMenu } from '@/components/game/MapSettingsMenu';
 import { useStageReplay, type ReplaySpeed } from '@/components/game/useStageReplay';
-import { ByteMascot } from '@/components/game/ByteMascot';
 import { VictoryPanel } from '@/components/game/VictoryPanel';
 import { BadgeToast } from '@/components/game/BadgeToast';
 import { Button } from '@/components/ui/Button';
-import { SaveIndicator, LoadingState } from '@/components/common/StateViews';
+import { ErrorState, NoAccessState, SaveIndicator, LoadingState } from '@/components/common/StateViews';
 import { NotFoundPage } from '@/pages/UpcomingPage';
 import { cn } from '@/utils/cn';
-import { playSound, setGameMusicActive } from '@/services/audio';
+import { isChallengeUnlocked } from '@/utils/progression';
+import { playSound, setGameMusicActive, setGameMusicScene } from '@/services/audio';
 
 const KIND_LABELS: Record<string, string> = {
   story: 'Quan sát',
@@ -59,6 +61,20 @@ const KIND_LABELS: Record<string, string> = {
   cleancode: 'Clean Code Check',
   quiz: 'Exit Ticket',
   boss: 'BOSS',
+};
+
+const REPLAY_SPEED_LABELS: Record<ReplaySpeed, string> = {
+  slow: 'Chậm',
+  normal: 'Thường',
+  fast: 'Nhanh',
+  step: 'Từng bước · Debug',
+};
+
+const REPLAY_SPEED_ICONS: Record<ReplaySpeed, ReactNode> = {
+  slow: <Snail className="size-4" aria-hidden="true" />,
+  normal: <CircleGauge className="size-4" aria-hidden="true" />,
+  fast: <Rabbit className="size-4" aria-hidden="true" />,
+  step: <Footprints className="size-4" aria-hidden="true" />,
 };
 
 /**
@@ -101,22 +117,39 @@ export function ChallengePage({
   const toggleMusic = useUiStore((state) => state.toggleMusic);
 
   const [handbookOpen, setHandbookOpen] = useState(false);
+  const [conceptGuideOpen, setConceptGuideOpen] = useState(false);
   const [hintOpen, setHintOpen] = useState(false);
-  const [activeCommandToken, setActiveCommandToken] = useState('');
-  const [requirementsExpanded, setRequirementsExpanded] = useState(false);
+  const [missionOpen, setMissionOpen] = useState(true);
+  const [missionAcknowledged, setMissionAcknowledged] = useState(false);
+  const [apiIntroOpen, setApiIntroOpen] = useState(false);
   const [isEditorExpanded, setIsEditorExpanded] = useState(false);
   const [replaySpeed, setReplaySpeed] = useState<ReplaySpeed>('normal');
+  const [speedMenuOpen, setSpeedMenuOpen] = useState(false);
   const [equipmentCatalog, setEquipmentCatalog] = useState<EquipmentCatalogRow[]>([]);
   const [userEquipment, setUserEquipment] = useState<UserEquipmentRow[]>([]);
   const [equipmentBusyId, setEquipmentBusyId] = useState<string | null>(null);
   const [equipmentError, setEquipmentError] = useState<string | null>(null);
   const editorRef = useRef<CodeEditorHandle>(null);
   const mapRef = useRef<HTMLDivElement>(null);
+  const speedMenuRef = useRef<HTMLDivElement>(null);
 
   const lesson = getLesson(lessonId);
   const challenge = getChallenge(lessonId, challengeId);
+  const relevantCommands = useMemo(
+    () => challenge ? paletteForChallenge(challenge) : [],
+    [challenge],
+  );
+  const learningChallenge = useMemo(
+    () => challenge ? { ...challenge, hints: guidedHintsForChallenge(challenge) } : FALLBACK_CHALLENGE,
+    [challenge],
+  );
+  const newApiCommands = useMemo(
+    () => challenge ? newGameApiForChallenge(challenge) : [],
+    [challenge],
+  );
+  const access = useLessonAccess(lessonId, { disabled: demo });
   const session = useChallengeSession({
-    challenge: challenge ?? FALLBACK_CHALLENGE,
+    challenge: learningChallenge,
     persist,
   });
 
@@ -129,9 +162,11 @@ export function ChallengePage({
   // Nhạc chỉ thuộc về sân chơi. Rời route nhiệm vụ phải dừng ngay nhưng vẫn
   // giữ lựa chọn của học sinh để lần sau vào game có thể phát lại.
   useEffect(() => {
+    if (access.isLoading || !access.isUnlocked) return;
+    setGameMusicScene(lessonId, challengeId, challenge?.kind === 'boss');
     setGameMusicActive(true);
     return () => setGameMusicActive(false);
-  }, []);
+  }, [access.isLoading, access.isUnlocked, challenge?.kind, challengeId, lessonId]);
 
   useEffect(() => {
     if (!user) {
@@ -166,38 +201,90 @@ export function ChallengePage({
   }, [isEditorExpanded]);
 
   useEffect(() => {
-    setRequirementsExpanded(false);
-    setActiveCommandToken('');
+    setMissionAcknowledged(false);
+    setMissionOpen(true);
+    setApiIntroOpen(false);
   }, [challengeId]);
 
+  useEffect(() => {
+    if (!speedMenuOpen) return;
+    const closeSpeedMenu = (event: PointerEvent) => {
+      if (!speedMenuRef.current?.contains(event.target as Node)) setSpeedMenuOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSpeedMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', closeSpeedMenu);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeSpeedMenu);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [speedMenuOpen]);
+
   if (!lesson || !challenge) return <NotFoundPage />;
+  if (access.isLoading) return <LoadingState label="Đang kiểm tra tiến độ lớp…" />;
+  if (access.error) return <ErrorState description={access.error} onRetry={() => window.location.reload()} />;
+  if (!access.isUnlocked) {
+    return (
+      <NoAccessState
+        description={access.control?.access_mode === 'locked'
+          ? 'Giáo viên đang tạm khóa khu vực này để cả lớp học cùng nhịp. Em có thể luyện lại những nhiệm vụ đã mở.'
+          : 'Em cần hoàn thành khu vực trước để mở nhiệm vụ này.'}
+      />
+    );
+  }
 
   const challengeIds = getChallengeIds(lessonId);
   const index = challengeIds.indexOf(challenge.id);
+  const completedChallenges = access.progressByLesson[lessonId]?.completed_challenges ?? [];
+  const challengeUnlocked = demo || !user || isChallengeUnlocked(
+    index,
+    challengeIds,
+    completedChallenges,
+    challenge.optional ?? false,
+    profile?.role === 'teacher',
+  );
+  if (!challengeUnlocked) {
+    return <NoAccessState description="Em hoàn thành nhiệm vụ ngay trước đó để mở màn này nhé." />;
+  }
   const nextChallengeId = challengeIds[index + 1];
+  const nextChallenge = nextChallengeId ? getChallenge(lessonId, nextChallengeId) : undefined;
   const nextLesson = LESSONS.find((item) => item.order === lesson.order + 1);
   const nextDemoChallengeId = nextChallengeId ?? nextLesson?.challenges[0]?.id;
   const nextDemoLessonId = nextChallengeId ? lessonId : nextLesson?.id;
-  const relevantCommands = paletteForChallenge(challenge);
-  const visibleInstructions = requirementsExpanded
-    ? challenge.instructions
-    : challenge.instructions.slice(0, 3);
-  const hiddenInstructionCount = Math.max(0, challenge.instructions.length - visibleInstructions.length);
+  const equippedRow = userEquipment.find((item) => item.equipped);
+  const equippedItem = equippedRow
+    ? { id: equippedRow.equipment_id, level: equippedRow.level }
+    : null;
+  const requiredTests = challenge.testCases.filter((test) => test.visible && test.required);
+  const passedTestIds = new Set(
+    session.result?.testResults.filter((test) => test.passed).map((test) => test.id) ?? [],
+  );
+  const passedRequiredCount = requiredTests.filter((test) => passedTestIds.has(test.id)).length;
+  const hasStartedRun = session.isRunning || session.result !== null || replay.total > 0;
 
   /** Chạy từ editor thì tự đưa mắt học sinh trở lại bản đồ để xem nhân vật. */
   const runAndWatch = () => {
     playSound('click');
     setHintOpen(false);
     if (isEditorExpanded) setIsEditorExpanded(false);
-    window.requestAnimationFrame(() => {
-      mapRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Desktop kiểu CodeCombat đã cho map và editor cùng hiện một lúc. Tự cuộn
+    // map lên đầu ở đây sẽ đẩy header/nhiệm vụ xuống dưới TopBar — chính là lỗi
+    // giao diện bị "cắt đầu" khi chạy trên Chrome fullscreen. Mobile vẫn cần
+    // đưa mắt học sinh từ editor trở lại map để quan sát animation.
+    const desktopWorkspace = window.matchMedia?.('(min-width: 1024px)').matches ?? false;
+    const desktopScrollY = window.scrollY;
+    if (!desktopWorkspace) {
+      window.requestAnimationFrame(() => {
+        mapRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+    void Promise.resolve(session.run()).finally(() => {
+      if (desktopWorkspace) {
+        window.requestAnimationFrame(() => window.scrollTo(0, desktopScrollY));
+      }
     });
-    void session.run();
-  };
-
-  const requestHint = () => {
-    session.unlockNextHint();
-    setHintOpen(true);
   };
 
   const changeAvatarOnMap = async (avatarId: string) => {
@@ -289,69 +376,122 @@ export function ChallengePage({
           handleRef={editorRef}
           value={session.code}
           onChange={session.setCode}
-          onActiveTokenChange={setActiveCommandToken}
+          commands={relevantCommands}
           highlightedLines={session.highlightedLines}
-          minHeight={isEditorExpanded ? 'calc(100vh - 220px)' : '380px'}
+          minHeight={isEditorExpanded ? 'calc(100vh - 220px)' : '220px'}
           ariaLabel={`Vùng viết code cho nhiệm vụ ${challenge.title}`}
         />
       )}
 
-      {/* Chỉ nhắc cú pháp liên quan sau khi học sinh chủ động gõ; không chèn code hộ. */}
-      <CommandPalette
-        commands={relevantCommands}
-        activeToken={activeCommandToken}
+    </section>
+  );
+
+  const runControls = (
+    <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+      <ToolIconButton
+        onClick={() => {
+          if (window.confirm('Khôi phục code ban đầu? Bản code hiện tại sẽ được thay thế.')) session.reset();
+        }}
+        label="Khôi phục code"
+        icon={<RotateCcw className="size-4" aria-hidden="true" />}
+      />
+      <ToolIconButton
+        onClick={() => setHandbookOpen(true)}
+        label="Tra lệnh"
+        icon={<BookOpen className="size-4" aria-hidden="true" />}
+      />
+      <HintPanel
+        hints={learningChallenge.hints}
+        unlockedLevel={session.hintLevel}
+        onUnlock={session.unlockNextHint}
+        solution={challenge.solution}
+        canViewSolution={session.canViewSolution}
+        onViewSolution={session.showSolution}
+        solutionVisible={session.solutionVisible}
+        attemptCount={session.attemptCount}
+        open={hintOpen}
+        onOpenChange={setHintOpen}
+        iconOnly
       />
 
-      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => editorRef.current?.format()}
-            title="Phím tắt: Shift + Alt + F"
-            leadingIcon={<AlignLeft className="size-4" aria-hidden="true" />}
-          >
-            Dọn code
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              if (window.confirm('Khôi phục code ban đầu? Bản code hiện tại sẽ được thay thế.')) {
-                session.reset();
-              }
-            }}
-            leadingIcon={<RotateCcw className="size-4" aria-hidden="true" />}
-          >
-            Khôi phục code
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setHandbookOpen(true)}
-            leadingIcon={<BookOpen className="size-4" aria-hidden="true" />}
-          >
-            Tra lệnh
-          </Button>
-          <HintPanel
-            hints={challenge.hints}
-            unlockedLevel={session.hintLevel}
-            onUnlock={session.unlockNextHint}
-            solution={challenge.solution}
-            canViewSolution={session.canViewSolution}
-            onViewSolution={session.showSolution}
-            solutionVisible={session.solutionVisible}
-            attemptCount={session.attemptCount}
-            open={hintOpen}
-            onOpenChange={setHintOpen}
-          />
-        </div>
-
-        <p className="max-w-xs text-right text-xs leading-relaxed text-slate-500">
-          Chạy chương trình ở thanh điều khiển ngay dưới bản đồ để vừa chạy vừa quan sát.
-        </p>
+      <div ref={speedMenuRef} className="relative shrink-0">
+        <ToolIconButton
+          onClick={() => setSpeedMenuOpen((open) => !open)}
+          label={`Cách chạy: ${REPLAY_SPEED_LABELS[replaySpeed]}`}
+          icon={REPLAY_SPEED_ICONS[replaySpeed]}
+          active={speedMenuOpen}
+          ariaExpanded={speedMenuOpen}
+        />
+        {speedMenuOpen && (
+          <div className="absolute bottom-full left-0 z-40 mb-2 w-52 overflow-hidden rounded-2xl border border-abyss-600 bg-abyss-900 p-2 shadow-2xl shadow-black/35" role="menu" aria-label="Chọn cách chạy">
+            {(Object.entries(REPLAY_SPEED_LABELS) as Array<[ReplaySpeed, string]>).map(([speed, label]) => (
+              <button
+                key={speed}
+                type="button"
+                role="menuitemradio"
+                aria-checked={replaySpeed === speed}
+                onClick={() => {
+                  playSound('click');
+                  setReplaySpeed(speed);
+                  setSpeedMenuOpen(false);
+                }}
+                className={cn(
+                  'flex h-10 w-full cursor-pointer items-center justify-between rounded-xl px-3 text-sm font-semibold transition-colors',
+                  replaySpeed === speed ? 'bg-quest-500/15 text-quest-300' : 'text-slate-300 hover:bg-abyss-700 hover:text-white',
+                )}
+              >
+                <span className="flex items-center gap-2.5">
+                  {REPLAY_SPEED_ICONS[speed]}
+                  {label}
+                </span>
+                {replaySpeed === speed && <span className="size-2 rounded-full bg-quest-300" aria-hidden="true" />}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
-    </section>
+
+      <ToolIconButton
+        onClick={() => setMissionOpen(true)}
+        label="Xem nhiệm vụ"
+        icon={<ScrollText className="size-4" aria-hidden="true" />}
+      />
+      <ToolIconButton
+        onClick={() => setConceptGuideOpen(true)}
+        label="Xem lại kiến thức"
+        icon={<Brain className="size-4" aria-hidden="true" />}
+      />
+
+      {replaySpeed === 'step' && replay.total > 0 && !replay.isDone && (
+        <ToolIconButton
+          onClick={() => {
+            replay.stepForward();
+          }}
+          label="Chạy bước tiếp theo"
+          icon={<Footprints className="size-4" aria-hidden="true" />}
+        />
+      )}
+
+      {replaySpeed !== 'step' && replay.total > 0 && !replay.isDone && (
+        <ToolIconButton
+          onClick={() => {
+            replay.isPaused ? replay.resume() : replay.stop();
+          }}
+          label={replay.isPaused ? 'Tiếp tục hoạt ảnh' : 'Dừng hoạt ảnh'}
+          icon={replay.isPaused ? <Play className="size-4" /> : <Square className="size-4" />}
+        />
+      )}
+
+      <Button
+        onClick={runAndWatch}
+        isLoading={session.isRunning || replay.isPlaying}
+        loadingLabel={replay.isPlaying ? 'Byte đang chạy' : 'Đang chạy'}
+        leadingIcon={<Play className="size-4" aria-hidden="true" />}
+        className="ml-auto min-w-28 shrink-0 cursor-pointer px-4 sm:min-w-32"
+      >
+        Chạy code
+      </Button>
+    </div>
   );
 
   if (isEditorExpanded) {
@@ -363,9 +503,8 @@ export function ChallengePage({
             <ResultPanel
               result={session.result}
               isRunning={session.isRunning}
-              onRequestHint={requestHint}
-              hintsAvailable={session.hintLevel < challenge.hints.length}
               showCleanCode={challenge.kind !== 'story'}
+              expectsOutput={challenge.testCases.some((test) => test.kind === 'output')}
             />
           </div>
         )}
@@ -374,7 +513,7 @@ export function ChallengePage({
   }
 
   return (
-    <div className="mx-auto max-w-[96rem] space-y-2">
+    <div className="mx-auto max-w-[118rem] space-y-1">
       <Link
         to={demo ? '/' : `/app/lesson/${lessonId}`}
         className="inline-flex items-center gap-2 text-xs text-slate-400 hover:text-slate-200"
@@ -394,7 +533,7 @@ export function ChallengePage({
             </span>
             <div className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-quest-400">
-                Nhiệm vụ {index + 1}/{challengeIds.length}
+                {lesson.zoneName} · Nhiệm vụ {index + 1}/{challengeIds.length}
               </p>
               <div className="flex min-w-0 items-center gap-2">
             <span
@@ -413,230 +552,35 @@ export function ChallengePage({
               </div>
             </div>
           </div>
-          <p className="rounded-lg border border-abyss-600 bg-abyss-950 px-2.5 py-1.5 text-xs font-bold text-slate-400">
+          <button
+            type="button"
+            onClick={() => setMissionOpen(true)}
+            className="cursor-pointer rounded-lg border border-abyss-600 bg-abyss-950 px-2.5 py-1.5 text-xs font-bold text-slate-400 transition-colors hover:border-quest-400/50 hover:text-quest-300"
+            title="Xem nhiệm vụ và điều kiện hoàn thành"
+          >
             Mục tiêu {session.result?.passedRequired ?? 0}/{session.result?.totalRequired ?? challenge.testCases.filter((test) => test.required).length}
-          </p>
+          </button>
         </header>
 
-      {/* ① NHIỆM VỤ — học sinh biết mục tiêu trước khi nhìn vào sân chơi. */}
-      <section className="border-b border-abyss-700 bg-abyss-900 px-3 py-3 sm:px-4" aria-labelledby="instructions-heading">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-          <div className="flex min-w-0 flex-1 gap-3">
-            <ByteMascot size={42} animated={false} />
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-quest-400">
-                Bước 1
-              </p>
-              <h2 id="instructions-heading" className="font-bold text-slate-100">
-                Nhiệm vụ của em
-              </h2>
-              <p className="mt-1 text-sm leading-relaxed text-slate-400">{challenge.story}</p>
-              {challenge.whyThisMatters && (
-                <p className="mt-2 inline-flex items-start gap-1.5 text-xs text-verdant-400">
-                  <Target className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-                  {challenge.whyThisMatters}
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="lg:w-[46%] lg:border-l lg:border-abyss-700 lg:pl-5">
-            <ul className="space-y-2">
-              {visibleInstructions.map((instruction, position) => (
-                <li key={position} className="flex gap-2 text-sm text-slate-200">
-                  <span className="grid size-5 shrink-0 place-items-center rounded-full bg-quest-500/15 text-[10px] font-bold text-quest-400">
-                    {position + 1}
-                  </span>
-                  <span className="leading-relaxed whitespace-pre-line">{instruction}</span>
-                </li>
-              ))}
-            </ul>
-            <div className="mt-3 rounded-xl border border-quest-500/20 bg-quest-500/5 p-3">
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-quest-400">Điều kiện hoàn thành</p>
-              <ul className="space-y-1.5">
-                {challenge.testCases.filter((test) => test.visible && test.required).map((test) => {
-                  const passed = session.result?.testResults.find((result) => result.id === test.id)?.passed ?? false;
-                  return (
-                    <li key={test.id} className="flex items-center gap-2 text-xs text-slate-300">
-                      <span className={cn('grid size-4 place-items-center rounded-full border text-[9px]', passed ? 'border-verdant-500 bg-verdant-500/20 text-verdant-300' : 'border-slate-600 text-slate-500')}>
-                        {passed ? '✓' : '·'}
-                      </span>
-                      {test.name}
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-            {challenge.instructions.length > 3 && (
-              <button
-                type="button"
-                onClick={() => {
-                  playSound('click');
-                  setRequirementsExpanded((expanded) => !expanded);
-                }}
-                aria-expanded={requirementsExpanded}
-                className="mt-2 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-quest-400 hover:bg-quest-500/10"
-              >
-                {requirementsExpanded ? (
-                  <ChevronUp className="size-3.5" aria-hidden="true" />
-                ) : (
-                  <ChevronDown className="size-3.5" aria-hidden="true" />
-                )}
-                {requirementsExpanded
-                  ? 'Thu gọn yêu cầu'
-                  : `Xem thêm ${hiddenInstructionCount} yêu cầu`}
-              </button>
-            )}
-            {(
-              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-abyss-700 pt-3">
-                {(challenge.thinkingPrompt || lesson.conceptGuide.thinkingSteps[0]) && (
-                  <p className="min-w-0 flex-1 text-xs leading-relaxed text-mage-300">
-                    <strong>Trước khi gõ:</strong>{' '}
-                    {challenge.thinkingPrompt ?? lesson.conceptGuide.thinkingSteps[0]?.question}
-                  </p>
-                )}
-                <Link
-                  to={`/app/lesson/${lessonId}/guide`}
-                  className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-slate-400 hover:text-mage-300"
-                >
-                  <Brain className="size-3.5" aria-hidden="true" />
-                  Xem lại kiến thức
-                </Link>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <div className="flex min-h-[calc(100dvh-16rem)] flex-col">
+      <div className="lg:grid lg:h-[calc(100dvh-9rem)] lg:min-h-[34rem] lg:grid-cols-[minmax(38rem,1.45fr)_minmax(28rem,.8fr)] lg:grid-rows-[minmax(0,1fr)]">
 
       {/* ② BẢN ĐỒ LỚN — nút chạy và debug nằm ngay trên sân chơi. */}
       <section
         ref={mapRef}
         className={cn(
-          'scroll-mt-20 overflow-hidden border-b border-abyss-700 bg-[radial-gradient(circle_at_50%_18%,rgba(34,211,238,0.1),transparent_60%)] transition-shadow duration-300',
+          'scroll-mt-20 flex min-h-[25rem] flex-col overflow-hidden border-b border-abyss-700 bg-[radial-gradient(circle_at_50%_18%,rgba(34,211,238,0.1),transparent_60%)] transition-shadow duration-300 lg:col-start-1 lg:row-start-1 lg:min-h-0 lg:border-r',
           replay.isPlaying && 'shadow-[0_0_48px_rgba(34,211,238,0.2)] ring-2 ring-quest-400/30',
         )}
-        aria-labelledby="game-board-heading"
+        aria-label="Bản đồ trò chơi"
+        data-testid="map-workspace"
       >
-        <div className="flex flex-col gap-3 border-b border-abyss-700 bg-abyss-800/90 p-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="shrink-0">
-            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-quest-400">
-              Bước 2
-            </p>
-            <h2 id="game-board-heading" className="font-bold text-slate-100">
-              Quan sát bản đồ
-            </h2>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <div
-              className="flex items-center gap-1 rounded-lg border border-abyss-600 bg-abyss-950 p-1"
-              role="group"
-              aria-label="Tốc độ chạy"
-            >
-              <ReplayModeButton
-                active={replaySpeed === 'normal'}
-                onClick={() => setReplaySpeed('normal')}
-                icon={<Gauge className="size-3.5" aria-hidden="true" />}
-              >
-                Thường
-              </ReplayModeButton>
-              <ReplayModeButton
-                active={replaySpeed === 'fast'}
-                onClick={() => setReplaySpeed('fast')}
-                icon={<ChevronsRight className="size-3.5" aria-hidden="true" />}
-              >
-                Nhanh
-              </ReplayModeButton>
-              <ReplayModeButton
-                active={replaySpeed === 'step'}
-                onClick={() => setReplaySpeed('step')}
-                icon={<Footprints className="size-3.5" aria-hidden="true" />}
-              >
-                Từng bước
-              </ReplayModeButton>
-            </div>
-
-            {replaySpeed === 'step' && replay.total > 0 && !replay.isDone && (
-              <Button
-                size="sm"
-                variant="secondary"
-              onClick={() => {
-                playSound('click');
-                replay.stepForward();
-              }}
-                leadingIcon={<Footprints className="size-4" aria-hidden="true" />}
-              >
-                Bước tiếp
-              </Button>
-            )}
-
-            {replay.total > 0 && !replay.isDone && (
-              <button
-                type="button"
-                onClick={() => {
-                  playSound('click');
-                  replay.skipToEnd();
-                }}
-                className="grid size-9 place-items-center rounded-lg text-slate-400 hover:bg-abyss-700 hover:text-slate-100"
-                title="Tới kết quả cuối"
-                aria-label="Bỏ qua hoạt ảnh, tới kết quả cuối"
-              >
-                <SkipForward className="size-4" aria-hidden="true" />
-              </button>
-            )}
-
-            {replay.total > 0 && !replay.isDone && (
-              <button
-                type="button"
-                onClick={() => {
-                  playSound('click');
-                  replay.isPaused ? replay.resume() : replay.stop();
-                }}
-                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-abyss-600 bg-abyss-950 px-3 text-xs font-semibold text-slate-300 hover:border-quest-500/60 hover:text-white"
-                aria-label={replay.isPaused ? 'Tiếp tục hoạt ảnh' : 'Dừng hoạt ảnh'}
-              >
-                {replay.isPaused ? <Play className="size-3.5" /> : <Square className="size-3.5" />}
-                {replay.isPaused ? 'Tiếp tục' : 'Dừng'}
-              </button>
-            )}
-
-            {replay.total > 0 && (
-              <button
-                type="button"
-                onClick={() => {
-                  playSound('click');
-                  replay.resetMap();
-                }}
-                className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-slate-400 hover:bg-abyss-700 hover:text-white"
-                title="Đưa riêng bản đồ về trạng thái đầu, giữ nguyên code"
-              >
-                <RotateCcw className="size-3.5" />
-                Reset map
-              </button>
-            )}
-
-            <Button
-              onClick={runAndWatch}
-              isLoading={session.isRunning || replay.isPlaying}
-              loadingLabel={replay.isPlaying ? 'Byte đang chạy' : 'Đang chạy'}
-              leadingIcon={<Play className="size-4" aria-hidden="true" />}
-              className="min-w-32"
-            >
-              Chạy code
-            </Button>
-          </div>
-        </div>
-
         <div
           className={cn(
-            'flex min-h-80 items-center bg-[radial-gradient(circle_at_50%_15%,rgba(34,211,238,0.08),transparent_58%)] p-3 sm:p-5',
-            'min-h-[32rem] sm:min-h-[38rem] lg:min-h-[44rem] lg:p-7',
+            'cq-game-host relative flex min-h-80 flex-1 items-center justify-center overflow-hidden lg:min-h-0',
           )}
         >
           {challenge.world ? (
-            <div className="relative w-full">
+            <div className="cq-game-canvas relative h-full w-full" data-testid="game-canvas">
               <MapSettingsMenu
                 avatarId={profile?.avatar_id ?? 'guardian-cyan'}
                 account={{
@@ -662,6 +606,7 @@ export function ChallengePage({
                 currentLessonOrder={lesson.order}
                 onBuyOrUpgrade={buyOrUpgradeEquipment}
                 onEquip={equipEquipment}
+                compact
               />
               <GameStage
                 spec={challenge.world}
@@ -671,8 +616,9 @@ export function ChallengePage({
                 hideTitle
                 presentation={challenge.kind === 'boss' ? 'boss' : 'default'}
                 isPlaying={replay.isPlaying}
-                motionDurationMs={replaySpeed === 'fast' ? 100 : replaySpeed === 'step' ? 220 : 280}
+                motionDurationMs={replaySpeed === 'slow' ? 900 : replaySpeed === 'fast' ? 140 : replaySpeed === 'step' ? 380 : 560}
                 lessonId={lesson.id}
+                equippedItem={equippedItem}
               />
             </div>
           ) : (
@@ -686,51 +632,69 @@ export function ChallengePage({
               isPlaying={replay.isPlaying}
             />
           )}
-        </div>
-
-        {replay.total > 0 && (
-          <div className="border-t border-abyss-700 bg-abyss-950/65 px-4 py-2.5 text-xs text-slate-400">
-            <div className="flex items-center justify-between gap-3">
-              <span aria-live="polite">
-                {replay.isDone ? 'Đã chạy xong' : replay.isPlaying ? 'Đang chạy…' : 'Đang tạm dừng'}
-              </span>
-              <span className="font-mono tabular-nums">
-                Bước {replay.playedCount}/{replay.total}
-              </span>
-            </div>
-            <p className="mt-1 truncate font-mono text-[11px] text-quest-300" aria-live="polite">
-              {currentStageEvent
-                ? `→ ${currentStageEvent.message}`
-                : '→ Byte đang ở vị trí xuất phát. Bấm Bước tiếp để quan sát từng lệnh.'}
-            </p>
+        <div className="absolute inset-x-0 bottom-0 z-20 border-t-2 border-cyan-400/70 bg-[#07152f]/95 px-3 py-2.5 text-white shadow-[0_-6px_22px_rgba(6,182,212,.2)] backdrop-blur-sm" data-testid="stage-status-bar">
+          <div className="flex min-w-0 items-center gap-3 text-sm">
+            <span className="inline-flex shrink-0 items-center gap-2 font-extrabold" aria-live="polite">
+              <span className={cn('size-2.5 rounded-full', !hasStartedRun ? 'bg-quest-300' : replay.isDone ? 'bg-emerald-400' : session.isRunning || replay.isPlaying ? 'animate-pulse bg-cyan-300' : 'bg-amber-300')} aria-hidden="true" />
+              {!hasStartedRun ? 'Nhiệm vụ' : session.isRunning ? 'Đang kiểm tra…' : replay.isDone || (session.result?.isCorrect && replay.total === 0) ? 'Đã chạy xong' : replay.isPlaying ? 'Đang chạy…' : 'Đang tạm dừng'}
+            </span>
+            <span className="min-w-0 flex-1 truncate font-medium text-cyan-50" aria-live="polite">
+              {!hasStartedRun
+                ? challenge.story
+                : session.isRunning && replay.total === 0
+                  ? 'Byte đang đọc và chuẩn bị thực hiện từng lệnh.'
+                  : session.result && replay.total === 0
+                    ? session.result.isCorrect
+                      ? 'Chương trình đã đạt tất cả mục tiêu.'
+                      : session.result.diagnostics[0]?.message ?? 'Xem phản hồi dưới editor rồi sửa một chỗ.'
+                : currentStageEvent
+                  ? `→ ${currentStageEvent.message}`
+                  : '→ Byte đang ở vị trí xuất phát. Bấm Bước tiếp để quan sát từng lệnh.'}
+            </span>
+            <span className="shrink-0 rounded-full border border-cyan-300/35 bg-cyan-300/10 px-2.5 py-1 font-mono text-xs font-bold tabular-nums text-cyan-100">
+              {replay.total === 0 ? `${passedRequiredCount}/${requiredTests.length} mục tiêu` : `${replay.playedCount}/${replay.total} bước`}
+            </span>
           </div>
-        )}
+        </div>
+        </div>
       </section>
 
       {/* ③ CODE — editor, lệnh cần dùng và công cụ nằm trong cùng một luồng. */}
-      <section className="min-w-0 bg-abyss-900 p-3 sm:p-5 lg:p-7">
-        <div className="mx-auto max-w-6xl">{editorPanel}</div>
+      <section className="min-w-0 bg-abyss-900 p-3 sm:p-4 lg:col-start-2 lg:row-start-1 lg:min-h-0 lg:overflow-y-auto" data-testid="editor-workspace">
+        <div className="mx-auto flex min-h-full max-w-4xl flex-col">
+          {editorPanel}
+          <section
+            className="mt-3 shrink-0 overflow-visible border-t border-quest-500/25 bg-abyss-800/70 px-2 py-2.5 lg:rounded-xl lg:border"
+            aria-label="Điều khiển chạy chương trình"
+            data-testid="run-control-bar"
+          >
+            {runControls}
+          </section>
+          {(session.result || session.isRunning) && (
+            <div className="mt-3" data-testid="inline-result-panel">
+              <ResultPanel
+                result={session.result}
+                isRunning={session.isRunning}
+                showCleanCode={challenge.kind !== 'story'}
+                expectsOutput={challenge.testCases.some((test) => test.kind === 'output')}
+              />
+            </div>
+          )}
+        </div>
       </section>
       </div>
       </section>
 
-      {(session.result || session.isRunning) && (
-        <ResultPanel
-          result={session.result}
-          isRunning={session.isRunning}
-          onRequestHint={requestHint}
-          hintsAvailable={session.hintLevel < challenge.hints.length}
-          showCleanCode={challenge.kind !== 'story'}
-        />
-      )}
-
-      {session.justCompleted && (
+      {session.justCompleted && (replay.total === 0 || replay.isDone) && (
         <VictoryPanel
           challenge={challenge}
           result={session.result}
           xpAwarded={session.xpAwarded}
           gemsAwarded={session.gemsAwarded}
-          nextLabel={demo && nextDemoChallengeId ? 'Nhiệm vụ Demo tiếp theo' : nextChallengeId ? 'Nhiệm vụ tiếp theo' : 'Về trang khu vực'}
+          totalXp={demo ? session.xpAwarded : profile?.total_xp}
+          gemBalance={demo ? session.gemsAwarded : profile?.gem_balance}
+          nextTitle={nextChallenge?.title ?? (demo ? nextLesson?.challenges[0]?.title : 'Checkpoint cuối khu vực')}
+          nextLabel="Tiếp tục"
           onNext={() =>
             navigate(demo
               ? nextDemoChallengeId && nextDemoLessonId
@@ -738,18 +702,7 @@ export function ChallengePage({
                 : '/'
               : nextChallengeId
                 ? `/app/lesson/${lessonId}/challenge/${nextChallengeId}`
-                : `/app/lesson/${lessonId}`)
-          }
-          secondaryAction={
-            demo ? (
-              <Link to="/">
-                <Button variant="secondary">Về trang giới thiệu</Button>
-              </Link>
-            ) : nextChallengeId ? (
-              <Link to={`/app/lesson/${lessonId}`}>
-                <Button variant="secondary">Xem danh sách nhiệm vụ</Button>
-              </Link>
-            ) : undefined
+                : `/app/lesson/${lessonId}/exit-ticket`)
           }
         />
       )}
@@ -760,19 +713,52 @@ export function ChallengePage({
         upToLessonId={lessonId}
         focusCardIds={relevantHandbookCards(challenge).map((card) => card.id)}
       />
+      <ConceptGuideModal
+        open={conceptGuideOpen}
+        onClose={() => setConceptGuideOpen(false)}
+        title={lesson.title}
+        guide={lesson.conceptGuide}
+      />
+      <MissionBriefingModal
+        open={missionOpen}
+        challenge={challenge}
+        zoneName={lesson.zoneName}
+        position={index + 1}
+        total={challengeIds.length}
+        kindLabel={KIND_LABELS[challenge.kind] ?? challenge.kind}
+        passedTestIds={passedTestIds}
+        acknowledged={missionAcknowledged}
+        actionLabel={!missionAcknowledged && newApiCommands.length > 0 ? 'Đã hiểu · Xem API mới' : undefined}
+        onClose={() => {
+          playSound('click');
+          const shouldIntroduceApi = !missionAcknowledged && newApiCommands.length > 0;
+          setMissionAcknowledged(true);
+          setMissionOpen(false);
+          setApiIntroOpen(shouldIntroduceApi);
+        }}
+      />
+      <ApiDiscoveryModal
+        open={apiIntroOpen}
+        commands={newApiCommands}
+        onClose={() => {
+          playSound('click');
+          setApiIntroOpen(false);
+        }}
+      />
       <BadgeToast badges={session.newBadges} onDismiss={session.dismissBadges} />
     </div>
   );
 }
 
-interface ReplayModeButtonProps {
-  active: boolean;
-  onClick: () => void;
+interface ToolIconButtonProps {
+  label: string;
   icon: ReactNode;
-  children: ReactNode;
+  onClick: () => void;
+  active?: boolean;
+  ariaExpanded?: boolean;
 }
 
-function ReplayModeButton({ active, onClick, icon, children }: ReplayModeButtonProps) {
+function ToolIconButton({ label, icon, onClick, active = false, ariaExpanded }: ToolIconButtonProps) {
   return (
     <button
       type="button"
@@ -780,16 +766,21 @@ function ReplayModeButton({ active, onClick, icon, children }: ReplayModeButtonP
         playSound('click');
         onClick();
       }}
-      aria-pressed={active}
+      aria-label={label}
+      aria-expanded={ariaExpanded}
+      title={label}
       className={cn(
-        'inline-flex h-7 items-center gap-1 rounded-md px-2 text-[11px] font-semibold transition-colors',
+        'group/tool relative grid size-9 shrink-0 cursor-pointer place-items-center rounded-xl border transition-all',
+        'hover:-translate-y-0.5 hover:border-quest-400/55 hover:bg-quest-500/12 hover:text-quest-300 hover:shadow-[0_0_18px_rgba(34,211,238,.2)]',
         active
-          ? 'bg-quest-500/20 text-quest-400'
-          : 'text-slate-500 hover:bg-abyss-800 hover:text-slate-300',
+          ? 'border-quest-400/60 bg-quest-500/15 text-quest-300 shadow-[0_0_18px_rgba(34,211,238,.2)]'
+          : 'border-abyss-600 bg-abyss-950 text-slate-400',
       )}
     >
       {icon}
-      {children}
+      <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-950 px-2.5 py-1.5 text-xs font-semibold text-white opacity-0 shadow-xl transition-opacity group-hover/tool:opacity-100 group-focus-visible/tool:opacity-100">
+        {label}
+      </span>
     </button>
   );
 }

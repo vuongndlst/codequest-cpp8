@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { CheckCircle2, Lock } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Lock } from 'lucide-react';
 import type { LessonMeta } from '@/types/content';
 import type { LessonLockState } from '@/utils/progression';
 import { ProgressBar } from '@/components/ui/ProgressBar';
@@ -14,6 +14,10 @@ interface ZoneCardProps {
   stars: number;
   /** true = chỉ xem, không bấm vào được (dùng ở trang xem trước công khai) */
   preview?: boolean;
+  href?: string;
+  dueDateLabel?: string;
+  dueDatePast?: boolean;
+  lockedByTeacher?: boolean;
 }
 
 const ACCENTS = {
@@ -31,6 +35,10 @@ export function ZoneCard({
   progressPercent,
   stars,
   preview = false,
+  href,
+  dueDateLabel,
+  dueDatePast = false,
+  lockedByTeacher = false,
 }: ZoneCardProps) {
   const Icon = getIcon(lesson.icon);
   const accent = ACCENTS[lesson.accent];
@@ -77,11 +85,17 @@ export function ZoneCard({
             </p>
           </div>
         ) : isLocked ? (
-          <p className="text-xs text-slate-500">
-            {`Hoàn thành Khu vực ${lesson.order - 1} để mở khoá`}
-          </p>
+          <div className="space-y-1.5">
+            <p className="text-xs text-slate-500">
+              {lockedByTeacher
+                ? 'Giáo viên đang tạm khóa để cả lớp học cùng nhịp'
+                : `Hoàn thành Khu vực ${lesson.order - 1} để mở khoá`}
+            </p>
+            {dueDateLabel && <ScheduleLabel label={dueDateLabel} isPast={dueDatePast} />}
+          </div>
         ) : (
           <>
+            {dueDateLabel && <ScheduleLabel label={dueDateLabel} isPast={dueDatePast} />}
             <ProgressBar
               value={progressPercent}
               label={`Tiến trình ${lesson.zoneName}`}
@@ -122,9 +136,18 @@ export function ZoneCard({
 
   return (
     <li>
-      <Link to={`/app/lesson/${lesson.id}`} className={cn(baseClass, 'h-full')}>
+      <Link to={href ?? `/app/lesson/${lesson.id}`} className={cn(baseClass, 'h-full')}>
         {body}
       </Link>
     </li>
+  );
+}
+
+function ScheduleLabel({ label, isPast }: { label: string; isPast: boolean }) {
+  return (
+    <p className={cn('flex items-center gap-1.5 text-xs font-medium', isPast ? 'text-alert-400' : 'text-slate-400')}>
+      <CalendarDays className="size-3.5" aria-hidden="true" />
+      {isPast ? `Đã quá hạn ${label}` : `Hạn ${label}`}
+    </p>
   );
 }

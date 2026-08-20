@@ -1,14 +1,16 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { cn } from '@/utils/cn';
 
 interface CardProps {
   children: ReactNode;
   className?: string;
   as?: 'div' | 'section' | 'article' | 'li';
+  id?: string;
 }
 
-export function Card({ children, className, as: Tag = 'div' }: CardProps) {
-  return <Tag className={cn('cq-card p-5', className)}>{children}</Tag>;
+export function Card({ children, className, as: Tag = 'div', id }: CardProps) {
+  return <Tag id={id} className={cn('cq-card p-5', className)}>{children}</Tag>;
 }
 
 interface CardHeaderProps {
@@ -49,6 +51,8 @@ interface StatTileProps {
   icon: ReactNode;
   tone?: 'quest' | 'treasure' | 'mage' | 'verdant';
   sublabel?: string;
+  /** Khi có `to`, toàn bộ ô trở thành một lối tắt có thể bấm và dùng bàn phím. */
+  to?: string;
 }
 
 const STAT_TONES = {
@@ -58,9 +62,9 @@ const STAT_TONES = {
   verdant: 'text-verdant-400 bg-verdant-500/10',
 } as const;
 
-export function StatTile({ label, value, icon, tone = 'quest', sublabel }: StatTileProps) {
-  return (
-    <div className="cq-card p-4 flex items-center gap-3">
+export function StatTile({ label, value, icon, tone = 'quest', sublabel, to }: StatTileProps) {
+  const content = (
+    <>
       <span
         className={cn('grid place-items-center size-11 rounded-xl shrink-0', STAT_TONES[tone])}
         aria-hidden="true"
@@ -74,6 +78,20 @@ export function StatTile({ label, value, icon, tone = 'quest', sublabel }: StatT
         <p className="text-xs text-slate-400 mt-1 truncate">{label}</p>
         {sublabel && <p className="text-xs text-slate-500 truncate">{sublabel}</p>}
       </div>
-    </div>
+    </>
   );
+
+  if (to) {
+    return (
+      <Link
+        to={to}
+        aria-label={`Xem ${label}`}
+        className="cq-card p-4 flex items-center gap-3 transition hover:-translate-y-0.5 hover:border-quest-400/60 hover:shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-quest-400"
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  return <div className="cq-card p-4 flex items-center gap-3">{content}</div>;
 }

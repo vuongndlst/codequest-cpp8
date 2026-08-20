@@ -16,6 +16,8 @@ export interface LessonUnlockContext {
   progressByLesson: Record<string, LessonProgressRow | undefined>;
   /** Bài học được giáo viên mở thêm cho lớp */
   teacherUnlockedLessons?: string[];
+  /** Bài học giáo viên chủ động tạm khóa để giữ nhịp học chung của lớp. */
+  teacherLockedLessons?: string[];
   /**
    * Người đang xem là giáo viên.
    *
@@ -31,6 +33,7 @@ export const FIRST_LESSON_ID = 'a0';
 
 export function isLessonUnlocked(lessonId: string, ctx: LessonUnlockContext): boolean {
   if (ctx.isTeacher) return true;
+  if (ctx.teacherLockedLessons?.includes(lessonId)) return false;
   if (lessonId === FIRST_LESSON_ID) return true;
   if (ctx.teacherUnlockedLessons?.includes(lessonId)) return true;
 
@@ -82,7 +85,8 @@ export function calculateLessonPercent(
  */
 export function getNextLessonId(ctx: LessonUnlockContext): string {
   const inProgress = LESSONS_META.find(
-    (lesson) => ctx.progressByLesson[lesson.id]?.status === 'in_progress',
+    (lesson) =>
+      ctx.progressByLesson[lesson.id]?.status === 'in_progress' && isLessonUnlocked(lesson.id, ctx),
   );
   if (inProgress) return inProgress.id;
 
@@ -96,7 +100,7 @@ export function getNextLessonId(ctx: LessonUnlockContext): string {
   return LESSONS_META[LESSONS_META.length - 1].id;
 }
 
-/** Tổng số sao đã đạt trên toàn khoá (tối đa 15). */
+/** Tổng số sao đã đạt trên toàn bộ curriculum đang phát hành. */
 export function getTotalStars(progressByLesson: Record<string, LessonProgressRow | undefined>): number {
   return LESSONS_META.reduce(
     (sum, lesson) => sum + (progressByLesson[lesson.id]?.stars ?? 0),

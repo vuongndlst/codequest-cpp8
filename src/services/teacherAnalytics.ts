@@ -17,7 +17,7 @@ import { labelForErrorCode } from '@/validators/errorLabels';
 
 export interface StudentSummary {
   student: StudentProfile;
-  /** Số khu vực đã hoàn thành trên tổng số 5 */
+  /** Số khu vực đã hoàn thành trên tổng số khu vực đang phát hành */
   lessonsCompleted: number;
   /** Phần trăm tiến trình trung bình trên cả khoá */
   overallPercent: number;

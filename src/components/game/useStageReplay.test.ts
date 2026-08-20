@@ -36,6 +36,16 @@ describe('Điều khiển phát lại sân khấu', () => {
     expect(result.current.isDone).toBe(true);
   });
 
+  it('chế độ chậm cho thêm thời gian quan sát mỗi bước', () => {
+    const { result } = renderHook(() => useStageReplay(EVENTS, 0, 'slow'));
+
+    act(() => vi.advanceTimersByTime(REPLAY_STEP_MS.normal));
+    expect(result.current.playedCount).toBe(0);
+
+    act(() => vi.advanceTimersByTime(REPLAY_STEP_MS.slow - REPLAY_STEP_MS.normal));
+    expect(result.current.playedCount).toBe(1);
+  });
+
   it('đổi sang nhanh giữa chừng tiếp tục từ vị trí hiện tại', () => {
     const { result, rerender } = renderHook(
       ({ speed }: { speed: ReplaySpeed }) => useStageReplay(EVENTS, 0, speed),

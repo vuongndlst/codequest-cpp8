@@ -4,11 +4,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   isAudioUnlocked,
   isBackgroundMusicEnabled,
+  BACKGROUND_MUSIC_TRACKS,
+  musicTrackForScene,
   playSound,
   playVictoryFanfare,
   resetAudioForTest,
   setSoundEnabled,
   setMusicEnabled,
+  setGameMusicScene,
   unlockAudio,
   type SoundName,
 } from './audio';
@@ -121,16 +124,26 @@ describe('Nhạc nền trong phòng máy', () => {
     expect(isBackgroundMusicEnabled()).toBe(false);
   });
 
-  it('phát tệp nhạc CC0 sau khi học sinh bật nhạc trong màn chơi', async () => {
+  it('phát đúng tệp nhạc CC0 của nhiệm vụ sau khi học sinh bật nhạc', async () => {
     const played = stubAudio();
     const { setGameMusicActive } = await import('./audio');
 
     unlockAudio();
+    setGameMusicScene('a3', 'a3-c2-loop-route');
     setGameMusicActive(true);
     setMusicEnabled(true);
 
-    expect(played.some((source) => source.endsWith('/audio/bytelands-arcanum.mp3'))).toBe(true);
+    expect(played.some((source) => source.endsWith(`/audio/${musicTrackForScene('a3', 'a3-c2-loop-route')}`))).toBe(true);
     setGameMusicActive(false);
+  });
+
+  it('đổi soundtrack giữa hai nhiệm vụ liền nhau và dành track cao trào cho boss', () => {
+    expect(musicTrackForScene('a4', 'a4-c1-first-if')).not.toBe(
+      musicTrackForScene('a4', 'a4-c2-two-branches'),
+    );
+    expect(musicTrackForScene('a6', 'a6-c5-factory-core', true)).toBe(
+      'music/bytelands-07-waking-the-devil.mp3',
+    );
   });
 });
 
@@ -190,9 +203,11 @@ describe('Tệp âm thanh có thật', () => {
     expect(files.size).toBe(ALL_SOUNDS.length);
   });
 
-  it('có bản nhạc nền CC0 dùng trong game', () => {
-    expect(
-      readdirSync(join(process.cwd(), 'public', 'audio')).includes('bytelands-arcanum.mp3'),
-    ).toBe(true);
+  it('có đủ bảy bản nhạc nền CC0 dùng trong game', () => {
+    const musicFiles = new Set(readdirSync(join(process.cwd(), 'public', 'audio', 'music')));
+    expect(BACKGROUND_MUSIC_TRACKS).toHaveLength(7);
+    for (const track of BACKGROUND_MUSIC_TRACKS) {
+      expect(musicFiles.has(track.replace('music/', '')), `thiếu tệp ${track}`).toBe(true);
+    }
   });
 });

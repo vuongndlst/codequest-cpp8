@@ -32,9 +32,18 @@ function run(code: string, overrides: Partial<Challenge> = {}) {
   return analyzeChallenge(code, makeChallenge(overrides));
 }
 
-function runProgram(code: string, stdin = '') {
+function runProgram(code: string, stdin = '', world?: Challenge['world']) {
   const { tokens } = tokenize(code);
-  return interpret(parse(tokens), { stdin });
+  return interpret(parse(tokens), { stdin, world });
+}
+
+function wrapBody(body: string) {
+  return `#include <iostream>
+using namespace std;
+int main() {
+${body}
+    return 0;
+}`;
 }
 
 const HELLO = `#include <iostream>
@@ -333,6 +342,29 @@ int main() {
 
     expect(result.stdout).toEqual(['01234']);
     expect(result.loopIterations).toBe(5);
+  });
+
+  it('attackBug chỉ phá giáp khi Byte đứng cạnh Boss trên map', () => {
+    const world = {
+      kind: 'map' as const,
+      cols: 5,
+      rows: 3,
+      startCol: 1,
+      startRow: 1,
+      goalCol: 4,
+      goalRow: 1,
+      terrain: ['FFFFF', 'F...F', 'FFFFF'],
+      props: [{ id: 'boss', type: 'boss', col: 3, row: 1 }],
+      initialState: { bugHp: 2 },
+    };
+    const far = interpret(parse(tokenize(wrapBody('    attackBug();')).tokens), { world });
+    const near = interpret(parse(tokenize(wrapBody('    moveRight();\n    attackBug();')).tokens), { world });
+
+    expect(far.finalWorld.bugHp).toBe(2);
+    expect(far.finalWorld.bugHits).toBe(0);
+    expect(far.worldEvents.some((event) => event.type === 'blocked')).toBe(true);
+    expect(near.finalWorld.bugHp).toBe(1);
+    expect(near.finalWorld.bugHits).toBe(1);
   });
 
   it('if–else chọn đúng nhánh', () => {
@@ -844,5 +876,92 @@ describe('Đoán tên gõ nhầm', () => {
     expect(findNearestName('sum', ['num'])).toBe('num');
     // cách nhau 2 với tên 3 ký tự -> quá xa, không đoán
     expect(findNearestName('sum', ['bar'])).toBeNull();
+  });
+});
+
+// ============================================================================
+// C++ nâng cao — tham trị, tham chiếu và mảng một chiều
+// ============================================================================
+
+describe('Ngữ nghĩa C++ nâng cao', () => {
+  it('tham trị tạo bản sao, không thay đổi biến ở hàm gọi', () => {
+    const result = runProgram(`#include <iostream>
+using namespace std;
+void charge(int energy) { energy += 5; }
+int main() {
+  int energy = 3;
+  charge(energy);
+  cout << energy;
+  return 0;
+}`);
+
+    expect(result.completed).toBe(true);
+    expect(result.rawOutput).toBe('3');
+  });
+
+  it('tham chiếu liên kết đúng ô nhớ và thay đổi biến ở hàm gọi', () => {
+    const result = runProgram(`#include <iostream>
+using namespace std;
+void charge(int &energy) { energy += 5; }
+int main() {
+  int energy = 3;
+  charge(energy);
+  cout << energy;
+  return 0;
+}`);
+
+    expect(result.completed).toBe(true);
+    expect(result.rawOutput).toBe('8');
+  });
+
+  it('khởi tạo, đọc, gán và duyệt mảng một chiều', () => {
+    const result = runProgram(`#include <iostream>
+using namespace std;
+int main() {
+  int gems[5] = {2, 4, 1, 3, 5};
+  gems[2] = 6;
+  int total = 0;
+  for (int i = 0; i < 5; i++) total += gems[i];
+  cout << total;
+  return 0;
+}`);
+
+    expect(result.completed).toBe(true);
+    expect(result.rawOutput).toBe('20');
+  });
+
+  it('truyền mảng vào hàm và kiểm tra biên chỉ số bằng thông báo sư phạm', () => {
+    const passed = runProgram(`#include <iostream>
+using namespace std;
+int sum(int values[], int size) {
+  int total = 0;
+  for (int i = 0; i < size; i++) total += values[i];
+  return total;
+}
+int main() {
+  int values[3] = {4, 5, 6};
+  cout << sum(values, 3);
+  return 0;
+}`);
+    expect(passed.rawOutput).toBe('15');
+
+    const failed = runProgram(wrapBody('int values[2] = {1, 2};\ncout << values[2];'));
+    expect(failed.completed).toBe(false);
+    expect(failed.diagnostics[0]?.message).toContain('ngoài mảng');
+  });
+});
+
+describe('Cơ chế né quái từ Area 4', () => {
+  it('chặn bước vào ô quái, phát cảnh báo và ghi một lần bị phát hiện', () => {
+    const result = runProgram(wrapBody('moveRight();'), '', {
+      kind: 'map', cols: 3, rows: 1, startCol: 0, startRow: 0, goalCol: 2, goalRow: 0,
+      terrain: ['==='],
+      props: [{ id: 'guard-1', type: 'enemy', col: 1, row: 0, state: 'blocking' }],
+    });
+
+    expect(result.finalWorld.col).toBe(0);
+    expect(result.finalWorld.dangerHits).toBe(1);
+    expect(result.worldEvents.at(-1)?.type).toBe('enemy-alert');
+    expect(result.worldEvents.at(-1)?.message).toContain('phát hiện');
   });
 });

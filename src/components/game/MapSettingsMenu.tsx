@@ -19,6 +19,7 @@ import { TILE } from '@/components/game/mapTiles';
 import { playSound } from '@/services/audio';
 import { cn } from '@/utils/cn';
 import type { EquipmentCatalogRow, UserEquipmentRow } from '@/types/database';
+import { equipmentDesign, lessonOrderFromId } from '@/data/equipment';
 
 type MapMenuTab = 'character' | 'account' | 'equipment';
 
@@ -95,6 +96,36 @@ const EQUIPMENT_ROADMAP = [
     unlocked: false,
     upgradeCost: 45,
   },
+  {
+    id: 'function-toolkit',
+    name: 'Bộ dụng cụ Xưởng Hàm',
+    description: 'Làm nổi lời gọi hàm và dữ liệu tham số.',
+    status: 'Mở ở khu vực 6', tileIndex: TILE.machine.index, unlocked: false, upgradeCost: 48,
+  },
+  {
+    id: 'mirror-compass',
+    name: 'La bàn Phòng Gương',
+    description: 'Theo dõi tham trị, tham chiếu và ô nhớ.',
+    status: 'Mở ở khu vực 7', tileIndex: TILE.key.index, unlocked: false, upgradeCost: 55,
+  },
+  {
+    id: 'index-bracer',
+    name: 'Găng Chỉ Số',
+    description: 'Làm nổi phần tử và miền chỉ số hợp lệ.',
+    status: 'Mở ở khu vực 8', tileIndex: TILE.shield.index, unlocked: false, upgradeCost: 62,
+  },
+  {
+    id: 'scanner-lens',
+    name: 'Kính Quét Tuyến Tính',
+    description: 'Đánh dấu phần mảng đã được thuật toán duyệt.',
+    status: 'Mở ở khu vực 9', tileIndex: TILE.gem.index, unlocked: false, upgradeCost: 68,
+  },
+  {
+    id: 'algorithm-core',
+    name: 'Lõi Kiến Trúc Thuật Toán',
+    description: 'Hiện cặp so sánh và bất biến của sắp xếp.',
+    status: 'Mở ở khu vực 10', tileIndex: TILE.machine.index, unlocked: false, upgradeCost: 75,
+  },
 ] as const;
 
 /**
@@ -130,21 +161,18 @@ export function MapSettingsMenu({
   const [equipmentLevels, setEquipmentLevels] = useState<Record<string, number>>({ navigator: 1 });
   const [equippedItemId, setEquippedItemId] = useState('navigator');
   const menuRef = useRef<HTMLDivElement>(null);
+  const openerRef = useRef<HTMLButtonElement>(null);
   const avatar = getAvatar(avatarId);
   const visibleTabs = showEquipment ? TABS : TABS.filter((tab) => tab.id !== 'equipment');
   const hasPersistentEquipment = equipmentCatalog.length > 0;
   const equipmentItems = hasPersistentEquipment
     ? equipmentCatalog.map((catalogItem) => {
         const owned = userEquipment.find((item) => item.equipment_id === catalogItem.id);
-        const unlockOrder = Number(catalogItem.unlock_lesson.replace(/\D/g, '')) || 1;
-        const tile = catalogItem.id === 'algorithm-sword'
-          ? TILE.sword
-          : catalogItem.id === 'condition-shield'
-            ? TILE.shield
-            : TILE.key;
+        const unlockOrder = lessonOrderFromId(catalogItem.unlock_lesson);
+        const design = equipmentDesign(catalogItem.id);
         return {
           ...catalogItem,
-          tileIndex: tile.index,
+          tileIndex: design.tileIndex,
           unlocked: Boolean(owned),
           available: currentLessonOrder >= unlockOrder,
           level: owned?.level ?? 0,
@@ -171,17 +199,30 @@ export function MapSettingsMenu({
     if (!open) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.key === 'Escape') {
+        setOpen(false);
+        openerRef.current?.focus();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const focusable = menuRef.current?.querySelectorAll<HTMLElement>(
+        'button:not(:disabled), a[href], select:not(:disabled), [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
-    const onPointerDown = (event: PointerEvent) => {
-      if (!menuRef.current?.contains(event.target as Node)) setOpen(false);
-    };
-
+    menuRef.current?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.focus();
     document.addEventListener('keydown', onKeyDown);
-    document.addEventListener('pointerdown', onPointerDown);
     return () => {
       document.removeEventListener('keydown', onKeyDown);
-      document.removeEventListener('pointerdown', onPointerDown);
     };
   }, [open]);
 
@@ -208,6 +249,11 @@ export function MapSettingsMenu({
     setOpen((value) => !value);
   };
 
+  const closeMenu = () => {
+    setOpen(false);
+    openerRef.current?.focus();
+  };
+
   const selectTab = (tab: MapMenuTab) => {
     playSound('click');
     setActiveTab(tab);
@@ -225,9 +271,11 @@ export function MapSettingsMenu({
   };
 
   return (
-    <div ref={menuRef} className="absolute right-2 top-2 z-40 sm:right-3 sm:top-3">
-      <div className="ml-auto flex w-fit items-center gap-1.5 rounded-2xl border border-white/15 bg-abyss-950/90 p-1.5 shadow-xl shadow-black/35 backdrop-blur-md">
+    <>
+      <div className="absolute right-2 top-2 z-40 sm:right-3 sm:top-3">
+        <div className="ml-auto flex w-fit items-center gap-1.5 rounded-2xl border border-white/15 bg-abyss-950/90 p-1.5 shadow-xl shadow-black/35 backdrop-blur-md">
         <button
+          ref={openerRef}
           type="button"
           onClick={toggleMenu}
           aria-expanded={open}
@@ -251,7 +299,7 @@ export function MapSettingsMenu({
           <span className="sr-only">Mở cài đặt trên bản đồ</span>
         </button>
 
-        {!compact && <button
+          {!compact && <button
           type="button"
           onClick={toggleSound}
           aria-pressed={soundEnabled}
@@ -265,25 +313,37 @@ export function MapSettingsMenu({
           )}
         >
           {soundEnabled ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
-        </button>}
+          </button>}
+        </div>
       </div>
 
       {open && (
-        <section
-          id="map-settings-panel"
-          role="dialog"
-          aria-label="Cài đặt bản đồ"
-          className="mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-quest-400/25 bg-abyss-950/96 shadow-2xl shadow-black/55 backdrop-blur-xl"
+        <div
+          data-testid="map-settings-backdrop"
+          className="absolute inset-0 z-50 flex items-center justify-center bg-[#020817]/72 p-3 backdrop-blur-[3px]"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closeMenu();
+          }}
         >
-          <header className="flex items-center justify-between border-b border-abyss-700 px-3 py-2.5">
-            <div className="flex items-center gap-2">
-              <Sparkles className="size-4 text-treasure-300" aria-hidden="true" />
+          <section
+            ref={menuRef}
+            id="map-settings-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="map-settings-title"
+            className="flex max-h-[calc(100%-1rem)] w-[min(56rem,calc(100%-1rem))] flex-col overflow-hidden rounded-3xl border border-quest-300/35 bg-abyss-950 shadow-[0_24px_80px_rgba(0,0,0,.65),0_0_36px_rgba(34,211,238,.16)]"
+          >
+          <header className="flex shrink-0 items-center justify-between gap-4 border-b border-abyss-700 bg-gradient-to-r from-quest-500/14 via-abyss-900 to-mage-500/10 px-4 py-3.5 sm:px-5">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="grid size-11 shrink-0 place-items-center rounded-2xl border border-treasure-300/25 bg-treasure-500/10 text-treasure-300 shadow-inner">
+                <Sparkles className="size-5" aria-hidden="true" />
+              </span>
               <div>
-                <h3 className="text-sm font-bold text-slate-100">Góc phiêu lưu</h3>
-                <p className="text-[10px] text-slate-500">Tùy chỉnh ngay trên bản đồ</p>
+                <h3 id="map-settings-title" className="text-base font-extrabold text-slate-100 sm:text-lg">Góc phiêu lưu</h3>
+                <p className="text-xs text-slate-400">Nhân vật, âm thanh và trang bị của em</p>
               </div>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex shrink-0 items-center gap-2">
               <button
                 type="button"
                 onClick={toggleMusic}
@@ -291,27 +351,34 @@ export function MapSettingsMenu({
                 aria-label={musicEnabled ? 'Tắt nhạc nền' : 'Bật nhạc nền khi dùng tai nghe'}
                 title={musicEnabled ? 'Tắt nhạc nền' : 'Bật nhạc nền khi dùng tai nghe'}
                 className={cn(
-                  'grid size-8 place-items-center rounded-lg hover:bg-white/10',
-                  musicEnabled ? 'text-treasure-300' : 'text-slate-500 hover:text-slate-200',
+                  'inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-xs font-bold transition-colors',
+                  musicEnabled
+                    ? 'border-treasure-300/35 bg-treasure-500/12 text-treasure-200'
+                    : 'border-abyss-600 bg-abyss-900 text-slate-400 hover:text-slate-200',
                 )}
               >
                 <Music2 className="size-4" aria-hidden="true" />
+                <span className="hidden sm:inline">Nhạc {musicEnabled ? 'bật' : 'tắt'}</span>
               </button>
-              {compact && (
-                <button
+              <button
                   type="button"
                   onClick={toggleSound}
                   aria-pressed={soundEnabled}
                   aria-label={soundEnabled ? 'Tắt âm thanh' : 'Bật âm thanh'}
-                  className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-white/10 hover:text-slate-200"
+                  className={cn(
+                    'inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-xs font-bold transition-colors',
+                    soundEnabled
+                      ? 'border-verdant-400/30 bg-verdant-500/10 text-verdant-300'
+                      : 'border-abyss-600 bg-abyss-900 text-slate-400',
+                  )}
                 >
                   {soundEnabled ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
+                  <span className="hidden sm:inline">Âm thanh {soundEnabled ? 'bật' : 'tắt'}</span>
                 </button>
-              )}
               <button
                 type="button"
-                onClick={() => setOpen(false)}
-                className="grid size-8 place-items-center rounded-lg text-slate-500 hover:bg-white/10 hover:text-slate-200"
+                onClick={closeMenu}
+                className="grid size-10 place-items-center rounded-xl border border-abyss-600 bg-abyss-900 text-slate-400 hover:border-abyss-500 hover:text-slate-100"
                 aria-label="Đóng cài đặt bản đồ"
               >
                 <X className="size-4" aria-hidden="true" />
@@ -319,7 +386,8 @@ export function MapSettingsMenu({
             </div>
           </header>
 
-          <nav className={cn('grid gap-1 border-b border-abyss-700 bg-abyss-900/70 p-1.5', showEquipment ? 'grid-cols-3' : 'grid-cols-2')} aria-label="Các mục cài đặt">
+          <div className="grid min-h-0 flex-1 grid-rows-[auto_1fr] sm:grid-cols-[11.5rem_minmax(0,1fr)] sm:grid-rows-1">
+          <nav className="flex gap-1 overflow-x-auto border-b border-abyss-700 bg-abyss-900/75 p-2 sm:flex-col sm:overflow-visible sm:border-b-0 sm:border-r sm:p-3" aria-label="Các mục cài đặt" role="tablist">
             {visibleTabs.map((tab) => {
               const Icon = tab.icon;
               const selected = activeTab === tab.id;
@@ -328,34 +396,42 @@ export function MapSettingsMenu({
                   key={tab.id}
                   type="button"
                   onClick={() => selectTab(tab.id)}
-                  aria-pressed={selected}
+                  role="tab"
+                  id={`map-settings-tab-${tab.id}`}
+                  aria-controls={`map-settings-view-${tab.id}`}
+                  aria-selected={selected}
                   className={cn(
-                    'inline-flex h-9 items-center justify-center gap-1.5 rounded-lg text-[11px] font-semibold transition-colors',
+                    'inline-flex h-11 min-w-28 items-center justify-start gap-2 rounded-xl px-3 text-sm font-bold transition-colors sm:w-full',
                     selected
-                      ? 'bg-quest-500/18 text-quest-300'
-                      : 'text-slate-500 hover:bg-white/5 hover:text-slate-300',
+                      ? 'bg-quest-500/18 text-quest-200 shadow-inner ring-1 ring-quest-300/20'
+                      : 'text-slate-400 hover:bg-white/5 hover:text-slate-200',
                   )}
                 >
-                  <Icon className="size-3.5" aria-hidden="true" />
+                  <Icon className="size-4" aria-hidden="true" />
                   {tab.label}
                 </button>
               );
             })}
           </nav>
 
-          <div className="max-h-[25rem] overflow-y-auto p-3">
+          <div
+            id={`map-settings-view-${activeTab}`}
+            role="tabpanel"
+            aria-labelledby={`map-settings-tab-${activeTab}`}
+            className="min-h-0 overflow-y-auto bg-abyss-950/95 p-4 sm:p-5"
+          >
             {activeTab === 'character' && (
               <div>
                 {!musicEnabled && (
-                  <p className="mb-3 rounded-lg border border-treasure-400/20 bg-treasure-500/8 px-2.5 py-2 text-[10px] text-treasure-200">
+                  <p className="mb-4 rounded-xl border border-treasure-400/25 bg-treasure-500/8 px-3 py-2.5 text-xs text-treasure-200">
                     Có nhạc nền ByteLand — em chỉ nên bật khi đang dùng tai nghe.
                   </p>
                 )}
-                <p className="text-xs font-semibold text-slate-200">Chọn người đồng hành</p>
-                <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500">
+                <p className="text-base font-extrabold text-slate-100">Chọn người đồng hành</p>
+                <p className="mt-1 text-sm leading-relaxed text-slate-400">
                   Nhân vật sẽ đổi ngay trên sân chơi; chương trình của em vẫn giữ nguyên.
                 </p>
-                <div className="mt-3 grid grid-cols-4 gap-2">
+                <div className="mt-4 grid grid-cols-2 gap-3 xs:grid-cols-4">
                   {AVATARS.map((item) => {
                     const selected = item.id === avatarId;
                     const saving = item.id === savingAvatarId;
@@ -368,14 +444,14 @@ export function MapSettingsMenu({
                         aria-pressed={selected}
                         title={item.name}
                         className={cn(
-                          'relative rounded-xl border p-1.5 transition-all disabled:cursor-wait disabled:opacity-65',
+                          'relative rounded-2xl border p-2.5 transition-all disabled:cursor-wait disabled:opacity-65',
                           selected
                             ? 'border-quest-400 bg-quest-500/15 shadow-[0_0_16px_rgba(34,211,238,0.14)]'
                             : 'border-abyss-700 bg-abyss-900/70 hover:-translate-y-0.5 hover:border-abyss-500',
                         )}
                       >
-                        <AvatarIcon avatarId={item.id} size={42} className="mx-auto" />
-                        <span className="mt-1 block truncate text-[9px] font-medium text-slate-300">
+                        <AvatarIcon avatarId={item.id} size={52} className="mx-auto" />
+                        <span className="mt-2 block truncate text-xs font-bold text-slate-200">
                           {saving ? 'Đang đổi…' : item.shortName}
                         </span>
                         {selected && (
@@ -386,10 +462,10 @@ export function MapSettingsMenu({
                   })}
                 </div>
                 {avatarError && (
-                  <p className="mt-2 text-[11px] text-danger-300" role="alert">{avatarError}</p>
+                  <p className="mt-3 text-sm text-danger-300" role="alert">{avatarError}</p>
                 )}
                 {account.isGuest && (
-                  <p className="mt-2 rounded-lg bg-treasure-500/8 px-2.5 py-2 text-[10px] text-treasure-200">
+                  <p className="mt-3 rounded-xl bg-treasure-500/8 px-3 py-2.5 text-xs text-treasure-200">
                     Bản chơi thử chỉ nhớ lựa chọn trong lần mở trang này.
                   </p>
                 )}
@@ -398,15 +474,11 @@ export function MapSettingsMenu({
 
             {activeTab === 'account' && (
               <div>
-                <div className="flex items-center gap-3 rounded-xl border border-abyss-700 bg-abyss-900/70 p-3">
-                  <AvatarIcon avatarId={avatarId} size={52} glow />
+                <div className="flex items-center gap-4 rounded-2xl border border-quest-400/20 bg-gradient-to-br from-quest-500/12 to-abyss-900 p-4 sm:p-5">
+                  <AvatarIcon avatarId={avatarId} size={72} glow />
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-slate-100">{account.name}</p>
-                    <p className="text-[11px] text-quest-300">
-                      Cấp {account.level} · {account.totalXp} XP
-                      {typeof account.gems === 'number' && <span className="text-treasure-300"> · {demoGemBalance} Gem</span>}
-                    </p>
-                    <p className="mt-0.5 truncate text-[10px] text-slate-500">
+                    <p className="truncate text-lg font-extrabold text-slate-100">{account.name}</p>
+                    <p className="mt-1 truncate text-sm text-slate-400">
                       {account.isGuest
                         ? 'Hồ sơ khách'
                         : [account.className && `Lớp ${account.className}`, account.studentCode && `Mã ${account.studentCode}`]
@@ -415,14 +487,28 @@ export function MapSettingsMenu({
                     </p>
                   </div>
                 </div>
-                <p className="mt-3 text-[11px] leading-relaxed text-slate-400">
+                <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-abyss-700 bg-abyss-900/65 p-3">
+                    <p className="text-xs font-semibold text-slate-500">Cấp độ</p>
+                    <p className="mt-1 text-xl font-black text-quest-300">{account.level}</p>
+                  </div>
+                  <div className="rounded-2xl border border-abyss-700 bg-abyss-900/65 p-3">
+                    <p className="text-xs font-semibold text-slate-500">Kinh nghiệm</p>
+                    <p className="mt-1 text-xl font-black text-verdant-300">{account.totalXp} XP</p>
+                  </div>
+                  <div className="col-span-2 rounded-2xl border border-treasure-400/20 bg-treasure-500/8 p-3 sm:col-span-1">
+                    <p className="text-xs font-semibold text-slate-500">Kho báu</p>
+                    <p className="mt-1 text-xl font-black text-treasure-200">{demoGemBalance} Gem</p>
+                  </div>
+                </div>
+                <p className="mt-4 text-sm leading-relaxed text-slate-400">
                   {account.isGuest
                     ? 'Tạo tài khoản để lưu XP, nhân vật và tiến trình học trên nhiều thiết bị.'
                     : 'Hồ sơ đầy đủ có huy hiệu, tiến trình cấp độ và thông tin lớp của em.'}
                 </p>
                 <Link
                   to={accountHref}
-                  className="mt-3 inline-flex h-9 w-full items-center justify-center rounded-xl bg-quest-500/18 px-3 text-xs font-bold text-quest-200 hover:bg-quest-500/25"
+                  className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-xl bg-quest-600 px-4 text-sm font-bold text-onaccent shadow-lg shadow-quest-600/20 hover:bg-quest-500"
                 >
                   {accountActionLabel}
                 </Link>
@@ -431,24 +517,24 @@ export function MapSettingsMenu({
 
             {activeTab === 'equipment' && (
               <div>
-                <div className="rounded-xl border border-treasure-400/20 bg-treasure-500/8 p-2.5">
-                  <p className="flex items-center gap-1.5 text-xs font-bold text-treasure-200">
-                    <Sparkles className="size-3.5" aria-hidden="true" />
+                <div className="rounded-2xl border border-treasure-400/25 bg-treasure-500/8 p-4">
+                  <p className="flex items-center gap-2 text-base font-extrabold text-treasure-200">
+                    <Sparkles className="size-4" aria-hidden="true" />
                     Trang bị mở kỹ năng code
                   </p>
-                  <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
+                  <p className="mt-1.5 text-sm leading-relaxed text-slate-400">
                     Em mở đồ mới bằng cách học thêm lệnh — không cần mua sức mạnh để vượt bài.
                   </p>
                 </div>
 
-                <ul className="mt-3 space-y-2 list-none">
+                <ul className="mt-4 grid list-none grid-cols-1 gap-3 md:grid-cols-2">
                   {equipmentItems.map((item) => {
                     const unlocked = item.unlocked || allEquipmentUnlocked;
                     return (
                       <li
                         key={item.name}
                         className={cn(
-                          'flex items-center gap-3 rounded-xl border p-2.5',
+                          'flex min-h-48 flex-col rounded-2xl border p-4',
                           unlocked
                             ? 'border-verdant-500/25 bg-verdant-500/8'
                             : 'border-abyss-700 bg-abyss-900/65',
@@ -459,7 +545,7 @@ export function MapSettingsMenu({
                           aria-label={`Vật phẩm ${item.name}`}
                           data-testid="equipment-pixel-art"
                           className={cn(
-                          'relative grid size-10 shrink-0 place-items-center rounded-xl',
+                          'relative grid size-14 shrink-0 place-items-center rounded-2xl',
                           unlocked ? 'bg-verdant-500/15 text-verdant-300' : 'bg-abyss-800 text-slate-500',
                         )}>
                           <TileSprite index={item.tileIndex} sheet="dungeon" scale={2} title={item.name} />
@@ -467,17 +553,20 @@ export function MapSettingsMenu({
                             <LockKeyhole className="absolute -bottom-1 -right-1 size-4 rounded-full bg-abyss-950 p-0.5 text-slate-500" aria-hidden="true" />
                           )}
                         </span>
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold text-slate-200">{item.name}</p>
-                          <p className="mt-0.5 text-[10px] leading-snug text-slate-500">{item.description}</p>
+                        <div className="mt-3 flex min-w-0 flex-1 flex-col">
+                          <p className="text-sm font-extrabold text-slate-100">{item.name}</p>
+                          <p className="mt-1 text-xs leading-relaxed text-slate-400">{item.description}</p>
+                          <p className="mt-2 text-xs leading-relaxed text-quest-300">
+                            Hiệu ứng: {equipmentDesign(item.id).levels[Math.max(0, Math.min(2, item.level - 1))]}
+                          </p>
                           <p className={cn(
-                            'mt-1 text-[9px] font-semibold uppercase tracking-wide',
+                            'mt-2 text-[10px] font-bold uppercase tracking-wide',
                             unlocked ? 'text-verdant-300' : 'text-slate-600',
                           )}>
                             {allEquipmentUnlocked && !item.unlocked ? 'Mở trong Demo Sandbox' : item.status}
                           </p>
                           {allEquipmentUnlocked && !hasPersistentEquipment && (
-                            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                            <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">
                               <button
                                 type="button"
                                 onClick={() => {
@@ -486,7 +575,7 @@ export function MapSettingsMenu({
                                   setEquipmentLevels((levels) => ({ ...levels, [item.id]: levels[item.id] ?? 1 }));
                                 }}
                                 className={cn(
-                                  'rounded-md px-2 py-1 text-[9px] font-bold',
+                                  'rounded-lg px-3 py-2 text-xs font-bold',
                                   equippedItemId === item.id
                                     ? 'bg-verdant-500/18 text-verdant-200'
                                     : 'bg-quest-500/15 text-quest-200 hover:bg-quest-500/25',
@@ -505,21 +594,21 @@ export function MapSettingsMenu({
                                     [item.id]: Math.min(3, (levels[item.id] ?? 1) + 1),
                                   }));
                                 }}
-                                className="rounded-md bg-treasure-500/12 px-2 py-1 text-[9px] font-bold text-treasure-200 hover:bg-treasure-500/20 disabled:cursor-not-allowed disabled:opacity-45"
+                                className="rounded-lg bg-treasure-500/12 px-3 py-2 text-xs font-bold text-treasure-200 hover:bg-treasure-500/20 disabled:cursor-not-allowed disabled:opacity-45"
                               >
                                 Cấp {equipmentLevels[item.id] ?? 1} · Nâng {item.upgradeCost} Gem
                               </button>
                             </div>
                           )}
                           {hasPersistentEquipment && item.available && (
-                            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                            <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">
                               {item.unlocked && (
                                 <button
                                   type="button"
                                   disabled={item.equipped || equipmentBusyId === item.id}
                                   onClick={() => void onEquip?.(item.id)}
                                   className={cn(
-                                    'rounded-md px-2 py-1 text-[9px] font-bold disabled:cursor-not-allowed',
+                                    'rounded-lg px-3 py-2 text-xs font-bold disabled:cursor-not-allowed',
                                     item.equipped
                                       ? 'bg-verdant-500/18 text-verdant-200'
                                       : 'bg-quest-500/15 text-quest-200 hover:bg-quest-500/25 disabled:opacity-50',
@@ -533,7 +622,7 @@ export function MapSettingsMenu({
                                   type="button"
                                   disabled={demoGemBalance < item.upgradeCost || equipmentBusyId === item.id}
                                   onClick={() => void onBuyOrUpgrade?.(item.id)}
-                                  className="rounded-md bg-treasure-500/12 px-2 py-1 text-[9px] font-bold text-treasure-200 hover:bg-treasure-500/20 disabled:cursor-not-allowed disabled:opacity-45"
+                                  className="rounded-lg bg-treasure-500/12 px-3 py-2 text-xs font-bold text-treasure-200 hover:bg-treasure-500/20 disabled:cursor-not-allowed disabled:opacity-45"
                                 >
                                   {equipmentBusyId === item.id
                                     ? 'Đang xử lý…'
@@ -543,7 +632,7 @@ export function MapSettingsMenu({
                                 </button>
                               )}
                               {item.level >= item.max_level && (
-                                <span className="rounded-md bg-mage-500/12 px-2 py-1 text-[9px] font-bold text-mage-200">Cấp tối đa</span>
+                                <span className="rounded-lg bg-mage-500/12 px-3 py-2 text-xs font-bold text-mage-200">Cấp tối đa</span>
                               )}
                             </div>
                           )}
@@ -552,16 +641,26 @@ export function MapSettingsMenu({
                     );
                   })}
                 </ul>
+                {!account.isGuest && (
+                  <Link
+                    to="/app/shop"
+                    className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-xl border border-treasure-400/30 bg-treasure-500/10 px-4 text-sm font-bold text-treasure-200 hover:bg-treasure-500/18"
+                  >
+                    Mở Kho trang bị đầy đủ
+                  </Link>
+                )}
                 {equipmentError && (
-                  <p className="mt-2 rounded-lg border border-danger-400/20 bg-danger-500/8 px-2.5 py-2 text-[10px] text-danger-200" role="alert">
+                  <p className="mt-3 rounded-xl border border-danger-400/20 bg-danger-500/8 px-3 py-2.5 text-xs text-danger-200" role="alert">
                     {equipmentError}
                   </p>
                 )}
               </div>
             )}
           </div>
-        </section>
+          </div>
+          </section>
+        </div>
       )}
-    </div>
+    </>
   );
 }

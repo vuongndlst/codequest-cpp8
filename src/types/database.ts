@@ -137,6 +137,20 @@ export interface ClassSettingsRow {
   updated_at: string;
 }
 
+export type ClassAreaAccessMode = 'sequence' | 'open' | 'locked';
+
+export interface ClassAreaControlRow {
+  id: string;
+  class_id: string;
+  lesson_id: string;
+  access_mode: ClassAreaAccessMode;
+  /** Ngày theo lịch địa phương YYYY-MM-DD; quá hạn không tự động khóa. */
+  due_date: string | null;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface EquipmentCatalogRow {
   id: string;
   name: string;

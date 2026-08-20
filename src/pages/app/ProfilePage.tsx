@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { GraduationCap, Hash, Save, Ticket, UserRound } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { updateProfile } from '@/services/supabase/profiles.repo';
@@ -19,12 +19,21 @@ import { cn } from '@/utils/cn';
 import type { BadgeRow, UserBadgeRow } from '@/types/database';
 
 export function ProfilePage() {
+  const location = useLocation();
   const profile = useAuthStore((state) => state.profile);
   const setProfile = useAuthStore((state) => state.setProfile);
 
   const [fullName, setFullName] = useState('');
   const [studentCode, setStudentCode] = useState('');
   const [avatarId, setAvatarId] = useState('guardian-cyan');
+
+  useEffect(() => {
+    if (location.hash !== '#badges') return;
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById('badges')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [location.hash]);
 
   const [fieldErrors, setFieldErrors] = useState<{ fullName?: string }>({});
   const [status, setStatus] = useState<{ tone: 'success' | 'error'; message: string } | null>(null);
@@ -229,7 +238,7 @@ export function ProfilePage() {
       </div>
 
       {/* --- Huy hiệu --- */}
-      <Card>
+      <Card className="scroll-mt-24" as="section" id="badges">
         <CardHeader
           title="Bộ sưu tập huy hiệu"
           description={`Đã nhận ${earnedBadges.length}/${allBadges.length || 10} huy hiệu`}

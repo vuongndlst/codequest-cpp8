@@ -88,6 +88,27 @@
   --animate-slide-up: slide-up 0.35s ease-out;
 }
 
+/*
+  C++ dung hai ky tu ASCII rieng biet cho cac toan tu nhu >=, <=, !=, && va ||.
+  JetBrains Mono co ligature nen mac dinh co the ve >= thanh mot glyph giong >=
+  trong sach Toan. Dieu do dep voi lap trinh vien da co kinh nghiem, nhung lam
+  hoc sinh moi hoc hieu nham rang day la mot ky tu co the go truc tiep.
+
+  Tat ca ligature tren moi be mat hien thi code de hoc sinh luon nhin thay dung
+  tung ky tu ma trinh bien dich C++ nhan: ">" roi "=", khong phai mot ky hieu.
+*/
+code,
+pre,
+kbd,
+samp,
+.font-mono,
+.cm-editor,
+.cm-content,
+.cm-line {
+  font-variant-ligatures: none;
+  font-feature-settings: 'liga' 0, 'clig' 0, 'calt' 0;
+}
+
 /* ============================================================================
    GIAO DIEN SANG
    ==========================================================================
@@ -317,6 +338,16 @@ html[data-theme='light'] {
   }
 }
 
+@keyframes enemy-idle {
+  0%, 100% { transform: translateY(0) scale(1); filter: drop-shadow(0 2px 2px rgb(2 6 23 / .5)); }
+  50% { transform: translateY(-5%) scale(1.04); filter: drop-shadow(0 5px 5px rgb(248 113 113 / .38)); }
+}
+
+@keyframes machine-powered {
+  0%, 100% { filter: brightness(1) drop-shadow(0 0 3px rgb(250 204 21 / 0.55)); transform: translateY(0); }
+  50% { filter: brightness(1.35) drop-shadow(0 0 9px rgb(250 204 21 / 0.95)); transform: translateY(-2px); }
+}
+
 @keyframes portal-spin {
   to { transform: rotate(360deg); }
 }
@@ -434,6 +465,128 @@ html[data-theme='light'] {
     opacity: 0;
     transform: scale(1.8);
   }
+}
+
+@keyframes signal-orb {
+  0%, 100% { transform: translateX(0) scale(.75); opacity: .45; }
+  50% { transform: translateX(96px) scale(1.05); opacity: 1; }
+}
+
+/*
+ * Khung chơi kiểu CodeCombat: toàn bộ cột trái là một viewport ngang thật.
+ * Không dùng một map vuông nhỏ đặt trên “phông giả”; chính địa hình pixel-art
+ * sẽ phủ khoang quan sát và cho học sinh thấy tuyến đường trong một lần nhìn.
+ */
+.cq-game-host {
+  container-type: size;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 50% 42%, rgb(34 211 238 / .09), transparent 58%),
+    rgb(8 24 31);
+}
+
+.cq-game-canvas {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  place-items: center;
+  overflow: hidden;
+}
+
+/*
+ * Mạch chỉ đường của tất cả bản đồ ô vuông.
+ *
+ * Viền cyan sáng tách được cả nền cỏ lẫn dungeon tối. Đường nối nằm ở tâm ô và
+ * chạm đúng mép nên mắt đọc được một tuyến liên tục thay vì nhiều hình vuông rời.
+ * Animation chậm, biên độ nhỏ để thu hút chú ý mà không tranh với nhân vật/Gem.
+ */
+.cq-route-guide {
+  --cq-route: rgb(165 243 252 / .82);
+  --cq-route-core: rgb(240 253 250 / .94);
+  border: max(1px, .025em) solid rgb(103 232 249 / .72);
+  background: radial-gradient(circle at center, rgb(34 211 238 / .18), rgb(8 145 178 / .06) 58%, transparent 72%);
+  box-shadow:
+    inset 0 0 .32em rgb(165 243 252 / .28),
+    0 0 .18em rgb(34 211 238 / .72),
+    0 0 .48em rgb(6 182 212 / .3);
+}
+
+.cq-route-guide--energized {
+  --cq-route: rgb(253 224 71 / .96);
+  --cq-route-core: rgb(255 255 255 / 1);
+  border-color: rgb(253 224 71 / .9);
+  background: radial-gradient(circle at center, rgb(253 224 71 / .3), rgb(34 211 238 / .1) 60%, transparent 74%);
+  box-shadow:
+    inset 0 0 .42em rgb(253 224 71 / .38),
+    0 0 .24em rgb(253 224 71 / .85),
+    0 0 .62em rgb(34 211 238 / .42);
+}
+
+.cq-route-link {
+  position: absolute;
+  z-index: -1;
+  display: block;
+  background: var(--cq-route);
+  box-shadow: 0 0 .22em var(--cq-route), 0 0 .5em rgb(34 211 238 / .55);
+}
+
+.cq-route-link--north,
+.cq-route-link--south {
+  left: 50%;
+  width: max(2px, 8%);
+  height: 58%;
+  transform: translateX(-50%);
+}
+
+.cq-route-link--north { bottom: 50%; }
+.cq-route-link--south { top: 50%; }
+
+.cq-route-link--east,
+.cq-route-link--west {
+  top: 50%;
+  width: 58%;
+  height: max(2px, 8%);
+  transform: translateY(-50%);
+}
+
+.cq-route-link--east { left: 50%; }
+.cq-route-link--west { right: 50%; }
+
+.cq-route-node {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 13%;
+  aspect-ratio: 1;
+  min-width: 3px;
+  border-radius: 999px;
+  background: var(--cq-route-core);
+  box-shadow: 0 0 .28em var(--cq-route), 0 0 .62em rgb(34 211 238 / .8);
+  transform: translate(-50%, -50%);
+}
+
+.cq-route-guide--animated {
+  animation: cq-route-breathe 2.8s ease-in-out infinite;
+}
+
+@keyframes cq-route-breathe {
+  0%, 100% { opacity: .72; filter: brightness(.94); }
+  50% { opacity: 1; filter: brightness(1.28); }
+}
+
+.cq-terrain-water {
+  background:
+    linear-gradient(135deg, transparent 0 36%, rgb(186 230 253 / .45) 37% 44%, transparent 45% 70%, rgb(103 232 249 / .28) 71% 78%, transparent 79%),
+    linear-gradient(180deg, rgb(14 116 144 / .88), rgb(30 64 175 / .92));
+  background-size: 2.4rem 1.4rem, auto;
+  box-shadow: inset 0 0 1.25rem rgb(2 6 23 / .45), inset 0 3px 0 rgb(165 243 252 / .16);
+  animation: cq-water-drift 5s linear infinite;
+}
+
+@keyframes cq-water-drift {
+  to { background-position: 2.4rem 0, 0 0; }
 }
 
 @keyframes slide-up {

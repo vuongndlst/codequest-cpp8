@@ -9,6 +9,7 @@ import {
   Sparkles,
   Star,
   Trophy,
+  Sword,
   Zap,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
@@ -26,10 +27,13 @@ import { getLevelProgress, getLevelTitle } from '@/utils/xp';
 import {
   MAX_TOTAL_STARS,
   getLessonLockState,
-  getNextLessonId,
   getTotalStars,
+  isLessonUnlocked,
 } from '@/utils/progression';
 import { formatEventLabel, formatRelativeTime } from '@/utils/format';
+import { getJourneyTarget } from '@/utils/journey';
+import { LESSONS } from '@/lessons';
+import { formatSchoolDate, getPacingOverrides, isSchoolDatePast } from '@/utils/classPacing';
 
 export function DashboardPage() {
   const profile = useAuthStore((state) => state.profile);
@@ -43,13 +47,22 @@ export function DashboardPage() {
   }
 
   const level = getLevelProgress(profile?.total_xp ?? 0);
+  const pacingOverrides = getPacingOverrides(data.areaControls);
+  const controlsByLesson = new Map(data.areaControls.map((control) => [control.lesson_id, control]));
   const unlockContext = {
     progressByLesson: data.progressByLesson,
-    teacherUnlockedLessons: data.classSettings?.unlocked_lessons ?? [],
+    teacherUnlockedLessons: [
+      ...(data.classSettings?.unlocked_lessons ?? []),
+      ...pacingOverrides.teacherUnlockedLessons,
+    ],
+    teacherLockedLessons: pacingOverrides.teacherLockedLessons,
     isTeacher: profile?.role === 'teacher',
   };
-  const nextLessonId = getNextLessonId(unlockContext);
-  const nextLesson = LESSONS_META.find((lesson) => lesson.id === nextLessonId);
+  const journeyTarget = getJourneyTarget(
+    data.progressByLesson,
+    (lessonId) => isLessonUnlocked(lessonId, unlockContext),
+  );
+  const nextLesson = LESSONS_META.find((lesson) => lesson.id === journeyTarget.lessonId);
   const totalStars = getTotalStars(data.progressByLesson);
   const completedCount = LESSONS_META.filter(
     (lesson) => data.progressByLesson[lesson.id]?.status === 'completed',
@@ -118,16 +131,18 @@ export function DashboardPage() {
           ) : nextLesson ? (
             <div className="sm:min-w-56 sm:text-right shrink-0">
               <p className="text-xs font-bold uppercase tracking-wide text-quest-400">
-                Nhiệm vụ đang mở
+                {journeyTarget.kind === 'locked' ? 'Theo tiến độ của lớp' : 'Nhiệm vụ đang mở'}
               </p>
               <p className="mt-1 text-sm font-semibold text-slate-200">{nextLesson.zoneName}</p>
-              <p className="mb-2 text-xs text-slate-500">{nextLesson.title}</p>
-              <Link to={`/app/lesson/${nextLesson.id}`}>
+              <p className="mb-2 text-xs text-slate-500">
+                {journeyTarget.kind === 'locked' ? 'Giáo viên chưa mở khu vực tiếp theo' : nextLesson.title}
+              </p>
+              <Link to={journeyTarget.href}>
                 <Button
                   leadingIcon={<Zap className="size-4" aria-hidden="true" />}
                   trailingIcon={<ArrowRight className="size-4" aria-hidden="true" />}
                 >
-                  Tiếp tục hành trình
+                  {journeyTarget.label}
                 </Button>
               </Link>
             </div>
@@ -156,13 +171,15 @@ export function DashboardPage() {
           icon={<Award className="size-5" />}
           tone="mage"
           sublabel="trên tổng 10"
+          to="/app/profile#badges"
         />
         <StatTile
           label="Chứng chỉ"
           value={data.certificates.length}
           icon={<ScrollText className="size-5" />}
           tone="verdant"
-          sublabel="trên tổng 5"
+          sublabel={`trên tổng ${LESSONS_META.length}`}
+          to="/app/certificates"
         />
       </section>
 
@@ -194,7 +211,7 @@ export function DashboardPage() {
         </div>
       </section>
 
-      {/* --- Bản đồ Area 0–2 --- */}
+      {/* --- Bản đồ các Area đã phát hành --- */}
       <section aria-labelledby="map-heading">
         <div className="flex items-end justify-between mb-3">
           <div>
@@ -216,6 +233,16 @@ export function DashboardPage() {
         <ul className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3 list-none">
           {LESSONS_META.map((lesson) => {
             const progress = data.progressByLesson[lesson.id];
+            const areaControl = controlsByLesson.get(lesson.id);
+            const content = LESSONS.find((item) => item.id === lesson.id);
+            const nextChallenge = content?.challenges.find(
+              (challenge) => !progress?.completed_challenges.includes(challenge.id),
+            );
+            const lessonHref = nextChallenge
+              ? `/app/lesson/${lesson.id}/challenge/${nextChallenge.id}`
+              : progress?.status === 'completed'
+                ? `/app/lesson/${lesson.id}`
+                : `/app/lesson/${lesson.id}/exit-ticket`;
             return (
               <ZoneCard
                 key={lesson.id}
@@ -223,6 +250,10 @@ export function DashboardPage() {
                 lockState={getLessonLockState(lesson.id, unlockContext)}
                 progressPercent={progress?.progress_percent ?? 0}
                 stars={progress?.stars ?? 0}
+                href={lessonHref}
+                lockedByTeacher={areaControl?.access_mode === 'locked'}
+                dueDateLabel={areaControl?.due_date ? formatSchoolDate(areaControl.due_date) : undefined}
+                dueDatePast={areaControl?.due_date ? isSchoolDatePast(areaControl.due_date) : false}
               />
             );
           })}
@@ -275,6 +306,12 @@ export function DashboardPage() {
             icon={<BookOpen className="size-5 text-quest-400" aria-hidden="true" />}
           />
           <div className="space-y-2">
+            <Link to="/app/shop" className="block">
+              <Button variant="secondary" fullWidth className="justify-start">
+                <Sword className="size-4" aria-hidden="true" />
+                Kho trang bị · {profile?.gem_balance ?? 0} Gem
+              </Button>
+            </Link>
             <Link to="/app/handbook" className="block">
               <Button variant="secondary" fullWidth className="justify-start">
                 <BookOpen className="size-4" aria-hidden="true" />

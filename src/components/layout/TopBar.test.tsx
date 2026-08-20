@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { TopBar } from './TopBar';
 import { useAuthStore } from '@/stores/authStore';
@@ -101,12 +102,36 @@ describe('Thanh điều hướng — phân biệt giáo viên và học sinh', (
     expect(screen.queryByText('Lớp của tôi')).not.toBeInTheDocument();
   });
 
-  it('giáo viên vẫn vào được mọi khu vực của học sinh', () => {
+  it('giáo viên vẫn vào được mọi khu vực của học sinh', async () => {
+    const user = userEvent.setup();
     useAuthStore.setState({ profile: makeProfile('teacher') });
     renderTopBar();
 
-    for (const label of ['Bản đồ', 'Sổ tay lệnh', 'Chứng chỉ', 'Hồ sơ']) {
+    for (const label of ['Bản đồ', 'Sổ tay lệnh', 'Chứng chỉ']) {
       expect(screen.getAllByText(label).length).toBeGreaterThan(0);
     }
+    await user.click(screen.getByRole('button', { name: 'Mở menu hồ sơ' }));
+    expect(screen.getByRole('link', { name: 'Hồ sơ của em' })).toBeInTheDocument();
+  });
+
+  it('học sinh có menu chính một hàng và gom tùy chọn phụ', async () => {
+    const user = userEvent.setup();
+    useAuthStore.setState({ profile: makeProfile('student') });
+    renderTopBar();
+
+    const desktopNav = screen.getByRole('navigation', { name: 'Điều hướng chính' });
+    for (const label of ['Bản đồ', 'Hỏi thầy cô', 'Sổ tay lệnh', 'Chứng chỉ']) {
+      expect(desktopNav).toContainElement(screen.getAllByRole('link', { name: label })[0]);
+    }
+    expect(desktopNav).not.toHaveTextContent('Hồ sơ');
+
+    await user.click(screen.getByRole('button', { name: 'Mở tùy chọn giao diện' }));
+    expect(screen.getByRole('region', { name: 'Tùy chọn giao diện' })).toBeInTheDocument();
+    expect(screen.getByText('Giảm chuyển động')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Mở menu hồ sơ' }));
+    expect(screen.getByRole('region', { name: 'Menu hồ sơ' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Hồ sơ của em' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Đăng xuất' })).toBeInTheDocument();
   });
 });

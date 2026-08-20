@@ -1,4 +1,4 @@
-# Roadmap sau vertical slice Area 0–2
+# Roadmap sau curriculum Area 0–6
 
 ## Nguyên tắc cố định
 
@@ -11,9 +11,9 @@ Trang bị chỉ thể hiện tiến trình và thay đổi hình ảnh/âm than
 | Area | C++ trọng tâm | Cơ chế game | Boss chơi đơn |
 |---|---|---|---|
 | 3 — Lò Toán Tử | số học, so sánh, logic | tính năng lượng, công tắc, cân tinh thể | cấp đúng năng lượng cho ba máy |
-| 4 — Cổng Quyết Định | `if`, `if-else` | cảm biến, cửa hai trạng thái, bẫy | kiểm thử nhiều bộ dữ liệu, không hard-code |
-| 5 — Thung Lũng Lặp | `for`, counter, off-by-one | đường dài, đèn/gem theo iteration | phá nhiều lớp giáp bằng số lần lặp đúng |
-| 6 — Xưởng Hàm | function, parameter, decomposition | máy móc và combo hành động tái sử dụng | vận hành dây chuyền nhiều phase |
+| 4 — Cổng Quyết Định | `if`, `if-else` | cảm biến, cửa hai trạng thái, bẫy | **Đã triển khai:** kiểm thử nhiều bộ dữ liệu, không hard-code |
+| 5 — Thung Lũng Lặp | `for`, counter, off-by-one | đường dài, đèn/gem theo iteration | **Đã triển khai:** phá năm lớp giáp bằng số lần lặp đúng |
+| 6 — Xưởng Hàm | function, parameter, return, decomposition | máy móc và combo hành động tái sử dụng | ✅ Đã phát hành: vận hành dây chuyền nhiều phase |
 | 7 — Thành Trì Tích Hợp | phối hợp concept | key, portal, bot và inventory | Bug King chơi đơn có checkpoint phase |
 | 8 — Dự Án Cuối | thiết kế, cài đặt, debug, giải thích | nhiệm vụ mở theo rubric | trình bày giải pháp thay vì chỉ vượt map |
 
@@ -32,5 +32,5 @@ Trang bị chỉ thể hiện tiến trình và thay đổi hình ảnh/âm than
 
 1. Pilot Area 0–2 với nhóm nhỏ học sinh lớp 8; đo thời gian, điểm dừng và mức hint.
 2. Điều chỉnh độ dài map, câu chữ, số thao tác và breakpoint 1366×768 theo quan sát thật.
-3. Xây Area 3 rồi kiểm thử trước khi mở Area 4; không sản xuất hàng loạt màn chưa pilot.
+3. Pilot Area 3–6, đo mức hiểu về vòng lặp → hàm và điều chỉnh trước khi mở khu vực tiếp theo; không sản xuất hàng loạt màn chưa pilot.
 4. Sau Area 7 chơi đơn ổn định mới thử prototype cooperative boss không xếp hạng.

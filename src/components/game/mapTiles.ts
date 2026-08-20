@@ -23,8 +23,9 @@ const dungeon = (index: number): TileRef => ({ index, sheet: 'dungeon' });
 export const TILE = {
   /** Nền cỏ — ba biến thể để bản đồ rộng không bị lặp thành hoa văn đều tăm tắp */
   grass: [town(0), town(1), town(2)],
-  /** Đường mòn */
-  path: town(3),
+  /** Đường đất mặc định và các biến thể để tuyến chính không thành một dải lặp. */
+  path: town(25),
+  pathVariants: [town(25), town(37), town(39), town(41), town(42), town(73)],
   /**
    * Vật cản của bản đồ ngoài trời.
    *
@@ -33,6 +34,13 @@ export const TILE = {
    * "không đi qua được" mà hợp cảnh.
    */
   wall: town(5),
+  /** Biến thể rừng bao quanh đường đi, tránh cả map lặp đúng một cây. */
+  forestWall: [town(3), town(4), town(5), town(6), town(7), town(8), town(9), town(10), town(11), town(16), town(17), town(27), town(28), town(30), town(31), town(32)],
+  /** Đá, hàng rào và phế tích tạo silhouette khác cây rừng. */
+  rock: [town(43), town(92)],
+  fence: [town(44), town(45), town(46), town(47), town(80), town(81), town(82)],
+  ruin: [dungeon(14), dungeon(28), dungeon(40), dungeon(126)],
+  dungeonFloor: [dungeon(0), dungeon(12), dungeon(24)],
   /** Cổng đích */
   gate: town(74),
   /** Cây, đặt làm vật cản trang trí */
@@ -55,7 +63,21 @@ export const TILE = {
   sword: dungeon(116),
   shield: dungeon(118),
   potion: dungeon(114),
+  sign: town(83),
+  well: town(104),
+  log: town(106),
+  mushroom: town(29),
+  flowers: town(2),
+  target: town(95),
+  /** Máy năng lượng và công tắc của Lò Toán Tử, đều dùng pixel tile có sẵn. */
+  machine: dungeon(56),
+  powerSwitch: dungeon(101),
 } as const;
+
+/** Chọn cây chắn đường theo tọa độ để rừng đa dạng nhưng không nhảy hình khi chạy lại. */
+export function wallTile(col: number, row: number): TileRef {
+  return TILE.forestWall[(col * 5 + row * 3) % TILE.forestWall.length];
+}
 
 /**
  * Chọn biến thể cỏ theo toạ độ.
@@ -69,10 +91,45 @@ export function groundTile(col: number, row: number): TileRef {
   return TILE.grass[hash];
 }
 
+/** Ký hiệu địa hình mở rộng: `=` đường đất; `~`, `^`, `F` là nước, đá và hàng rào chắn. */
+export function terrainBaseTile(
+  glyph: string | undefined,
+  col: number,
+  row: number,
+  ground: 'town' | 'dungeon' = 'town',
+): TileRef {
+  if (ground === 'dungeon') {
+    return TILE.dungeonFloor[(col * 7 + row * 11) % TILE.dungeonFloor.length];
+  }
+  if (glyph === '=') return TILE.pathVariants[(col * 5 + row * 3) % TILE.pathVariants.length];
+  return groundTile(col, row);
+}
+
+/** Lớp vật cản vẽ trên nền. Tách hai lớp giúp vùng trong suốt quanh cây/đá vẫn là cỏ. */
+export function terrainOverlayTile(
+  glyph: string | undefined,
+  col: number,
+  row: number,
+  ground: 'town' | 'dungeon' = 'town',
+): TileRef | null {
+  if (glyph === '#') {
+    return ground === 'dungeon'
+      ? TILE.ruin[(col * 5 + row * 3) % TILE.ruin.length]
+      : wallTile(col, row);
+  }
+  if (glyph === '^') {
+    const collection = ground === 'dungeon' ? TILE.ruin : TILE.rock;
+    return collection[(col * 3 + row * 5) % collection.length];
+  }
+  if (glyph === 'F') return TILE.fence[(col + row * 2) % TILE.fence.length];
+  return null;
+}
+
 /** Ô tile cho từng loại vật thể trong `WorldSpec.props`. */
 export function propTile(type: string): TileRef | null {
   switch (type) {
     case 'gem':
+    case 'trail-gem':
       return TILE.gem;
     case 'key':
       return TILE.key;
@@ -95,12 +152,30 @@ export function propTile(type: string): TileRef | null {
       return TILE.bot;
     case 'boss':
       return TILE.boss;
+    case 'statue':
+      return TILE.ruin[1];
     case 'sword':
       return TILE.sword;
     case 'shield':
       return TILE.shield;
     case 'potion':
       return TILE.potion;
+    case 'sign':
+      return TILE.sign;
+    case 'well':
+      return TILE.well;
+    case 'log':
+      return TILE.log;
+    case 'mushroom':
+      return TILE.mushroom;
+    case 'flowers':
+      return TILE.flowers;
+    case 'target':
+      return TILE.target;
+    case 'machine':
+      return TILE.machine;
+    case 'switch':
+      return TILE.powerSwitch;
     default:
       return null;
   }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AVATARS } from '@/data/avatars';
-import { DEFAULT_HERO_TILE, HERO_TILES, groundTile, heroTile, propTile } from './mapTiles';
+import { DEFAULT_HERO_TILE, HERO_TILES, groundTile, heroTile, propTile, terrainBaseTile, terrainOverlayTile } from './mapTiles';
 import { TILE_COUNT } from './TileSprite';
 
 describe('Nhân vật pixel trên bản đồ', () => {
@@ -57,6 +57,14 @@ describe('Ô nền của bản đồ', () => {
     }
   });
 
+  it('phân biệt đường, nước, đá, hàng rào và phế tích theo biome', () => {
+    expect(terrainBaseTile('=', 1, 1, 'town')).not.toEqual(groundTile(1, 1));
+    expect(terrainOverlayTile('^', 1, 1, 'town')).not.toBeNull();
+    expect(terrainOverlayTile('F', 1, 1, 'town')).not.toBeNull();
+    expect(terrainOverlayTile('#', 1, 1, 'dungeon')?.sheet).toBe('dungeon');
+    expect(terrainOverlayTile('~', 1, 1, 'town')).toBeNull();
+  });
+
   it('cỏ có nhiều hơn một biến thể để bản đồ rộng không thành hoa văn đều tăm tắp', () => {
     const seen = new Set<number>();
     for (let col = 0; col < 6; col += 1) {
@@ -70,6 +78,7 @@ describe('Ô của vật thể', () => {
   it('nhận các loại vật thể đang dùng trong nội dung', () => {
     for (const type of [
       'gem',
+      'trail-gem',
       'key',
       'door',
       'light',
@@ -80,6 +89,14 @@ describe('Ô của vật thể', () => {
       'sword',
       'shield',
       'potion',
+      'sign',
+      'well',
+      'log',
+      'mushroom',
+      'flowers',
+      'target',
+      'machine',
+      'switch',
     ]) {
       expect(propTile(type), `thiếu tile cho ${type}`).not.toBeNull();
     }

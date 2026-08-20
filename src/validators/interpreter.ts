@@ -14,6 +14,7 @@ import {
   cellAhead,
   createWorldState,
   isBlockedAhead,
+  propAt,
   turnedLeft,
   turnedRight,
   type WorldEvent,
@@ -59,6 +60,7 @@ export type CppValue =
   | { type: 'bool'; value: boolean }
   | { type: 'char'; value: string }
   | { type: 'string'; value: string }
+  | { type: 'array'; elementType: TypeKeyword; value: CppValue[] }
   | { type: 'void'; value: null };
 
 const VOID: CppValue = { type: 'void', value: null };
@@ -82,6 +84,7 @@ function defaultValueFor(type: TypeKeyword): CppValue {
 }
 
 function toNumber(value: CppValue): number {
+  if (value.type === 'array' || value.type === 'void') return 0;
   if (value.type === 'bool') return value.value ? 1 : 0;
   if (value.type === 'int' || value.type === 'double') return value.value;
   if (value.type === 'char') return value.value.charCodeAt(0) || 0;
@@ -90,6 +93,7 @@ function toNumber(value: CppValue): number {
 }
 
 function toBoolean(value: CppValue): boolean {
+  if (value.type === 'array') return value.value.length > 0;
   if (value.type === 'bool') return value.value;
   if (value.type === 'string' || value.type === 'char') return value.value.length > 0;
   return toNumber(value) !== 0;
@@ -112,6 +116,8 @@ export function formatForOutput(value: CppValue): string {
     }
     case 'void':
       return '';
+    case 'array':
+      return `{${value.value.map(formatForOutput).join(', ')}}`;
     default:
       return String(value.value);
   }
@@ -119,6 +125,7 @@ export function formatForOutput(value: CppValue): string {
 
 /** Ép giá trị về đúng kiểu đã khai báo — nhờ vậy `int x = 7/2` cho 3 như C++ thật. */
 function coerceTo(type: TypeKeyword, value: CppValue): CppValue {
+  if (value.type === 'array') return defaultValueFor(type);
   switch (type) {
     case 'int':
       return { type: 'int', value: Math.trunc(toNumber(value)) };
@@ -160,7 +167,7 @@ export class RuntimeErrorSignal extends Error {
 // ----------------------------------------------------------------- Phạm vi
 
 class Scope {
-  private readonly values = new Map<string, CppValue>();
+  private readonly values = new Map<string, { value: CppValue }>();
   private readonly parent: Scope | null;
 
   constructor(parent: Scope | null = null) {
@@ -168,7 +175,12 @@ class Scope {
   }
 
   declare(name: string, value: CppValue): void {
-    this.values.set(name, value);
+    this.values.set(name, { value });
+  }
+
+  /** Liên kết tên tham số tới đúng ô nhớ của biến đối số. */
+  bindReference(name: string, cell: { value: CppValue }): void {
+    this.values.set(name, cell);
   }
 
   has(name: string): boolean {
@@ -176,14 +188,21 @@ class Scope {
   }
 
   get(name: string): CppValue | undefined {
-    return this.values.get(name) ?? this.parent?.get(name);
+    return this.values.get(name)?.value ?? this.parent?.get(name);
+  }
+
+  getCell(name: string): { value: CppValue } | undefined {
+    return this.values.get(name) ?? this.parent?.getCell(name);
   }
 
   assign(name: string, value: CppValue): boolean {
     if (this.values.has(name)) {
       // Giữ nguyên kiểu đã khai báo -> `int i` gán 2.7 vẫn thành 2
-      const existing = this.values.get(name)!;
-      this.values.set(name, coerceTo(existing.type as TypeKeyword, value));
+      const cell = this.values.get(name)!;
+      const existing = cell.value;
+      cell.value = existing.type === 'array'
+        ? value
+        : coerceTo(existing.type as TypeKeyword, value);
       return true;
     }
     return this.parent?.assign(name, value) ?? false;
@@ -205,6 +224,8 @@ export const GAME_ACTIONS: Record<string, WorldEventType> = {
   openDoor: 'open-door',
   turnOnLight: 'turn-on-light',
   activateBridge: 'activate-bridge',
+  chargeMachine: 'charge-machine',
+  setSwitch: 'set-switch',
   collectKey: 'collect-key',
   collectGem: 'collect-gem',
   attackBug: 'attack-bug',
@@ -399,7 +420,12 @@ class Interpreter {
 
   // ------------------------------------------------------------- Gọi hàm
 
-  private callFunction(fn: FunctionDeclaration, args: CppValue[]): CppValue {
+  private callFunction(
+    fn: FunctionDeclaration,
+    args: CppValue[],
+    callerScope?: Scope,
+    argExpressions: Expression[] = [],
+  ): CppValue {
     this.callDepth += 1;
     if (this.callDepth > LIMITS.maxCallDepth) {
       throw new RuntimeErrorSignal({
@@ -414,6 +440,32 @@ class Interpreter {
 
     const scope = new Scope(this.globals);
     fn.params.forEach((param, index) => {
+      if (param.isReference || param.isArray) {
+        const argument = argExpressions[index];
+        let cell = argument?.kind === 'Identifier' ? callerScope?.getCell(argument.name) : undefined;
+        if (!param.isArray && argument?.kind === 'ArrayAccessExpression' && callerScope) {
+          const target = this.resolveLValue(argument, callerScope);
+          cell = {} as { value: CppValue };
+          Object.defineProperty(cell, 'value', {
+            enumerable: true,
+            get: target.get,
+            set: target.set,
+          });
+        }
+        if (!cell || (param.isArray && cell.value.type !== 'array')) {
+          throw new RuntimeErrorSignal({
+            code: 'UNKNOWN',
+            message: param.isArray
+              ? `Tham số mảng \`${param.name}\` cần nhận tên của một mảng đã khai báo.`
+              : `Tham số tham chiếu \`${param.name}\` cần nhận một biến, không nhận một giá trị tạm.`,
+            line: argument?.line ?? fn.line,
+            severity: 'error',
+            suggestHintLevel: 2,
+          });
+        }
+        scope.bindReference(param.name, cell);
+        return;
+      }
       scope.declare(param.name, coerceTo(param.paramType, args[index] ?? defaultValueFor(param.paramType)));
     });
 
@@ -428,17 +480,32 @@ class Interpreter {
 
     try {
       this.executeBlock(fn.body.body, scope);
+      if (fn.name !== 'main') {
+        this.pushEvent('return-func', `${fn.name} đã hoàn tất`, {
+          name: fn.name,
+          completed: true,
+          line: fn.line,
+        });
+      }
       return defaultValueFor(fn.returnType);
     } catch (error) {
       if (error instanceof ReturnSignal) {
         const returned = fn.returnType === 'void' ? VOID : coerceTo(fn.returnType, error.value);
 
-        if (fn.name !== 'main' && fn.returnType !== 'void') {
-          this.pushEvent('return-func', `${fn.name} trả về ${formatForOutput(returned)}`, {
-            name: fn.name,
-            value: formatForOutput(returned),
-            line: fn.line,
-          });
+        if (fn.name !== 'main') {
+          this.pushEvent(
+            'return-func',
+            fn.returnType === 'void'
+              ? `${fn.name} đã hoàn tất`
+              : `${fn.name} trả về ${formatForOutput(returned)}`,
+            {
+              name: fn.name,
+              ...(fn.returnType === 'void'
+                ? { completed: true }
+                : { value: formatForOutput(returned) }),
+              line: fn.line,
+            },
+          );
         }
 
         return returned;
@@ -449,9 +516,7 @@ class Interpreter {
     }
   }
 
-  // `args` chưa dùng: các hàm dựng sẵn của game hiện đều không nhận tham số.
-  // Giữ lại trong chữ ký để thêm hàm có tham số về sau mà không phải sửa nơi gọi.
-  private callBuiltin(name: string, _args: CppValue[], line: number): CppValue {
+  private callBuiltin(name: string, args: CppValue[], line: number): CppValue {
     this.tick(line);
 
     // --- Truy vấn trạng thái ---
@@ -502,7 +567,18 @@ class Interpreter {
         }
         if (isBlockedAhead(this.world, this.worldSpec)) {
           this.world.blocked = true;
-          this.pushEvent('blocked', 'Phía trước có vật cản, nhân vật không đi qua được.');
+          const guardedCell = cellAhead(this.world);
+          const obstacle = propAt(this.worldSpec, guardedCell.col, guardedCell.row);
+          if ((obstacle?.type === 'enemy' || obstacle?.type === 'bot') && obstacle.state === 'blocking') {
+            this.world.dangerHits += 1;
+            this.pushEvent('enemy-alert', 'Quái canh gác đã phát hiện Byte! Hãy chọn một đường khác.', {
+              id: obstacle.id,
+              dangerHits: this.world.dangerHits,
+              line,
+            });
+          } else {
+            this.pushEvent('blocked', 'Phía trước có vật cản, nhân vật không đi qua được.');
+          }
           break;
         }
 
@@ -520,6 +596,19 @@ class Interpreter {
             ? `Nhân vật tiến tới ô (${this.world.col}, ${this.world.row})`
             : `Nhân vật tiến tới ô ${this.world.col}`,
         );
+
+        // Area 1 dùng tinh thể dẫn đường: Byte tự nhặt khi bước qua để học sinh
+        // tập trung vào sequence. `gem` thường vẫn cần gọi collectGem() ở Area 2.
+        const trailGem = this.findPropAt('trail-gem');
+        if (trailGem && !this.world.collectedPropIds.includes(trailGem.id)) {
+          this.world.collectedPropIds.push(trailGem.id);
+          this.world.collectedGems += 1;
+          this.pushEvent(
+            'collect-gem',
+            `Byte thu được tinh thể dẫn đường thứ ${this.world.collectedGems}.`,
+            { id: trailGem.id, line, automatic: true },
+          );
+        }
 
         if (this.world.col === this.world.goalCol && this.world.row === this.world.goalRow) {
           this.pushEvent('reach-goal', 'Nhân vật đã tới đích!');
@@ -568,6 +657,55 @@ class Interpreter {
         break;
       }
 
+      case 'chargeMachine': {
+        const machine = this.findPropAt('machine') ?? this.findPropAhead('machine');
+        const id = machine?.id ?? `machine-${this.world.col}-${this.world.row}`;
+        const raw = args[0];
+        const charge = raw ? Number(raw.value) : Number.NaN;
+        if (!Number.isFinite(charge) || charge < 0) {
+          throw new RuntimeErrorSignal({
+            code: 'UNKNOWN',
+            message: `\`chargeMachine(...)\` cần một mức năng lượng không âm (dòng ${line}).`,
+            line,
+            severity: 'error',
+          });
+        }
+
+        const normalized = Math.trunc(charge);
+        const existingIndex = this.world.chargedMachineIds.indexOf(id);
+        if (existingIndex >= 0) {
+          this.world.totalCharge -= this.world.machineCharges[existingIndex] ?? 0;
+          this.world.machineCharges[existingIndex] = normalized;
+        } else {
+          this.world.chargedMachineIds.push(id);
+          this.world.machineCharges.push(normalized);
+        }
+        this.world.totalCharge += normalized;
+        this.pushEvent('charge-machine', `Máy ${id} nhận ${normalized} đơn vị năng lượng.`, {
+          id,
+          value: normalized,
+          line,
+          function: name,
+        });
+        break;
+      }
+
+      case 'setSwitch': {
+        const switchProp = this.findPropAt('switch') ?? this.findPropAhead('switch');
+        const id = switchProp?.id ?? `switch-${this.world.col}-${this.world.row}`;
+        const active = args[0] ? Boolean(args[0].value) : false;
+        const index = this.world.activeSwitchIds.indexOf(id);
+        if (active && index < 0) this.world.activeSwitchIds.push(id);
+        if (!active && index >= 0) this.world.activeSwitchIds.splice(index, 1);
+        this.pushEvent('set-switch', active ? 'Công tắc đã bật sáng.' : 'Công tắc vẫn đang tắt.', {
+          id,
+          active,
+          line,
+          function: name,
+        });
+        break;
+      }
+
       case 'collectKey': {
         const key = this.findPropAt('key');
         if (!key || this.world.collectedPropIds.includes(key.id)) {
@@ -593,10 +731,28 @@ class Interpreter {
         break;
       }
 
-      case 'attackBug':
+      case 'attackBug': {
+        const authoredBoss = this.worldSpec?.props?.find((prop) => prop.type === 'boss');
+        const nextToBoss = authoredBoss
+          ? Math.abs(authoredBoss.col - this.world.col) + Math.abs((authoredBoss.row ?? 0) - this.world.row) === 1
+          : true;
+        if (!nextToBoss) {
+          this.pushEvent('blocked', 'Byte chưa đứng cạnh Boss nên đòn đánh không có hiệu lực.', {
+            line,
+            function: name,
+          });
+          break;
+        }
+        this.world.bugHits += 1;
         this.world.bugHp = Math.max(0, this.world.bugHp - 1);
-        this.pushEvent('attack-bug', `Tấn công Bug! Máu Bug còn ${this.world.bugHp}.`);
+        this.pushEvent('attack-bug', `Tấn công Bug! Máu Bug còn ${this.world.bugHp}.`, {
+          hp: this.world.bugHp,
+          hits: this.world.bugHits,
+          line,
+          function: name,
+        });
         break;
+      }
 
       default:
         break;
@@ -758,6 +914,38 @@ class Interpreter {
 
   private executeVariableDeclaration(node: VariableDeclaration, scope: Scope): void {
     for (const declarator of node.declarations) {
+      if (declarator.arraySize || declarator.arrayInit) {
+        const initialValues = (declarator.arrayInit ?? []).map((item) =>
+          coerceTo(node.varType, this.evaluate(item, scope)),
+        );
+        const requestedSize = declarator.arraySize
+          ? Math.trunc(toNumber(this.evaluate(declarator.arraySize, scope)))
+          : initialValues.length;
+
+        if (requestedSize < 0 || initialValues.length > requestedSize) {
+          throw new RuntimeErrorSignal({
+            code: 'UNKNOWN',
+            message: initialValues.length > requestedSize
+              ? `Mảng \`${declarator.name}\` có ${requestedSize} ô nhưng danh sách khởi tạo có ${initialValues.length} giá trị.`
+              : `Kích thước mảng \`${declarator.name}\` không thể là số âm.`,
+            line: declarator.line,
+            severity: 'error',
+          });
+        }
+
+        const values = [...initialValues];
+        while (values.length < requestedSize) values.push(defaultValueFor(node.varType));
+        const stored: CppValue = { type: 'array', elementType: node.varType, value: values };
+        scope.declare(declarator.name, stored);
+        this.pushEvent('declare-var', `Tạo mảng ${declarator.name}[${requestedSize}]`, {
+          name: declarator.name,
+          varType: `${node.varType}[]`,
+          value: formatForOutput(stored),
+          line: declarator.line,
+        });
+        continue;
+      }
+
       const initial = declarator.init
         ? this.evaluate(declarator.init, scope)
         : defaultValueFor(node.varType);
@@ -812,6 +1000,9 @@ class Interpreter {
         return value;
       }
 
+      case 'ArrayAccessExpression':
+        return this.resolveLValue(expression, scope).get();
+
       case 'BinaryExpression':
         return this.evaluateBinary(expression, scope);
 
@@ -825,7 +1016,7 @@ class Interpreter {
       }
 
       case 'UpdateExpression': {
-        if (expression.argument.kind !== 'Identifier') {
+        if (expression.argument.kind !== 'Identifier' && expression.argument.kind !== 'ArrayAccessExpression') {
           throw new RuntimeErrorSignal({
             code: 'UNKNOWN',
             message: `Dấu \`${expression.operator}\` chỉ dùng được với tên biến (dòng ${expression.line}).`,
@@ -833,19 +1024,11 @@ class Interpreter {
             severity: 'error',
           });
         }
-        const name = expression.argument.name;
-        const current = scope.get(name);
-        if (!current) {
-          throw new RuntimeErrorSignal({
-            code: 'VAR_UNDECLARED',
-            message: `Biến \`${name}\` ở dòng ${expression.line} chưa được khai báo.`,
-            line: expression.line,
-            severity: 'error',
-          });
-        }
+        const target = this.resolveLValue(expression.argument, scope);
+        const current = target.get();
         const before = toNumber(current);
         const after = expression.operator === '++' ? before + 1 : before - 1;
-        scope.assign(name, { type: 'double', value: after });
+        target.set({ type: 'double', value: after });
         const resultNumber = expression.prefix ? after : before;
         return current.type === 'double'
           ? { type: 'double', value: resultNumber }
@@ -854,20 +1037,8 @@ class Interpreter {
 
       case 'AssignmentExpression': {
         const rightValue = this.evaluate(expression.value, scope);
-        const name = expression.target.name;
-        const current = scope.get(name);
-
-        if (!current) {
-          throw new RuntimeErrorSignal({
-            code: 'VAR_UNDECLARED',
-            message:
-              `Biến \`${name}\` ở dòng ${expression.line} chưa được khai báo. ` +
-              `Em cần viết \`int ${name} = 0;\` trước khi gán giá trị.`,
-            line: expression.line,
-            severity: 'error',
-            suggestHintLevel: 1,
-          });
-        }
+        const target = this.resolveLValue(expression.target, scope);
+        const current = target.get();
 
         const nextValue =
           expression.operator === '='
@@ -879,8 +1050,8 @@ class Interpreter {
                 expression.line,
               );
 
-        scope.assign(name, nextValue);
-        const stored = scope.get(name) ?? nextValue;
+        target.set(nextValue);
+        const stored = target.get();
 
         /*
           Gửi kèm CẢ giá trị cũ lẫn giá trị mới.
@@ -889,8 +1060,8 @@ class Interpreter {
           khi gán lại — đó chính là hiểu nhầm phổ biến nhất về biến ở lứa tuổi
           này ("gán thêm" chứ không phải "thay thế").
         */
-        this.pushEvent('assign-var', `${name} = ${formatForOutput(stored)}`, {
-          name,
+        this.pushEvent('assign-var', `${target.label} = ${formatForOutput(stored)}`, {
+          name: target.label,
           from: formatForOutput(current),
           value: formatForOutput(stored),
           line: expression.line,
@@ -903,7 +1074,7 @@ class Interpreter {
         const args = expression.args.map((arg) => this.evaluate(arg, scope));
 
         const userFunction = this.functions.get(expression.callee);
-        if (userFunction) return this.callFunction(userFunction, args);
+        if (userFunction) return this.callFunction(userFunction, args, scope, expression.args);
 
         return this.callBuiltin(expression.callee, args, expression.line);
       }
@@ -911,6 +1082,68 @@ class Interpreter {
       default:
         return VOID;
     }
+  }
+
+  private resolveLValue(
+    expression: Extract<Expression, { kind: 'Identifier' | 'ArrayAccessExpression' }>,
+    scope: Scope,
+  ): { get: () => CppValue; set: (value: CppValue) => void; label: string } {
+    if (expression.kind === 'Identifier') {
+      const cell = scope.getCell(expression.name);
+      if (!cell) {
+        throw new RuntimeErrorSignal({
+          code: 'VAR_UNDECLARED',
+          message: `Biến \`${expression.name}\` ở dòng ${expression.line} chưa được khai báo.`,
+          line: expression.line,
+          severity: 'error',
+          suggestHintLevel: 1,
+        });
+      }
+      return {
+        get: () => cell.value,
+        set: (value) => {
+          if (cell.value.type === 'array') cell.value = value;
+          else cell.value = coerceTo(cell.value.type as TypeKeyword, value);
+        },
+        label: expression.name,
+      };
+    }
+
+    const cell = scope.getCell(expression.array.name);
+    if (!cell) {
+      throw new RuntimeErrorSignal({
+        code: 'VAR_UNDECLARED',
+        message: `Mảng \`${expression.array.name}\` chưa được khai báo.`,
+        line: expression.line,
+        severity: 'error',
+      });
+    }
+    if (cell.value.type !== 'array') {
+      throw new RuntimeErrorSignal({
+        code: 'UNKNOWN',
+        message: `\`${expression.array.name}\` không phải là mảng nên không thể dùng dấu \`[]\`.`,
+        line: expression.line,
+        severity: 'error',
+      });
+    }
+    const array = cell.value;
+    const index = Math.trunc(toNumber(this.evaluate(expression.index, scope)));
+    if (index < 0 || index >= array.value.length) {
+      throw new RuntimeErrorSignal({
+        code: 'UNKNOWN',
+        message: `Chỉ số ${index} nằm ngoài mảng \`${expression.array.name}\` (chỉ có các chỉ số từ 0 đến ${Math.max(0, array.value.length - 1)}).`,
+        line: expression.line,
+        severity: 'error',
+        suggestHintLevel: 2,
+      });
+    }
+    return {
+      get: () => array.value[index],
+      set: (value) => {
+        array.value[index] = coerceTo(array.elementType, value);
+      },
+      label: `${expression.array.name}[${index}]`,
+    };
   }
 
   private evaluateBinary(

@@ -52,10 +52,22 @@ export interface WorldState {
   openedDoors: string[];
   litLights: string[];
   activatedBridges: string[];
+  /** Các máy đã được cấp năng lượng, theo đúng thứ tự học sinh kích hoạt. */
+  chargedMachineIds: string[];
+  /** Mức năng lượng tương ứng với từng phần tử trong `chargedMachineIds`. */
+  machineCharges: number[];
+  /** Tổng năng lượng đã cấp, dùng cho mục tiêu tổng hợp của Lò Toán Tử. */
+  totalCharge: number;
+  /** Các công tắc đang bật sau khi đánh giá biểu thức bool. */
+  activeSwitchIds: string[];
   collectedGems: number;
   /** ID vật phẩm đã nhặt, ngăn một vật phẩm bị tính nhiều lần. */
   collectedPropIds: string[];
   bugHp: number;
+  /** Tổng số đòn đã gọi, kể cả khi giáp đã về 0; dùng phát hiện vòng lặp thừa. */
+  bugHits: number;
+  /** Số lần Byte cố bước vào ô quái canh gác; mục tiêu né quái yêu cầu bằng 0. */
+  dangerHits: number;
   /** Nhân vật có đang bị chặn ngay phía trước không */
   blocked: boolean;
 }
@@ -64,9 +76,12 @@ export type WorldEventType =
   // --- Sân khấu đường đi (khu vực 3–5) ---
   | 'move'
   | 'blocked'
+  | 'enemy-alert'
   | 'open-door'
   | 'turn-on-light'
   | 'activate-bridge'
+  | 'charge-machine'
+  | 'set-switch'
   | 'collect-key'
   | 'collect-gem'
   | 'attack-bug'
@@ -128,9 +143,15 @@ export function createWorldState(spec: WorldSpec = DEFAULT_WORLD): WorldState {
     openedDoors: [],
     litLights: [],
     activatedBridges: [],
+    chargedMachineIds: [],
+    machineCharges: [],
+    totalCharge: 0,
+    activeSwitchIds: [],
     collectedGems: 0,
     collectedPropIds: [],
     bugHp: typeof initial.bugHp === 'number' ? initial.bugHp : 3,
+    bugHits: 0,
+    dangerHits: 0,
     blocked: false,
   };
 }
@@ -144,7 +165,7 @@ export function cellAhead(state: WorldState): { col: number; row: number } {
 /** Ô nền là tường. Bản đồ không khai báo `terrain` thì mọi ô đều đi được. */
 export function isWall(spec: WorldSpec | undefined, col: number, row: number): boolean {
   const line = spec?.terrain?.[row];
-  return line !== undefined && line[col] === '#';
+  return line !== undefined && ['#', '~', '^', 'F'].includes(line[col]);
 }
 
 /** Vật thể đứng tại một ô. Prop không khai báo `row` được coi là ở hàng 0. */
@@ -181,6 +202,9 @@ export function isBlockedAhead(state: WorldState, spec: WorldSpec | undefined): 
     case 'wall':
     case 'rock':
       return true;
+    case 'bot':
+    case 'enemy':
+      return obstacle.state === 'blocking';
     default:
       return false;
   }

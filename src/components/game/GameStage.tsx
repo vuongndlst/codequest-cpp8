@@ -25,6 +25,7 @@ interface GameStageProps {
   isPlaying?: boolean;
   motionDurationMs?: number;
   lessonId?: string;
+  equippedItem?: { id: string; level: number } | null;
 }
 
 /**
@@ -46,11 +47,21 @@ export function GameStage({
   isPlaying = false,
   motionDurationMs = 280,
   lessonId,
+  equippedItem,
 }: GameStageProps) {
   const stage = (() => {
   switch (spec.kind) {
     case 'signal-tower':
-      return <SignalTowerStage events={events} playedCount={playedCount} hideTitle={hideTitle} />;
+      return (
+        <SignalTowerStage
+          spec={spec}
+          events={events}
+          avatarId={avatarId}
+          playedCount={playedCount}
+          hideTitle={hideTitle}
+          isPlaying={isPlaying}
+        />
+      );
 
     case 'workshop':
       return <WorkshopStage events={events} playedCount={playedCount} hideTitle={hideTitle} />;
@@ -67,6 +78,7 @@ export function GameStage({
           isPlaying={isPlaying}
           motionDurationMs={motionDurationMs}
           lessonId={lessonId}
+          equippedItem={equippedItem}
         />
       );
 
@@ -86,11 +98,11 @@ export function GameStage({
   })();
 
   return (
-    <>
-      {presentation === 'boss' && (
+    <div className="h-full min-h-0 w-full">
+      {presentation === 'boss' && !hideTitle && (
         <BossMissionProgress lessonId={lessonId} playedCount={playedCount} totalEvents={events.length} />
       )}
       {stage}
-    </>
+    </div>
   );
 }

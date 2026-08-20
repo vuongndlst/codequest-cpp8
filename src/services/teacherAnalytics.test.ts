@@ -78,8 +78,8 @@ describe('Tổng hợp số liệu học sinh', () => {
     expect(summary.lessonsCompleted).toBe(1);
     expect(summary.totalStars).toBe(4);
     expect(summary.certificatesCount).toBe(1);
-    // (100 + 40) / 3 khu vực = 47%
-    expect(summary.overallPercent).toBe(47);
+    // (100 + 40) / 11 khu vực = 12,7%, làm tròn thành 13%.
+    expect(summary.overallPercent).toBe(13);
   });
 
   it('tính số lần thử trung bình cho mỗi nhiệm vụ làm được', () => {

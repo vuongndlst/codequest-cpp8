@@ -20,7 +20,7 @@ import { ProfilePage } from '@/pages/app/ProfilePage';
 /**
  * Bốn trang này được tách khỏi bundle chính:
  *   · ChallengePage và DemoPage kéo theo CodeMirror (~140 KB gzip)
- *   · LessonPage và ExitTicketPage kéo theo curriculum Area 0–2
+ *   · LessonPage và ExitTicketPage kéo theo curriculum đang phát hành
  *
  * Nhờ vậy màn hình đăng nhập và dashboard không phải tải cả code editor lẫn
  * nội dung bài học — khác biệt cảm nhận rõ trên máy phòng ICT dùng Wi-Fi chung.
@@ -81,6 +81,9 @@ const TeacherClassDetailPage = lazy(() =>
 );
 const JoinClassPage = lazy(() =>
   import('@/pages/app/JoinClassPage').then((module) => ({ default: module.JoinClassPage })),
+);
+const ShopPage = lazy(() =>
+  import('@/pages/app/ShopPage').then((module) => ({ default: module.ShopPage })),
 );
 const ChatPage = lazy(() =>
   import('@/pages/app/ChatPage').then((module) => ({ default: module.ChatPage })),
@@ -188,6 +191,7 @@ export const router = createHashRouter([
       { path: 'map', element: <Navigate to="/app" replace /> },
       { path: 'prologue', element: <ProloguePage /> },
       { path: 'profile', element: <ProfilePage /> },
+      { path: 'shop', element: <ShopPage /> },
       { path: 'join-class', element: <JoinClassPage /> },
       { path: 'chat', element: <ChatPage /> },
       { path: 'handbook', element: <HandbookPage /> },

@@ -1,4 +1,4 @@
-import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
 import { useUiStore } from '@/stores/uiStore';
 import { Compartment, EditorState, type Extension } from '@codemirror/state';
 import {
@@ -12,7 +12,9 @@ import {
   rectangularSelection,
   crosshairCursor,
   Decoration,
+  showTooltip,
   type DecorationSet,
+  type Tooltip,
 } from '@codemirror/view';
 import { StateEffect, StateField } from '@codemirror/state';
 import {
@@ -32,6 +34,7 @@ import {
 } from '@codemirror/language';
 import { cpp } from '@codemirror/lang-cpp';
 import { tags } from '@lezer/highlight';
+import type { PaletteCommand } from '@/data/commandPalette';
 
 /**
  * Code editor cho học sinh lớp 8.
@@ -40,16 +43,16 @@ import { tags } from '@lezer/highlight';
  * quá tải với máy phòng ICT dùng Wi-Fi chung. CodeMirror 6 nhẹ hơn khoảng 10 lần
  * mà vẫn có đủ tô màu cú pháp, đánh số dòng và tự thụt lề.
  *
- * CỐ Ý KHÔNG BẬT: gợi ý tự động hoàn thành code. Đề bài yêu cầu rõ
- * "không tự động hoàn thành toàn bộ bài cho học sinh" (mục 7) — các em phải tự
- * nhớ cú pháp thì mới học được. Chỉ hỗ trợ đóng ngoặc và thụt lề.
+ * CỐ Ý KHÔNG BẬT autocomplete chèn code. Tooltip chỉ nhắc cú pháp ngay tại
+ * con trỏ sau khi học sinh tự gõ ít nhất hai ký tự; các em vẫn phải hoàn thiện
+ * toàn bộ lệnh bằng bàn phím.
  */
 
 interface CodeEditorProps {
   value: string;
   onChange: (value: string) => void;
-  /** Báo từ khóa ngay trước con trỏ để coach nhắc cú pháp sau khi học sinh bắt đầu gõ. */
-  onActiveTokenChange?: (token: string) => void;
+  /** Chỉ các lệnh thật sự cần cho nhiệm vụ; hiển thị read-only cạnh con trỏ. */
+  commands?: PaletteCommand[];
   /** Dòng cần làm nổi bật (dòng có lỗi) */
   highlightedLines?: number[];
   /** Dòng đang được engine thực thi — màu cyan, tách biệt với dòng lỗi màu đỏ. */
@@ -129,6 +132,95 @@ const focusLineField = StateField.define<DecorationSet>({
   provide: (field) => EditorView.decorations.from(field),
 });
 
+// --- Nhắc cú pháp ngay tại con trỏ -----------------------------------------
+
+const setInlineCommands = StateEffect.define<readonly PaletteCommand[]>();
+const dismissInlineCommand = StateEffect.define<null>();
+
+interface InlineCommandState {
+  commands: readonly PaletteCommand[];
+  tooltip: Tooltip | null;
+}
+
+function commandTrigger(command: PaletteCommand): string {
+  return command.label.match(/^[A-Za-z_][A-Za-z0-9_]*/)?.[0]?.toLowerCase() ?? '';
+}
+
+function activeToken(state: EditorState): { from: number; text: string } | null {
+  if (!state.selection.main.empty) return null;
+  const cursor = state.selection.main.head;
+  const line = state.doc.lineAt(cursor);
+  const beforeCursor = line.text.slice(0, cursor - line.from);
+  const match = beforeCursor.match(/[A-Za-z_][A-Za-z0-9_]*$/);
+  if (!match || match[0].length < 2) return null;
+  return { from: cursor - match[0].length, text: match[0] };
+}
+
+function buildCommandTooltip(state: EditorState, commands: readonly PaletteCommand[]): Tooltip | null {
+  const token = activeToken(state);
+  if (!token) return null;
+  const query = token.text.toLowerCase();
+  const matches = commands.filter((command) => commandTrigger(command).startsWith(query)).slice(0, 2);
+  if (matches.length === 0) return null;
+
+  return {
+    pos: token.from,
+    end: state.selection.main.head,
+    above: true,
+    strictSide: false,
+    create: () => {
+      const dom = document.createElement('div');
+      dom.className = 'cm-commandHint';
+      dom.setAttribute('role', 'tooltip');
+      dom.setAttribute('aria-label', 'Nhắc cú pháp theo nội dung em đang gõ');
+
+      const heading = document.createElement('div');
+      heading.className = 'cm-commandHint-heading';
+      heading.textContent = 'Byte nhắc cú pháp';
+      dom.append(heading);
+
+      const list = document.createElement('ul');
+      list.className = 'cm-commandHint-list';
+      for (const command of matches) {
+        const item = document.createElement('li');
+        item.className = 'cm-commandHint-item';
+        const signature = document.createElement('code');
+        signature.className = 'cm-commandHint-signature';
+        signature.textContent = command.label;
+        const explanation = document.createElement('span');
+        explanation.className = 'cm-commandHint-explanation';
+        explanation.textContent = command.hint;
+        item.append(signature, explanation);
+        list.append(item);
+      }
+      dom.append(list);
+
+      const note = document.createElement('p');
+      note.className = 'cm-commandHint-note';
+      note.textContent = 'Tiếp tục tự gõ · Esc để đóng';
+      dom.append(note);
+      return { dom };
+    },
+  };
+}
+
+const inlineCommandField = StateField.define<InlineCommandState>({
+  create: () => ({ commands: [], tooltip: null }),
+  update(current, transaction) {
+    let commands = current.commands;
+    let dismissed = false;
+    for (const effect of transaction.effects) {
+      if (effect.is(setInlineCommands)) commands = effect.value;
+      if (effect.is(dismissInlineCommand)) dismissed = true;
+    }
+    return {
+      commands,
+      tooltip: dismissed ? null : buildCommandTooltip(transaction.state, commands),
+    };
+  },
+  provide: (field) => showTooltip.from(field, (value) => value.tooltip),
+});
+
 // --- Giao diện ---------------------------------------------------------------
 
 const byteLandTheme = EditorView.theme(
@@ -141,6 +233,8 @@ const byteLandTheme = EditorView.theme(
     },
     '.cm-content': {
       fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+      fontVariantLigatures: 'none',
+      fontFeatureSettings: "'liga' 0, 'clig' 0, 'calt' 0",
       padding: '12px 0',
       caretColor: '#22d3ee',
       lineHeight: '1.7',
@@ -152,6 +246,8 @@ const byteLandTheme = EditorView.theme(
       borderTopLeftRadius: '0.75rem',
       borderBottomLeftRadius: '0.75rem',
       fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+      fontVariantLigatures: 'none',
+      fontFeatureSettings: "'liga' 0, 'clig' 0, 'calt' 0",
     },
     '.cm-activeLineGutter': { backgroundColor: '#131f3d', color: '#94a3b8' },
     '.cm-activeLine': { backgroundColor: 'rgba(19, 31, 61, 0.5)' },
@@ -175,6 +271,22 @@ const byteLandTheme = EditorView.theme(
     },
     '&.cm-focused': { outline: '2px solid #22d3ee', outlineOffset: '2px' },
     '.cm-scroller': { overflow: 'auto' },
+    '.cm-tooltip.cm-commandHint': {
+      maxWidth: '340px',
+      overflow: 'hidden',
+      border: '1px solid rgba(34, 211, 238, 0.4)',
+      borderRadius: '10px',
+      backgroundColor: 'rgba(7, 13, 28, 0.97)',
+      color: '#e2e8f0',
+      boxShadow: '0 14px 32px rgba(0, 0, 0, 0.42)',
+      padding: '8px 10px',
+    },
+    '.cm-commandHint-heading': { color: '#67e8f9', fontSize: '11px', fontWeight: '700' },
+    '.cm-commandHint-list': { margin: '5px 0 0', padding: '0', listStyle: 'none' },
+    '.cm-commandHint-item': { display: 'grid', gap: '2px', padding: '4px 0' },
+    '.cm-commandHint-signature': { color: '#c4b5fd', fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', fontWeight: '700' },
+    '.cm-commandHint-explanation': { color: '#94a3b8', fontSize: '11px' },
+    '.cm-commandHint-note': { margin: '5px 0 0', borderTop: '1px solid #1e293b', paddingTop: '5px', color: '#64748b', fontSize: '10px' },
   },
   { dark: true },
 );
@@ -199,6 +311,8 @@ const dayLightTheme = EditorView.theme(
     },
     '.cm-content': {
       fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+      fontVariantLigatures: 'none',
+      fontFeatureSettings: "'liga' 0, 'clig' 0, 'calt' 0",
       padding: '12px 0',
       caretColor: '#0891b2',
       lineHeight: '1.7',
@@ -210,6 +324,8 @@ const dayLightTheme = EditorView.theme(
       borderTopLeftRadius: '0.75rem',
       borderBottomLeftRadius: '0.75rem',
       fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+      fontVariantLigatures: 'none',
+      fontFeatureSettings: "'liga' 0, 'clig' 0, 'calt' 0",
     },
     '.cm-activeLineGutter': { backgroundColor: '#e2e8f0', color: '#475569' },
     '.cm-activeLine': { backgroundColor: 'rgba(6, 182, 212, 0.07)' },
@@ -232,6 +348,22 @@ const dayLightTheme = EditorView.theme(
     },
     '&.cm-focused': { outline: '2px solid #0891b2', outlineOffset: '2px' },
     '.cm-scroller': { overflow: 'auto' },
+    '.cm-tooltip.cm-commandHint': {
+      maxWidth: '340px',
+      overflow: 'hidden',
+      border: '1px solid rgba(8, 145, 178, 0.36)',
+      borderRadius: '10px',
+      backgroundColor: 'rgba(255, 255, 255, 0.98)',
+      color: '#1b2740',
+      boxShadow: '0 14px 30px rgba(15, 23, 42, 0.18)',
+      padding: '8px 10px',
+    },
+    '.cm-commandHint-heading': { color: '#0e7490', fontSize: '11px', fontWeight: '700' },
+    '.cm-commandHint-list': { margin: '5px 0 0', padding: '0', listStyle: 'none' },
+    '.cm-commandHint-item': { display: 'grid', gap: '2px', padding: '4px 0' },
+    '.cm-commandHint-signature': { color: '#7c3aed', fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', fontWeight: '700' },
+    '.cm-commandHint-explanation': { color: '#475569', fontSize: '11px' },
+    '.cm-commandHint-note': { margin: '5px 0 0', borderTop: '1px solid #e2e8f0', paddingTop: '5px', color: '#64748b', fontSize: '10px' },
   },
   { dark: false },
 );
@@ -344,7 +476,7 @@ function buildExtensions(
   readOnly: boolean,
   resolvedTheme: 'light' | 'dark',
   onChange: (value: string) => void,
-  onActiveTokenChange: (token: string) => void,
+  onClipboardBlocked: (action: 'copy' | 'cut' | 'paste' | 'drop') => void,
 ): Extension[] {
   return [
     lineNumbers(),
@@ -363,24 +495,41 @@ function buildExtensions(
     errorLineField,
     executingLineField,
     focusLineField,
+    inlineCommandField,
     themeCompartment.of(themeExtension(resolvedTheme)),
-    /*
-      Dán code vào thì thụt lề lại luôn.
-
-      Học sinh hay chép khung chương trình từ phần hướng dẫn hoặc từ sổ tay
-      lệnh. Chép qua lại giữa các ô có sẵn thụt lề khác nhau nên dán vào thường
-      lệch hết — và em không có cách nào tự sửa.
-
-      Trả về `false` để trình duyệt cứ dán bình thường; việc dọn dẹp làm ở nhịp
-      sau, khi nội dung đã nằm trong tài liệu.
-    */
+    // Đây là màn luyện gõ và nhớ cú pháp: chặn cả đường tắt bàn phím lẫn menu
+    // chuột. Học sinh vẫn chọn văn bản để sửa, dùng Undo và Dọn code bình thường.
     EditorView.domEventHandlers({
-      paste: (_event, view) => {
-        window.setTimeout(() => formatDocument(view), 0);
-        return false;
+      copy: (event) => {
+        event.preventDefault();
+        onClipboardBlocked('copy');
+        return true;
+      },
+      cut: (event) => {
+        event.preventDefault();
+        onClipboardBlocked('cut');
+        return true;
+      },
+      paste: (event) => {
+        event.preventDefault();
+        onClipboardBlocked('paste');
+        return true;
+      },
+      drop: (event) => {
+        event.preventDefault();
+        onClipboardBlocked('drop');
+        return true;
       },
     }),
     keymap.of([
+      {
+        key: 'Escape',
+        run: (view) => {
+          if (!view.state.field(inlineCommandField).tooltip) return false;
+          view.dispatch({ effects: dismissInlineCommand.of(null) });
+          return true;
+        },
+      },
       // Phím tắt quen thuộc của VS Code, để em nào biết rồi thì dùng được ngay
       { key: 'Shift-Alt-f', run: (view) => (formatDocument(view), true) },
       ...defaultKeymap,
@@ -393,13 +542,6 @@ function buildExtensions(
     EditorState.readOnly.of(readOnly),
     EditorView.updateListener.of((update) => {
       if (update.docChanged) onChange(update.state.doc.toString());
-      if (update.docChanged || update.selectionSet) {
-        const cursor = update.state.selection.main.head;
-        const line = update.state.doc.lineAt(cursor);
-        const beforeCursor = line.text.slice(0, cursor - line.from);
-        const token = beforeCursor.match(/[A-Za-z_][A-Za-z0-9_]*$/)?.[0] ?? '';
-        onActiveTokenChange(token);
-      }
     }),
   ];
 }
@@ -407,7 +549,7 @@ function buildExtensions(
 export function CodeEditor({
   value,
   onChange,
-  onActiveTokenChange = () => undefined,
+  commands = [],
   highlightedLines = [],
   executingLine,
   focusLines = [],
@@ -418,10 +560,10 @@ export function CodeEditor({
 }: CodeEditorProps & { handleRef?: Ref<CodeEditorHandle> }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
+  const clipboardTimerRef = useRef<number | null>(null);
+  const [clipboardNotice, setClipboardNotice] = useState('');
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
-  const onActiveTokenChangeRef = useRef(onActiveTokenChange);
-  onActiveTokenChangeRef.current = onActiveTokenChange;
 
   const resolvedTheme = useUiStore((state) => state.resolvedTheme);
   // Giữ trong ref để effect khởi tạo không phải phụ thuộc vào giá trị này
@@ -453,7 +595,16 @@ export function CodeEditor({
           readOnly,
           themeRef.current,
           (next) => onChangeRef.current(next),
-          (token) => onActiveTokenChangeRef.current(token),
+          (action) => {
+            const isTakingCode = action === 'copy' || action === 'cut';
+            setClipboardNotice(
+              isTakingCode
+                ? 'Màn luyện tập không cho sao chép code. Em hãy tự gõ để ghi nhớ cú pháp nhé.'
+                : 'Màn luyện tập không nhận code dán vào. Em hãy tự gõ từng lệnh nhé.',
+            );
+            if (clipboardTimerRef.current !== null) window.clearTimeout(clipboardTimerRef.current);
+            clipboardTimerRef.current = window.setTimeout(() => setClipboardNotice(''), 3500);
+          },
         ),
       }),
       parent: hostRef.current,
@@ -461,6 +612,7 @@ export function CodeEditor({
 
     viewRef.current = view;
     return () => {
+      if (clipboardTimerRef.current !== null) window.clearTimeout(clipboardTimerRef.current);
       view.destroy();
       viewRef.current = null;
     };
@@ -479,6 +631,13 @@ export function CodeEditor({
       changes: { from: 0, to: current.length, insert: value },
     });
   }, [value]);
+
+  // Đổi danh sách lệnh theo nhiệm vụ mà không dựng lại editor hoặc mất Undo.
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({ effects: setInlineCommands.of(commands) });
+  }, [commands]);
 
   // Cập nhật dòng được làm nổi bật
   useEffect(() => {
@@ -509,12 +668,17 @@ export function CodeEditor({
   }, [resolvedTheme]);
 
   return (
-    <div
-      ref={hostRef}
-      role="group"
-      aria-label={ariaLabel}
-      className="cq-editor overflow-hidden rounded-xl border border-abyss-600"
-      style={{ minHeight }}
-    />
+    <div>
+      <div
+        ref={hostRef}
+        role="group"
+        aria-label={ariaLabel}
+        className="cq-editor overflow-hidden rounded-xl border border-abyss-600"
+        style={{ minHeight }}
+      />
+      <p className="mt-1 min-h-5 text-[11px] font-medium text-treasure-300" role="status" aria-live="polite">
+        {clipboardNotice}
+      </p>
+    </div>
   );
 }

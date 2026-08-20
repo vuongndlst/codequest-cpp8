@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -17,6 +17,13 @@ const schemaSql = readFileSync(join(ROOT, 'migrations', '0001_init_schema.sql'),
 const policySql = readFileSync(join(ROOT, 'migrations', '0002_rls_policies.sql'), 'utf8');
 const identitySql = readFileSync(join(ROOT, 'migrations', '0005_lsts_student_identity.sql'), 'utf8');
 const economySql = readFileSync(join(ROOT, 'migrations', '0006_single_player_economy.sql'), 'utf8');
+const economyProgressionSql = readFileSync(join(ROOT, 'migrations', '0008_journey_and_equipment_progression.sql'), 'utf8');
+const automaticCertificatesSql = readFileSync(join(ROOT, 'migrations', '0009_automatic_certificates.sql'), 'utf8');
+const area6Sql = readFileSync(join(ROOT, 'migrations', '0011_area_6_function_workshop.sql'), 'utf8');
+const advancedMigrationName = readdirSync(join(ROOT, 'migrations')).find((name) => name.endsWith('_advanced_cs_areas.sql'))!;
+const advancedAreasSql = readFileSync(join(ROOT, 'migrations', advancedMigrationName), 'utf8');
+const hardeningMigrationName = readdirSync(join(ROOT, 'migrations')).find((name) => name.endsWith('_harden_advanced_rpc_access.sql'))!;
+const hardeningSql = readFileSync(join(ROOT, 'migrations', hardeningMigrationName), 'utf8');
 
 /** Mọi bảng chứa dữ liệu gắn với một học sinh cụ thể. */
 const STUDENT_DATA_TABLES = [
@@ -152,6 +159,13 @@ describe('Migration RLS', () => {
 });
 
 describe('Migration danh tính và kinh tế chơi đơn', () => {
+  it('tự động cấp bù chứng chỉ và đồng bộ tên tiếng Việt theo hồ sơ hiện tại', () => {
+    expect(automaticCertificatesSql).toContain('trg_issue_certificate_after_area_completion');
+    expect(automaticCertificatesSql).toContain("where status = 'completed'");
+    expect(automaticCertificatesSql).toContain("'studentName', p.full_name");
+    expect(automaticCertificatesSql).toContain("'teacherName', 'Nguyễn Đình Vương'");
+  });
+
   it('chuẩn hóa mã học sinh mới thành đúng 7 chữ số mà không xóa dữ liệu cũ', () => {
     expect(identitySql).toContain("new.student_code !~ '^[0-9]{7}$'");
     expect(identitySql).not.toMatch(/delete\s+from\s+public\.profiles/i);
@@ -171,6 +185,38 @@ describe('Migration danh tính và kinh tế chơi đơn', () => {
     for (const table of ['challenge_gem_rewards', 'equipment_catalog', 'user_equipment']) {
       expect(economySql).toContain(`alter table public.${table} enable row level security`);
     }
+  });
+
+  it('gắn trang bị với đúng Area 0–5 và sửa thưởng Boss thành 12 Gem', () => {
+    for (const lessonId of ['a0', 'a2', 'a3', 'a4', 'a5']) {
+      expect(economyProgressionSql).toContain(`'${lessonId}'`);
+    }
+    expect(economyProgressionSql).toContain("'a5-c5-armor-loop'");
+    expect(economyProgressionSql).toContain('then 12 else 3');
+  });
+
+  it('đồng bộ trang bị, Boss reward và chứng chỉ Area 6', () => {
+    expect(area6Sql).toContain("'function-toolkit'");
+    expect(area6Sql).toContain("'a6-c5-factory-core'");
+    expect(area6Sql).toContain("when 'a6' then 'Function Engineer'");
+    expect(area6Sql).toContain('Khu vực 6 — Xưởng Hàm');
+  });
+
+  it('đồng bộ trang bị, Boss reward và chứng chỉ Area 7–10', () => {
+    for (const [lessonId, certificateName] of [['a7','Reference Navigator'],['a8','Array Cartographer'],['a9','Search Strategist'],['a10','Algorithm Architect']]) {
+      expect(advancedAreasSql).toContain(`when '${lessonId}' then '${certificateName}'`);
+    }
+    for (const bossId of ['a7-c4-mirror-boss','a8-c4-route-array-boss','a9-c4-scout-boss','a10-c4-algorithm-core']) {
+      expect(advancedAreasSql).toContain(`'${bossId}'`);
+    }
+    expect(advancedAreasSql).toContain("'algorithm-core'");
+    expect(advancedAreasSql).toContain('Khu vực 10 — Thành Trì Thuật Toán');
+  });
+
+  it('không cho anon gọi RPC phần thưởng và chứng chỉ SECURITY DEFINER', () => {
+    expect(hardeningSql).toContain('revoke execute on function public.award_challenge_gems(text) from anon');
+    expect(hardeningSql).toContain('revoke execute on function public.ensure_area_certificate(uuid, text) from anon');
+    expect(hardeningSql).toContain('grant execute on function public.ensure_area_certificate(uuid, text) to authenticated');
   });
 });
 

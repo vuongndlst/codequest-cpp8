@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  AlertTriangle,
-  BookOpen,
   Download,
   GraduationCap,
   Settings,
@@ -93,6 +91,7 @@ export function TeacherDashboardPage() {
         setAttempts(attemptRows);
         setClasses(classRows);
         setMembers(memberRows);
+        setSelectedClass((current) => current ?? classRows[0]?.id ?? null);
       } catch (loadError) {
         if (!cancelled) {
           setError(loadError instanceof Error ? loadError.message : 'Không tải được dữ liệu.');
@@ -194,7 +193,6 @@ export function TeacherDashboardPage() {
         ? 'ChuaVaoLop'
         : (classById.get(selectedClass)?.name ?? null);
 
-  const totalCertificates = summaries.reduce((sum, item) => sum + item.certificatesCount, 0);
   const activeToday = summaries.filter(
     (item) =>
       item.lastActiveAt && Date.now() - new Date(item.lastActiveAt).getTime() < 24 * 3600 * 1000,
@@ -219,12 +217,11 @@ export function TeacherDashboardPage() {
               Lớp của tôi
             </Button>
           </Link>
-          <Link to="/teacher/settings">
+          <Link to={selectedClass && selectedClass !== 'unassigned' ? `/teacher/settings?class=${selectedClass}` : '/teacher/settings'}>
             <Button
-              variant="secondary"
               leadingIcon={<Settings className="size-4" aria-hidden="true" />}
             >
-              Cài đặt lớp
+              Điều phối tiến độ
             </Button>
           </Link>
           <Button
@@ -232,6 +229,8 @@ export function TeacherDashboardPage() {
               downloadCsv(buildProgressCsv(summaries), buildCsvFileName(selectedClassName))
             }
             disabled={summaries.length === 0}
+            variant="ghost"
+            size="sm"
             leadingIcon={<Download className="size-4" aria-hidden="true" />}
           >
             Xuất CSV
@@ -291,7 +290,7 @@ export function TeacherDashboardPage() {
       )}
 
       {/* --- Chỉ số tổng quan --- */}
-      <section aria-label="Tổng quan" className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <section aria-label="Tổng quan" className="grid sm:grid-cols-3 gap-3">
         <StatTile
           label="Học sinh"
           value={filteredStudents.length}
@@ -304,16 +303,10 @@ export function TeacherDashboardPage() {
           tone="verdant"
         />
         <StatTile
-          label="Chứng chỉ đã cấp"
-          value={totalCertificates}
-          icon={<GraduationCap className="size-5" />}
+          label="Cần giáo viên chú ý"
+          value={attention.length}
+          icon={<UserRoundSearch className="size-5" />}
           tone="treasure"
-        />
-        <StatTile
-          label="Lượt chạy code"
-          value={filteredAttempts.length}
-          icon={<AlertTriangle className="size-5" />}
-          tone="mage"
         />
       </section>
 
@@ -365,40 +358,6 @@ export function TeacherDashboardPage() {
             ))}
           </ul>
         )}
-      </Card>
-
-      {/* --- Xem trước nội dung: giáo viên không phải học để đọc được bài --- */}
-      <Card>
-        <CardHeader
-          title="Xem trước nội dung bài học"
-          description="Mọi khu vực đều mở sẵn cho tài khoản giáo viên — không phải làm bài mới xem được"
-          icon={<BookOpen className="size-5 text-mage-300" aria-hidden="true" />}
-        />
-
-        <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 list-none">
-          {LESSONS_META.map((lesson) => (
-            <li key={lesson.id}>
-              <div className="cq-panel p-3 h-full flex flex-col gap-2">
-                <div className="min-w-0">
-                  <p className="text-xs text-slate-500">Khu vực {lesson.order}</p>
-                  <p className="font-semibold text-slate-100 truncate">{lesson.zoneName}</p>
-                </div>
-                <div className="flex gap-2 mt-auto">
-                  <Link to={`/app/lesson/${lesson.id}/guide`} className="flex-1">
-                    <Button variant="secondary" size="sm" fullWidth>
-                      Lý thuyết
-                    </Button>
-                  </Link>
-                  <Link to={`/app/lesson/${lesson.id}`} className="flex-1">
-                    <Button variant="ghost" size="sm" fullWidth>
-                      Nhiệm vụ
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
       </Card>
 
       {/* --- Tiến trình theo khu vực --- */}

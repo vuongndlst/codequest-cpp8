@@ -156,6 +156,27 @@ int main() {
     expect(returned?.detail).toMatchObject({ name: 'cong', value: '5' });
   });
 
+  it('hàm void cũng báo đã hoàn tất để học sinh thấy luồng quay về main', () => {
+    const result = workshop(`#include <iostream>
+using namespace std;
+
+void batDen() { turnOnLight(); }
+
+int main() {
+    batDen();
+    return 0;
+}`);
+
+    expect(result.worldEvents.map((event) => event.type)).toEqual(expect.arrayContaining([
+      'declare-func',
+      'call-func',
+      'turn-on-light',
+      'return-func',
+    ]));
+    expect(result.worldEvents.find((event) => event.type === 'return-func')?.detail)
+      .toMatchObject({ name: 'batDen', completed: true });
+  });
+
   it('main() không hiện thành một cỗ máy', () => {
     const result = workshop(`#include <iostream>
 using namespace std;

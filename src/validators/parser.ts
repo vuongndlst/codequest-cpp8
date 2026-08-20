@@ -206,6 +206,7 @@ class Parser {
           );
         }
         const paramTypeToken = this.advance();
+        const isReference = this.match('&');
         if (this.peek().type !== 'identifier') {
           throw new ParseError(
             'UNKNOWN',
@@ -215,9 +216,16 @@ class Parser {
           );
         }
         const paramNameToken = this.advance();
+        let isArray = false;
+        if (this.match('[')) {
+          this.expect(']', 'UNKNOWN', `Tham số mảng \`${paramNameToken.value}\` cần viết dạng \`int ${paramNameToken.value}[]\`.`);
+          isArray = true;
+        }
         params.push({
           paramType: paramTypeToken.value as TypeKeyword,
           name: paramNameToken.value,
+          isReference,
+          isArray,
           line: paramNameToken.line,
           column: paramNameToken.column,
         });
@@ -326,14 +334,33 @@ class Parser {
       }
       const nameToken = this.advance();
       let init: Expression | null = null;
+      let arraySize: Expression | null = null;
+      let arrayInit: Expression[] | null = null;
+
+      if (this.match('[')) {
+        if (!this.check(']')) arraySize = this.parseExpression();
+        this.expect(']', 'UNKNOWN', `Kích thước mảng \`${nameToken.value}\` chưa được đóng bằng dấu \`]\`.`);
+      }
 
       if (this.match('=')) {
-        init = this.parseExpression();
+        if (this.match('{')) {
+          arrayInit = [];
+          if (!this.check('}')) {
+            do {
+              arrayInit.push(this.parseExpression());
+            } while (this.match(','));
+          }
+          this.expect('}', 'UNBALANCED_BRACE', `Danh sách khởi tạo mảng \`${nameToken.value}\` chưa được đóng bằng \`}\`.`);
+        } else {
+          init = this.parseExpression();
+        }
       }
 
       declarations.push({
         name: nameToken.value,
         init,
+        arraySize,
+        arrayInit,
         line: nameToken.line,
         column: nameToken.column,
       });
@@ -514,10 +541,10 @@ class Parser {
     if (['=', '+=', '-=', '*=', '/=', '%='].includes(this.peek().value)) {
       const operatorToken = this.advance();
 
-      if (left.kind !== 'Identifier') {
+      if (left.kind !== 'Identifier' && left.kind !== 'ArrayAccessExpression') {
         throw new ParseError(
           'UNKNOWN',
-          `Bên trái dấu \`${operatorToken.value}\` phải là tên một biến (dòng ${operatorToken.line}).`,
+          `Bên trái dấu \`${operatorToken.value}\` phải là tên biến hoặc một phần tử mảng (dòng ${operatorToken.line}).`,
           operatorToken.line,
           operatorToken.column,
         );
@@ -608,7 +635,22 @@ class Parser {
   }
 
   private parsePostfix(): Expression {
-    const expression = this.parsePrimary();
+    let expression = this.parsePrimary();
+
+    while (this.match('[')) {
+      if (expression.kind !== 'Identifier') {
+        throw new ParseError('UNKNOWN', 'Trước dấu `[` phải là tên một mảng.', this.peek().line, this.peek().column);
+      }
+      const index = this.parseExpression();
+      this.expect(']', 'UNKNOWN', `Chỉ số mảng \`${expression.name}\` chưa được đóng bằng dấu \`]\`.`);
+      expression = {
+        kind: 'ArrayAccessExpression',
+        array: expression,
+        index,
+        line: expression.line,
+        column: expression.column,
+      };
+    }
 
     if (['++', '--'].includes(this.peek().value)) {
       const operatorToken = this.advance();

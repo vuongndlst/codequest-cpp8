@@ -58,7 +58,7 @@ describe('Định tuyến — chuỗi quản lý lớp phải nối đủ', () =
   });
 
   it('vẫn giữ các trang cũ của học sinh', () => {
-    for (const path of ['/app/profile', '/app/certificates', '/auth/register']) {
+    for (const path of ['/app/profile', '/app/shop', '/app/certificates', '/auth/register']) {
       expect(paths).toContain(path);
     }
   });

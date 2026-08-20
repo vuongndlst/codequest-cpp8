@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { Link, Outlet } from 'react-router-dom';
+import { Link, Outlet, useLocation } from 'react-router-dom';
 import { ArrowRight, Zap } from 'lucide-react';
 import { SiteFooter } from './AppShell';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
@@ -12,6 +12,8 @@ import { env } from '@/lib/env';
 /** Khung giao diện cho trang công khai: giới thiệu, đăng nhập, demo. */
 export function PublicShell() {
   const isOnline = useUiStore((state) => state.isOnline);
+  const location = useLocation();
+  const isDemo = location.pathname === '/demo';
 
   return (
     <div className="min-h-dvh flex flex-col">
@@ -95,7 +97,7 @@ export function PublicShell() {
         </ErrorBoundary>
       </main>
 
-      <SiteFooter />
+      {!isDemo && <SiteFooter />}
     </div>
   );
 }

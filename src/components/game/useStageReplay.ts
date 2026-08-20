@@ -5,6 +5,7 @@ import type { WorldEvent } from '@/validators/world';
 /**
  * Tốc độ phát lại chuỗi sự kiện.
  *
+ *   · slow   — nhịp chậm để học sinh mới theo dõi từng thay đổi
  *   · normal — nhịp vừa phải, đủ để mắt bám theo từng bước chân
  *   · fast   — xem lại nhanh khi đã hiểu bài, khỏi phải ngồi chờ
  *   · step   — ĐỨNG YÊN, mỗi lần bấm mới nhích một sự kiện
@@ -14,11 +15,13 @@ import type { WorldEvent } from '@/validators/world';
  * rồi mới đối chiếu với dòng code. Không có nó thì mọi lỗi chỉ hiện ra ở kết
  * quả cuối cùng, và việc "tìm ra sai chỗ nào" biến thành đoán mò.
  */
-export type ReplaySpeed = 'normal' | 'fast' | 'step';
+export type ReplaySpeed = 'slow' | 'normal' | 'fast' | 'step';
 
 export const REPLAY_STEP_MS: Record<Exclude<ReplaySpeed, 'step'>, number> = {
-  normal: 320,
-  fast: 110,
+  slow: 1100,
+  // 700ms đủ để mắt lớp 8 bám từ dòng code sang đúng ô vừa thay đổi.
+  normal: 700,
+  fast: 180,
 };
 
 /** Nhịp của chế độ bình thường — tên cũ, giữ lại cho các chỗ đang dùng. */

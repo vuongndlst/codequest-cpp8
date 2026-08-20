@@ -60,6 +60,32 @@ describe('Cài đặt nổi trên bản đồ', () => {
     expect(playSound).toHaveBeenCalledWith('click');
   });
 
+  it('mở modal rộng giữa bản đồ, đóng bằng nền hoặc Escape và trả focus', async () => {
+    const user = userEvent.setup();
+    renderMenu();
+
+    const opener = screen.getByRole('button', { name: 'Mở cài đặt trên bản đồ' });
+    await user.click(opener);
+    const dialog = screen.getByRole('dialog', { name: 'Góc phiêu lưu' });
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(dialog).toHaveClass('w-[min(56rem,calc(100%-1rem))]');
+    expect(screen.getByRole('tab', { name: 'Nhân vật' })).toHaveAttribute('aria-selected', 'true');
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(opener).toHaveFocus();
+  });
+
+  it('đặt focus vào tab đang chọn và đóng khi bấm vùng nền', async () => {
+    const user = userEvent.setup();
+    renderMenu();
+    await user.click(screen.getByRole('button', { name: 'Mở cài đặt trên bản đồ' }));
+
+    expect(screen.getByRole('tab', { name: 'Nhân vật' })).toHaveFocus();
+    await user.click(screen.getByTestId('map-settings-backdrop'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   it('có nút bật tắt âm thanh dùng được mà không cần mở popup', async () => {
     const user = userEvent.setup();
     renderMenu();
@@ -74,6 +100,8 @@ describe('Cài đặt nổi trên bản đồ', () => {
     renderMenu();
 
     await user.click(screen.getByRole('button', { name: 'Mở cài đặt trên bản đồ' }));
+    expect(screen.getByText('Nhạc tắt')).toBeInTheDocument();
+    expect(screen.getByText('Âm thanh bật')).toBeInTheDocument();
     expect(screen.getByText(/chỉ nên bật khi đang dùng tai nghe/i)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Bật nhạc nền khi dùng tai nghe' }));
 
@@ -85,15 +113,20 @@ describe('Cài đặt nổi trên bản đồ', () => {
     renderMenu();
 
     await user.click(screen.getByRole('button', { name: 'Mở cài đặt trên bản đồ' }));
-    await user.click(screen.getByRole('button', { name: 'Hồ sơ' }));
+    await user.click(screen.getByRole('tab', { name: 'Hồ sơ' }));
     expect(screen.getByText('Nguyễn Minh An')).toBeInTheDocument();
-    expect(screen.getByText('Cấp 2 · 125 XP')).toBeInTheDocument();
+    expect(screen.getByText('Cấp độ').nextElementSibling).toHaveTextContent('2');
+    expect(screen.getByText('Kinh nghiệm').nextElementSibling).toHaveTextContent('125 XP');
 
-    await user.click(screen.getByRole('button', { name: 'Trang bị' }));
+    await user.click(screen.getByRole('tab', { name: 'Trang bị' }));
     expect(screen.getByText('Bộ điều hướng')).toBeInTheDocument();
     expect(screen.getByText('Kiếm thuật toán')).toBeInTheDocument();
     expect(screen.getByText('Khiên điều kiện')).toBeInTheDocument();
-    expect(screen.getAllByTestId('equipment-pixel-art')).toHaveLength(3);
+    expect(screen.getByText('La bàn Phòng Gương')).toBeInTheDocument();
+    expect(screen.getByText('Găng Chỉ Số')).toBeInTheDocument();
+    expect(screen.getByText('Kính Quét Tuyến Tính')).toBeInTheDocument();
+    expect(screen.getByText('Lõi Kiến Trúc Thuật Toán')).toBeInTheDocument();
+    expect(screen.getAllByTestId('equipment-pixel-art')).toHaveLength(8);
   });
 
   it('màn nhập môn chỉ hiện một bánh răng và chưa giới thiệu trang bị', async () => {
@@ -119,7 +152,7 @@ describe('Cài đặt nổi trên bản đồ', () => {
     expect(screen.queryByRole('button', { name: 'Tắt âm thanh' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Mở cài đặt trên bản đồ' }));
     expect(screen.getByRole('button', { name: 'Tắt âm thanh' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Trang bị' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Trang bị' })).not.toBeInTheDocument();
   });
 
   it('mua trang bị thật bằng dữ liệu từ Supabase thay vì chỉ mô phỏng', async () => {
@@ -152,7 +185,7 @@ describe('Cài đặt nổi trên bản đồ', () => {
     );
 
     await user.click(screen.getByRole('button', { name: 'Mở cài đặt trên bản đồ' }));
-    await user.click(screen.getByRole('button', { name: 'Trang bị' }));
+    await user.click(screen.getByRole('tab', { name: 'Trang bị' }));
     await user.click(screen.getByRole('button', { name: 'Mua · 45 Gem' }));
 
     expect(onBuyOrUpgrade).toHaveBeenCalledWith('algorithm-sword');

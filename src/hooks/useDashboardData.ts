@@ -7,9 +7,11 @@ import {
   fetchUserBadges,
   fetchUserCertificates,
 } from '@/services/supabase/gamification.repo';
+import { fetchAccessibleAreaControls } from '@/services/supabase/areaControls.repo';
 import type {
   ActivityEventRow,
   CertificateRow,
+  ClassAreaControlRow,
   ClassSettingsRow,
   LessonProgressRow,
   UserBadgeRow,
@@ -21,6 +23,7 @@ export interface DashboardData {
   certificates: CertificateRow[];
   activity: ActivityEventRow[];
   classSettings: ClassSettingsRow | null;
+  areaControls: ClassAreaControlRow[];
 }
 
 const EMPTY: DashboardData = {
@@ -29,6 +32,7 @@ const EMPTY: DashboardData = {
   certificates: [],
   activity: [],
   classSettings: null,
+  areaControls: [],
 };
 
 /**
@@ -56,12 +60,13 @@ export function useDashboardData() {
     setIsLoading(true);
     setError(null);
 
-    const [progress, badges, certificates, activity, classSettings] = await Promise.allSettled([
+    const [progress, badges, certificates, activity, classSettings, areaControls] = await Promise.allSettled([
       fetchAllLessonProgress(user.id),
       fetchUserBadges(user.id),
       fetchUserCertificates(user.id),
       fetchRecentActivity(user.id, 6),
       fetchClassSettings(profile?.class_name ?? null),
+      fetchAccessibleAreaControls(),
     ]);
 
     // Chỉ tiến trình học tập là dữ liệu bắt buộc — thiếu nó thì mới coi là lỗi.
@@ -81,6 +86,7 @@ export function useDashboardData() {
       certificates: certificates.status === 'fulfilled' ? certificates.value : [],
       activity: activity.status === 'fulfilled' ? activity.value : [],
       classSettings: classSettings.status === 'fulfilled' ? classSettings.value : null,
+      areaControls: areaControls.status === 'fulfilled' ? areaControls.value : [],
     });
     setIsLoading(false);
   }, [user, profile?.class_name]);

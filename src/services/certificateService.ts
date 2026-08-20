@@ -16,13 +16,10 @@ import { logActivityEvent } from '@/services/supabase/gamification.repo';
 /**
  * Cấp chứng chỉ (mục 12 của đề bài).
  *
- * Năm điều kiện theo vertical slice Area 0–2.
+ * Chứng chỉ là phần thưởng mặc định khi học sinh hoàn thành một khu vực.
  * Toàn bộ phần XÉT ĐIỀU KIỆN là hàm thuần — không đụng mạng, không đụng React —
  * nên test được đầy đủ mọi tổ hợp mà không cần dựng database.
  */
-
-/** Tỉ lệ test case bắt buộc phải vượt qua. */
-export const REQUIRED_TEST_PASS_RATE = 0.7;
 
 export interface CertificateRequirement {
   id: string;
@@ -45,6 +42,9 @@ export interface EligibilityInput {
   /** Toàn bộ lần làm bài của học sinh trong bài học này */
   attempts: ChallengeAttemptRow[];
 }
+
+/** Giữ để báo tiến trình học tập; từ nay ngưỡng này không chặn chứng chỉ. */
+export const REQUIRED_TEST_PASS_RATE = 0.7;
 
 /**
  * Xét năm điều kiện cấp chứng chỉ.
@@ -70,16 +70,13 @@ export function checkEligibility(input: EligibilityInput): CertificateEligibilit
   // ③ Hoàn thành Exit Ticket
   const exitTicketDone = (exitTicket?.score ?? 0) >= 70;
 
-  // ④ Đạt ít nhất 70% test case bắt buộc
+  // Hai tín hiệu dưới đây vẫn hữu ích để học sinh tự nhìn lại, nhưng không còn
+  // là “cửa khóa” phần thưởng. Hoàn thành khu vực là đủ nhận chứng chỉ.
   const correctAttempts = attempts.filter((attempt) => attempt.total_tests > 0);
   const totalTests = correctAttempts.reduce((sum, attempt) => sum + attempt.total_tests, 0);
   const passedTests = correctAttempts.reduce((sum, attempt) => sum + attempt.passed_tests, 0);
   const passRate = totalTests > 0 ? passedTests / totalTests : 0;
-  // Hoàn thành hết nhiệm vụ nghĩa là đã vượt mọi test bắt buộc ở lần cuối,
-  // nên điều kiện này chỉ thực sự chặn khi học sinh chưa làm xong bài.
   const testRateOk = allChallengesDone || passRate >= REQUIRED_TEST_PASS_RATE;
-
-  // ⑤ Đã nhận phản hồi trình bày code ít nhất một lần ở bất kỳ nhiệm vụ nào.
   const cleanCodeChecked = attempts.some((attempt) => attempt.clean_code_score !== null);
 
   const requirements: CertificateRequirement[] = [
@@ -107,22 +104,25 @@ export function checkEligibility(input: EligibilityInput): CertificateEligibilit
     },
     {
       id: 'test-rate',
-      label: `Đạt ít nhất ${Math.round(REQUIRED_TEST_PASS_RATE * 100)}% test case bắt buộc`,
+      label: `Đạt ${Math.round(REQUIRED_TEST_PASS_RATE * 100)}% test bắt buộc · không chặn chứng chỉ`,
       met: testRateOk,
       detail: totalTests > 0 ? `${Math.round(passRate * 100)}%` : 'Chưa có dữ liệu',
     },
     {
       id: 'clean-code',
-      label: 'Nhận phản hồi trình bày code ít nhất một lần',
+      label: 'Đã xem phản hồi trình bày code · không chặn chứng chỉ',
       met: cleanCodeChecked,
-      detail: cleanCodeChecked ? 'Đã làm' : 'Chưa làm',
+      detail: cleanCodeChecked ? 'Đã xem' : 'Có thể xem sau',
     },
   ];
 
   return {
     lessonId,
     requirements,
-    eligible: requirements.every((requirement) => requirement.met),
+    // `completed` là trạng thái có thẩm quyền do checkpoint ghi. Nhánh thứ hai
+    // giữ tương thích với dữ liệu cũ đã đủ ba mốc nhưng chưa cập nhật status.
+    eligible:
+      progress?.status === 'completed' || requirements.slice(0, 3).every((requirement) => requirement.met),
   };
 }
 
@@ -157,6 +157,25 @@ export function buildCertificateMetadata(
     certificateName: CERTIFICATE_NAMES[certificateCode] ?? certificateCode,
     teacherName: TEACHER_NAME,
     courseName: COURSE_NAME,
+  };
+}
+
+/**
+ * Chứng chỉ đã cấp là bất biến về mã/ngày/thành tích, nhưng tên và lớp phải đi
+ * theo hồ sơ hiện tại. Nhờ vậy học sinh sửa đúng dấu tiếng Việt một lần thì cả
+ * bản xem trước lẫn PDF cũ đều được sửa theo, không cần cấp lại chứng chỉ.
+ */
+export function syncCertificateIdentity(
+  certificate: CertificateRow,
+  profile: Pick<ProfileRow, 'full_name' | 'class_name'>,
+): CertificateRow {
+  return {
+    ...certificate,
+    metadata: {
+      ...certificate.metadata,
+      studentName: profile.full_name,
+      className: profile.class_name,
+    },
   };
 }
 

@@ -1,14 +1,18 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Send } from 'lucide-react';
-import { getLesson } from '@/lessons';
+import { ArrowLeft, ArrowRight, Send } from 'lucide-react';
+import { getLesson, LESSONS } from '@/lessons';
+import { firstChallengeHref } from '@/utils/journey';
+import { getPacingOverrides } from '@/utils/classPacing';
+import { isLessonUnlocked } from '@/utils/progression';
 import { useAuthStore } from '@/stores/authStore';
+import { useLessonAccess } from '@/hooks/useLessonAccess';
 import { fetchExitTicket, submitExitTicket } from '@/services/supabase/exitTickets.repo';
 import { logActivityEvent } from '@/services/supabase/gamification.repo';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { ByteMascot } from '@/components/game/ByteMascot';
-import { LoadingState } from '@/components/common/StateViews';
+import { ErrorState, LoadingState } from '@/components/common/StateViews';
 import { NoAccessState } from '@/components/common/StateViews';
 import { NotFoundPage } from '@/pages/UpcomingPage';
 import { CheckpointQuestionCard } from '@/components/learning/CheckpointQuestionCard';
@@ -27,6 +31,7 @@ import {
 import { getRequiredChallengeIds } from '@/lessons';
 import type { LessonProgressRow } from '@/types/database';
 import { runOrQueue } from '@/services/offlineQueue';
+import { issueCertificate } from '@/services/certificateService';
 
 /**
  * Checkpoint cuối khu vực: nhiều dạng câu hỏi + một câu tự nhìn lại.
@@ -39,6 +44,7 @@ export function ExitTicketPage() {
   const user = useAuthStore((state) => state.user);
   const profile = useAuthStore((state) => state.profile);
   const lesson = getLesson(lessonId);
+  const access = useLessonAccess(lessonId);
 
   const [answers, setAnswers] = useState<Record<string, CheckpointAnswer>>({});
   const [reflection, setReflection] = useState('');
@@ -86,7 +92,16 @@ export function ExitTicketPage() {
   }, [user, lesson]);
 
   if (!lesson) return <NotFoundPage />;
-  if (isLoading) return <LoadingState label="Đang mở Exit Ticket…" />;
+  if (isLoading || access.isLoading) return <LoadingState label="Đang mở Exit Ticket…" />;
+  if (access.error) return <ErrorState description={access.error} onRetry={() => window.location.reload()} />;
+  if (!access.isUnlocked) {
+    return (
+      <NoAccessState description={access.control?.access_mode === 'locked'
+        ? 'Giáo viên đang tạm khóa khu vực này để cả lớp học cùng nhịp.'
+        : 'Em cần hoàn thành khu vực trước để mở checkpoint này.'}
+      />
+    );
+  }
 
   const requiredIds = getRequiredChallengeIds(lesson.id);
   const checkpointUnlocked = canOpenCheckpoint(requiredIds, progress?.completed_challenges ?? []);
@@ -127,6 +142,8 @@ export function ExitTicketPage() {
       if (!ticketWrite.ok && !ticketWrite.queued) throw ticketWrite.error;
       setSavedOffline(ticketWrite.queued);
 
+      let certificateProgress = progress;
+      let certificateCanSyncNow = !ticketWrite.queued;
       if (outcome.passed && progress && progress.status !== 'completed') {
         const progressPatch = {
           status: 'completed',
@@ -143,6 +160,7 @@ export function ExitTicketPage() {
           },
         );
         if (!progressWrite.ok && !progressWrite.queued) throw progressWrite.error;
+        if (progressWrite.queued) certificateCanSyncNow = false;
         setSavedOffline((current) => current || progressWrite.queued);
         setProgress(
           completedProgress ?? {
@@ -151,11 +169,22 @@ export function ExitTicketPage() {
             updated_at: new Date().toISOString(),
           },
         );
+        certificateProgress = completedProgress ?? {
+          ...progress,
+          ...progressPatch,
+          updated_at: new Date().toISOString(),
+        };
         void logActivityEvent(user.id, {
           eventType: 'lesson_completed',
           lessonId: lesson.id,
           metadata: { checkpointScore: score },
         });
+      }
+      // Chứng chỉ là kết quả mặc định của checkpoint, không bắt học sinh phải
+      // tìm thêm một trang và bấm “Nhận”. Khi offline, trigger database sẽ cấp
+      // ngay lúc hàng đợi đồng bộ trạng thái completed.
+      if (outcome.passed && profile?.role === 'student' && certificateCanSyncNow) {
+        await issueCertificate(profile, lesson.id, certificateProgress);
       }
       setSubmittedScore(score);
       void logActivityEvent(user.id, {
@@ -205,6 +234,58 @@ export function ExitTicketPage() {
         </Alert>
       )}
 
+      {submittedScore !== null && submittedScore >= CHECKPOINT_PASS_SCORE && (
+        <section className="cq-card border-verdant-400/45 bg-verdant-500/8 p-4" aria-label="Bước tiếp theo">
+          {(() => {
+            const nextLesson = LESSONS.find((item) => item.order === lesson.order + 1);
+            const nextControl = access.controls.find((item) => item.lesson_id === nextLesson?.id);
+            const pacing = getPacingOverrides(access.controls);
+            const nextUnlocked = nextLesson ? isLessonUnlocked(nextLesson.id, {
+              progressByLesson: {
+                ...access.progressByLesson,
+                [lesson.id]: progress ?? access.progressByLesson[lesson.id],
+              },
+              teacherUnlockedLessons: pacing.teacherUnlockedLessons,
+              teacherLockedLessons: pacing.teacherLockedLessons,
+              isTeacher: profile?.role === 'teacher',
+            }) : false;
+            return nextLesson ? (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase tracking-[.16em] text-verdant-300">
+                    {nextUnlocked ? 'Đường mới đã mở' : 'Đã ghi nhận hoàn thành'}
+                  </p>
+                  <h2 className="font-bold text-slate-100">Khu vực {nextLesson.order}: {nextLesson.zoneName}</h2>
+                  <p className="text-xs text-slate-400">
+                    {nextUnlocked
+                      ? 'Vào thẳng nhiệm vụ đầu tiên; kiến thức mới sẽ xuất hiện ngay trong tình huống chơi.'
+                      : nextControl?.access_mode === 'locked'
+                        ? 'Giáo viên đang giữ khu vực này để cả lớp học cùng nhịp. Em có thể xem chứng chỉ hoặc luyện lại bài cũ.'
+                        : 'Khu vực tiếp theo sẽ mở theo tiến độ của lớp.'}
+                  </p>
+                  <Link
+                    to={`/app/certificates/${lesson.id}`}
+                    className="mt-1 inline-flex text-xs font-semibold text-treasure-300 hover:text-treasure-200"
+                  >
+                    ✓ Chứng chỉ khu vực đã được cấp tự động · Xem ngay
+                  </Link>
+                </div>
+                <Link to={nextUnlocked ? firstChallengeHref(nextLesson.id) : '/app'}>
+                  <Button trailingIcon={<ArrowRight className="size-4" aria-hidden="true" />}>
+                    {nextUnlocked ? 'Tiếp tục hành trình' : 'Về bản đồ'}
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-3">
+                <div><p className="font-bold text-slate-100">Em đã hoàn thành toàn bộ hành trình hiện tại!</p><p className="text-xs text-slate-400">Chứng chỉ và thành tích đã sẵn sàng.</p></div>
+                <Link to="/app/certificates"><Button>Xem chứng chỉ</Button></Link>
+              </div>
+            );
+          })()}
+        </section>
+      )}
+
       {error && <Alert tone="error">{error}</Alert>}
       {savedOffline && (
         <Alert tone="info" live>
@@ -252,8 +333,8 @@ export function ExitTicketPage() {
           >
             {submittedScore === null ? 'Nộp checkpoint' : 'Kiểm tra lại'}
           </Button>
-          <Link to={`/app/lesson/${lessonId}`}>
-            <Button variant="secondary">Về trang khu vực</Button>
+          <Link to="/app">
+            <Button variant="secondary">Bản đồ ByteLand</Button>
           </Link>
         </div>
 

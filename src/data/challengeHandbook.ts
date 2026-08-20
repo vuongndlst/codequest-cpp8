@@ -23,7 +23,11 @@ const PATTERN_TO_CARD: Array<{ test: RegExp; card: string }> = [
     sang thẻ "Gọi hàm" — một khái niệm mãi khu vực 2 mới dạy. Học sinh mở ra
     đọc sẽ càng rối.
   */
-  { test: /call:(moveRight|moveLeft|moveUp|moveDown|collectGem|gemsCollected)/, card: 'robot-commands' },
+  { test: /call:(chargeMachine|setSwitch)/, card: 'energy-machines' },
+  { test: /call:(collectKey|hasKey|openDoor|getEnergy)/, card: 'decision-sensors' },
+  { test: /call:(turnOnLight|attackBug|getBugHp)/, card: 'loop-game-api' },
+  { test: /call:(moveRight|moveLeft|moveUp|moveDown|turnRight|turnLeft|collectGem|gemsCollected)/, card: 'robot-commands' },
+  { test: /stmt:cin/, card: 'cin' },
   { test: /stmt:for/, card: 'for-loop' },
   { test: /stmt:if-else/, card: 'if-else' },
   /*
@@ -36,12 +40,17 @@ const PATTERN_TO_CARD: Array<{ test: RegExp; card: string }> = [
   */
   { test: /stmt:if(?!-else)/, card: 'if' },
   { test: /stmt:cout/, card: 'cout' },
+  { test: /decl:ref/, card: 'reference-parameter' },
+  { test: /decl:array/, card: 'one-dimensional-array' },
+  { test: /access:array/, card: 'array-index-bounds' },
   { test: /decl:var/, card: 'variables' },
-  { test: /op:(\+|-|\*|\/)/, card: 'assignment' },
+  { test: /op:(\+|-|\*|\/|%)/, card: 'arithmetic-operators' },
+  { test: /decl:func:[^:]+>stmt:return/, card: 'function-return' },
   { test: /decl:func:[^:]+:params/, card: 'function-params' },
   { test: /decl:func/, card: 'function-declare' },
   { test: /call:/, card: 'function-call' },
   { test: /op:(==|!=|<=|>=|<|>)/, card: 'comparison-operators' },
+  { test: /op:(&&|\|\||!)/, card: 'logical-operators' },
 ];
 
 /** Thẻ luôn hữu ích, xếp cuối nếu nhiệm vụ chưa gợi ra thẻ nào khác. */
@@ -67,7 +76,10 @@ export function relevantHandbookCards(challenge: Challenge): HandbookCard[] {
 
   for (const pattern of challenge.requiredPatterns) {
     for (const { test, card } of PATTERN_TO_CARD) {
-      if (test.test(pattern)) add(card);
+      if (test.test(pattern)) {
+        add(card);
+        break;
+      }
     }
   }
 

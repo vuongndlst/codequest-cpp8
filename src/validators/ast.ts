@@ -26,7 +26,8 @@ export type Expression =
   | UnaryExpression
   | UpdateExpression
   | AssignmentExpression
-  | CallExpression;
+  | CallExpression
+  | ArrayAccessExpression;
 
 export interface NumberLiteral extends Position {
   kind: 'NumberLiteral';
@@ -85,8 +86,15 @@ export interface UpdateExpression extends Position {
 export interface AssignmentExpression extends Position {
   kind: 'AssignmentExpression';
   operator: string;
-  target: Identifier;
+  target: Identifier | ArrayAccessExpression;
   value: Expression;
+}
+
+/** `scores[i]` — truy cập một phần tử của mảng một chiều. */
+export interface ArrayAccessExpression extends Position {
+  kind: 'ArrayAccessExpression';
+  array: Identifier;
+  index: Expression;
 }
 
 export interface CallExpression extends Position {
@@ -111,6 +119,10 @@ export type Statement =
 export interface VariableDeclarator extends Position {
   name: string;
   init: Expression | null;
+  /** Có giá trị khi đây là khai báo mảng: `int scores[5]`. */
+  arraySize: Expression | null;
+  /** Danh sách khởi tạo của mảng: `{2, 4, 6}`. */
+  arrayInit: Expression[] | null;
 }
 
 export interface VariableDeclaration extends Position {
@@ -170,6 +182,10 @@ export interface EmptyStatement extends Position {
 export interface Parameter extends Position {
   paramType: TypeKeyword;
   name: string;
+  /** `int &value`: thay đổi trong hàm tác động lên biến được truyền vào. */
+  isReference: boolean;
+  /** `int values[]`: tham số mảng một chiều. */
+  isArray: boolean;
 }
 
 export interface FunctionDeclaration extends Position {
@@ -228,7 +244,8 @@ export function childrenOf(node: AnyNode): AnyNode[] {
     case 'BlockStatement':
       return node.body;
     case 'VariableDeclaration':
-      return node.declarations.map((d) => d.init).filter((e): e is Expression => e !== null);
+      return node.declarations.flatMap((d) => [d.arraySize, d.init, ...(d.arrayInit ?? [])])
+        .filter((e): e is Expression => e !== null);
     case 'ExpressionStatement':
       return [node.expression];
     case 'IfStatement':
@@ -251,6 +268,8 @@ export function childrenOf(node: AnyNode): AnyNode[] {
       return [node.target, node.value];
     case 'CallExpression':
       return node.args;
+    case 'ArrayAccessExpression':
+      return [node.array, node.index];
     default:
       return [];
   }

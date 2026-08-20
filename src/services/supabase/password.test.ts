@@ -2,6 +2,7 @@
 import {
   MIN_PASSWORD_LENGTH,
   checkPassword,
+  normalizeLoginIdentifier,
   studentEmailFromCode,
   validateClassCode,
   validatePassword,
@@ -126,5 +127,10 @@ describe('Danh tính học sinh LSTS', () => {
   it('tạo email trường từ mã học sinh', () => {
     expect(studentEmailFromCode(' 2406105 ')).toBe('2406105@lsts.edu.vn');
     expect(studentEmailFromCode('')).toBe('');
+  });
+
+  it('chuẩn hóa mã học sinh thành email trường khi đăng nhập', () => {
+    expect(normalizeLoginIdentifier(' 2406105 ')).toBe('2406105@lsts.edu.vn');
+    expect(normalizeLoginIdentifier(' Teacher@LSTS.edu.vn ')).toBe('teacher@lsts.edu.vn');
   });
 });

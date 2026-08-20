@@ -322,7 +322,13 @@ function collectReads(node: AnyNode | null | undefined, read: Set<string>): void
   switch (node.kind) {
     case 'AssignmentExpression':
       // Chỉ vế phải mới là đọc; riêng `x += 1` thì x vừa đọc vừa ghi
-      if (node.operator !== '=') read.add(node.target.name);
+      if (node.target.kind === 'Identifier') {
+        if (node.operator !== '=') read.add(node.target.name);
+      } else {
+        // Gán phần tử vẫn phải đọc tên mảng và biểu thức chỉ số.
+        read.add(node.target.array.name);
+        collectReads(node.target.index, read);
+      }
       collectReads(node.value, read);
       return;
 

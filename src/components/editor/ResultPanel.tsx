@@ -1,7 +1,6 @@
-import { Check, CircleDashed, Feather, Lightbulb, Target, Terminal, X } from 'lucide-react';
+import { Check, CircleDashed, Feather, Target, Terminal, X } from 'lucide-react';
 import type { RunResult } from '@/types/runner';
 import type { Diagnostic } from '@/validators/tokens';
-import { Button } from '@/components/ui/Button';
 import { RichText } from '@/components/common/RichText';
 import {
   CLEAN_CODE_RULE_LABELS,
@@ -12,10 +11,10 @@ import { cn } from '@/utils/cn';
 interface ResultPanelProps {
   result: RunResult | null;
   isRunning: boolean;
-  onRequestHint: () => void;
-  hintsAvailable: boolean;
   /** Cho phép ẩn phần clean code ở những node không chấm clean code */
   showCleanCode?: boolean;
+  /** Nhiệm vụ có yêu cầu quan sát Output hay chỉ điều khiển bản đồ. */
+  expectsOutput?: boolean;
 }
 
 /**
@@ -24,14 +23,13 @@ interface ResultPanelProps {
  * Nguyên tắc (mục 24 của đề bài):
  *   · Chưa đúng thì CHỈ hiện MỘT thông báo chính, không đổ ra danh sách lỗi
  *   · Không bao giờ dùng từ "Thất bại" hay "Sai"
- *   · Luôn có nút "Nhận gợi ý" ngay cạnh thông báo
+ *   · Phản hồi nằm sát editor; nút Gợi ý dùng chung trên thanh công cụ, không lặp lại
  */
 export function ResultPanel({
   result,
   isRunning,
-  onRequestHint,
-  hintsAvailable,
   showCleanCode = true,
+  expectsOutput = false,
 }: ResultPanelProps) {
   if (isRunning) {
     return (
@@ -57,74 +55,70 @@ export function ResultPanel({
   const visibleTests = result.testResults.filter((test) => test.visible || test.required);
 
   return (
-    <div className="space-y-3">
-      {/* --- Kết luận --- */}
-      <div
+    <div className="space-y-2">
+      {/* Phản hồi chính nằm sát editor: một kết luận, một bằng chứng, một hành động. */}
+      <section
         role="status"
         aria-live="polite"
         className={cn(
-          'flex items-start gap-3 rounded-xl border p-4',
+          'rounded-xl border px-3 py-3 shadow-sm',
           result.isCorrect
             ? 'bg-verdant-500/10 border-verdant-500/50'
             : 'bg-treasure-400/10 border-treasure-400/40',
         )}
       >
-        <span
-          className={cn(
-            'grid place-items-center size-8 rounded-lg shrink-0',
-            result.isCorrect
-              ? 'bg-verdant-500/20 text-verdant-400'
-              : 'bg-treasure-400/20 text-treasure-300',
-          )}
-          aria-hidden="true"
-        >
-          {result.isCorrect ? <Check className="size-5" /> : <CircleDashed className="size-5" />}
-        </span>
-
-        <div className="min-w-0 flex-1">
+        <div className="flex items-start gap-2.5">
+          <span
+            className={cn(
+              'mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg',
+              result.isCorrect
+                ? 'bg-verdant-500/20 text-verdant-400'
+                : 'bg-treasure-400/20 text-treasure-300',
+            )}
+            aria-hidden="true"
+          >
+            {result.isCorrect ? <Check className="size-4" /> : <CircleDashed className="size-4" />}
+          </span>
+          <div className="min-w-0 flex-1">
           <p
             className={cn(
-              'font-bold',
+              'text-sm font-bold',
               result.isCorrect ? 'text-verdant-400' : 'text-treasure-300',
             )}
           >
-            {result.isCorrect ? 'Hoàn thành nhiệm vụ!' : 'Chưa hoàn tất — Bug vẫn còn'}
+            {result.isCorrect ? 'Đã đạt tất cả mục tiêu' : 'Chưa đạt mục tiêu'}
           </p>
 
           {primaryDiagnostic ? (
             <DiagnosticMessage diagnostic={primaryDiagnostic} />
           ) : result.isCorrect ? (
-            <p className="text-sm text-slate-300 mt-1">
-              Chương trình của em chạy đúng rồi. Làm tốt lắm!
+            <p className="mt-1 text-xs leading-relaxed text-slate-300">
+              Chương trình của em đã vượt đủ các kiểm tra của nhiệm vụ.
             </p>
-          ) : null}
-
-          {!result.isCorrect && hintsAvailable && (
-            <Button
-              size="sm"
-              variant="secondary"
-              className="mt-3"
-              onClick={onRequestHint}
-              leadingIcon={<Lightbulb className="size-4" aria-hidden="true" />}
-            >
-              Nhận gợi ý
-            </Button>
+          ) : (
+            <p className="mt-1 text-xs leading-relaxed text-slate-300">
+              Xem mục tiêu chưa đạt bên dưới, sửa một chỗ rồi chạy lại.
+            </p>
           )}
+          </div>
         </div>
-      </div>
+      </section>
 
       {/* --- Số dòng vàng --- */}
       {result.isCorrect && result.par?.par != null && <ParCard par={result.par} />}
 
-      {/* --- Test case --- */}
-      {visibleTests.length > 0 && (
-        <section className="cq-panel p-4" aria-labelledby="tests-heading">
-          <h3 id="tests-heading" className="text-sm font-bold text-slate-200 mb-2">
-            Kiểm tra nhiệm vụ ({result.passedRequired}/{result.totalRequired})
-          </h3>
-          <ul className="space-y-1.5">
+      <details className="group rounded-xl border border-abyss-700 bg-abyss-950/55">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-xs font-semibold text-slate-400 hover:text-slate-200">
+          <span>Chi tiết kiểm tra · {result.passedRequired}/{result.totalRequired} mục tiêu đạt</span>
+          <span className="text-quest-400 group-open:rotate-180" aria-hidden="true">⌄</span>
+        </summary>
+        <div className="grid gap-3 border-t border-abyss-700 p-3 xl:grid-cols-2">
+          {visibleTests.length > 0 && (
+          <section aria-labelledby="tests-heading">
+            <h3 id="tests-heading" className="mb-2 text-xs font-bold text-slate-300">Mục tiêu kiểm tra</h3>
+            <ul className="space-y-1.5">
             {visibleTests.map((test) => (
-              <li key={test.id} className="flex items-start gap-2 text-sm">
+              <li key={test.id} className="flex items-start gap-2 text-xs">
                 <span
                   className={cn(
                     'grid place-items-center size-5 rounded-md shrink-0 mt-0.5',
@@ -147,27 +141,28 @@ export function ResultPanel({
                 </div>
               </li>
             ))}
-          </ul>
-        </section>
-      )}
+            </ul>
+          </section>
+          )}
 
-      {/* --- Output --- */}
-      <section className="cq-panel p-4" aria-labelledby="output-heading">
+      <section aria-labelledby="output-heading">
         <h3
           id="output-heading"
-          className="flex items-center gap-2 text-sm font-bold text-slate-200 mb-2"
+          className="mb-2 flex items-center gap-2 text-xs font-bold text-slate-300"
         >
           <Terminal className="size-4 text-quest-400" aria-hidden="true" />
           Màn hình kết quả
         </h3>
 
         {result.stdout.length === 0 ? (
-          <p className="text-sm text-slate-500 italic">
-            Chương trình chưa in ra gì cả. Em thử dùng lệnh <code>cout</code> xem sao.
+          <p className="text-xs text-slate-500 italic">
+            {expectsOutput
+              ? <>Chương trình chưa in ra dữ liệu. Em đối chiếu yêu cầu <code>cout</code> của nhiệm vụ.</>
+              : 'Nhiệm vụ này không yêu cầu in dữ liệu; hãy quan sát thay đổi và vị trí cuối trên bản đồ.'}
           </p>
         ) : (
           // Dùng textContent qua children của React -> code học sinh không thể chèn HTML (chống XSS)
-          <pre className="font-mono text-sm text-verdant-400 bg-abyss-950 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap">
+          <pre className="overflow-x-auto whitespace-pre-wrap rounded-lg bg-abyss-950 p-2 font-mono text-xs text-verdant-400">
             {result.stdout.join('\n')}
           </pre>
         )}
@@ -175,7 +170,7 @@ export function ResultPanel({
 
       {/* --- Ghi chú (cảnh báo nhẹ, không chặn) --- */}
       {notes.length > 0 && (
-        <section className="cq-panel p-4" aria-label="Ghi chú thêm">
+        <section className="xl:col-span-2" aria-label="Ghi chú thêm">
           <ul className="space-y-2">
             {notes.map((note, index) => (
               <li key={`${note.code}-${index}`}>
@@ -185,6 +180,8 @@ export function ResultPanel({
           </ul>
         </section>
       )}
+        </div>
+      </details>
 
       {/*
         --- Clean Code Coach ---

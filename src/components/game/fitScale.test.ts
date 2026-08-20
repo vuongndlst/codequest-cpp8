@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FIRST_MISSION_MAX_SCALE, fitScale, MAX_SCALE, MIN_SCALE } from './TileMapStage';
+import { coverScale, FIRST_MISSION_MAX_SCALE, fitScale, MAX_SCALE, MIN_SCALE } from './TileMapStage';
 
 /**
  * Bản đồ KHÔNG ĐƯỢC tràn ra ngoài cột phải của màn hình nhiệm vụ.
@@ -39,12 +39,24 @@ describe('Chọn tỉ lệ bản đồ theo bề ngang khung', () => {
     expect(6 * 16 * scale).toBeLessThanOrEqual(320);
   });
 
-  it('luôn trả về số nguyên — tỉ lệ lẻ làm ảnh pixel bị nhoè', () => {
+  it('dùng các nấc 1/16 để lấp gần kín viewport ngang mà không rung kích thước', () => {
     for (const cols of [3, 5, 7, 9, 12]) {
       for (const width of [180, 320, 460, 700, 900]) {
-        expect(Number.isInteger(fitScale(cols, width)), `${cols} cột trong ${width}px`).toBe(true);
+        expect(Number.isInteger(fitScale(cols, width) * 16), `${cols} cột trong ${width}px`).toBe(true);
       }
     }
+  });
+
+  it('map ngang 16:9 tận dụng gần hết chiều cao sân chơi', () => {
+    const scale = fitScale(16, 1050, 9, 560);
+    expect(16 * 16 * scale).toBeGreaterThan(980);
+    expect(9 * 16 * scale).toBeLessThanOrEqual(560);
+  });
+
+  it('chế độ cover phủ kín viewport và chỉ cắt phần phong cảnh ở mép', () => {
+    const scale = coverScale(16, 786, 9, 490);
+    expect(16 * 16 * scale).toBeGreaterThanOrEqual(786);
+    expect(9 * 16 * scale).toBeGreaterThanOrEqual(490);
   });
 
   it('kích thước không hợp lệ thì lùi về mức trần thay vì vỡ giao diện', () => {
@@ -52,7 +64,7 @@ describe('Chọn tỉ lệ bản đồ theo bề ngang khung', () => {
     expect(fitScale(5, -100)).toBe(MAX_SCALE);
   });
 
-  /** Mọi bản đồ của Khu vực 1 phải lọt vừa cột phải trên laptop phổ thông. */
+  /** Mọi bản đồ của Khu vực 1 phải lọt vừa khoang map trên laptop phổ thông. */
   it('bản đồ rộng nhất vẫn lọt vào cột phải của laptop 1366px', () => {
     // Cột phải chiếm khoảng 3/5 của vùng nội dung ~1200px, trừ padding
     const rightColumn = 680;
