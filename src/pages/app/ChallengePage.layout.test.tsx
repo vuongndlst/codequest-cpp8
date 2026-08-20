@@ -5,14 +5,19 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ChallengePage } from './ChallengePage';
 import { playSound, setGameMusicActive } from '@/services/audio';
 
+const challengeSessionOptionsSpy = vi.hoisted(() => vi.fn());
+
 vi.mock('@/services/audio', () => ({ playSound:vi.fn(), setGameMusicActive:vi.fn(), setGameMusicScene:vi.fn() }));
 vi.mock('@/components/editor/CodeEditor', () => ({ CodeEditor:() => <div data-testid="editor" /> }));
 vi.mock('@/components/game/GameStage', () => ({ GameStage:() => <div data-testid="game-stage" /> }));
-vi.mock('@/hooks/useChallengeSession', () => ({ useChallengeSession:() => ({
-  code:'', setCode:vi.fn(), isRestoring:false, result:null, isRunning:false, run:vi.fn(), reset:vi.fn(), saveState:'idle',
-  hintLevel:0, unlockNextHint:vi.fn(), attemptCount:0, canViewSolution:false, solutionVisible:false, showSolution:vi.fn(),
-  highlightedLines:[], playKey:0, justCompleted:false, xpAwarded:0, gemsAwarded:0, newBadges:[], dismissBadges:vi.fn(), attemptsBeforeSolution:6,
-}) }));
+vi.mock('@/hooks/useChallengeSession', () => ({ useChallengeSession:(options: unknown) => {
+  challengeSessionOptionsSpy(options);
+  return {
+    code:'', setCode:vi.fn(), isRestoring:false, result:null, isRunning:false, run:vi.fn(), reset:vi.fn(), saveState:'idle',
+    hintLevel:0, unlockNextHint:vi.fn(), attemptCount:0, canViewSolution:false, solutionVisible:false, showSolution:vi.fn(),
+    highlightedLines:[], playKey:0, justCompleted:false, xpAwarded:0, gemsAwarded:0, newBadges:[], dismissBadges:vi.fn(), attemptsBeforeSolution:6,
+  };
+} }));
 
 function renderChallenge() {
   return render(<MemoryRouter initialEntries={['/app/lesson/a1/challenge/a1-c3-obstacle-route']}><Routes>
@@ -139,5 +144,12 @@ describe('Stage chung cho mọi nhiệm vụ', () => {
   it('tắt nhạc khi rời stage', () => {
     const {unmount}=renderChallenge(); unmount();
     expect(setGameMusicActive).toHaveBeenCalledWith(false);
+  });
+
+  it('nối tiến trình vừa lưu vào lớp kiểm tra quyền trước khi chuyển màn', () => {
+    renderChallenge();
+    expect(challengeSessionOptionsSpy).toHaveBeenCalledWith(expect.objectContaining({
+      onProgressChange: expect.any(Function),
+    }));
   });
 });

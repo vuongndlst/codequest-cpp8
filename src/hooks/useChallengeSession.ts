@@ -12,7 +12,7 @@ import { fetchAllLessonProgress, indexProgressByLesson } from '@/services/supaba
 import { awardBadges, evaluateBadges, loadBadgeHistory } from '@/services/badgeService';
 import { fetchAllBadges, fetchUserBadges } from '@/services/supabase/gamification.repo';
 import { awardChallengeGems } from '@/services/supabase/equipment.repo';
-import type { BadgeRow } from '@/types/database';
+import type { BadgeRow, LessonProgressRow } from '@/types/database';
 
 /**
  * Điều phối một phiên làm nhiệm vụ: code, chạy, gợi ý, lưu, ghi tiến trình.
@@ -59,12 +59,15 @@ interface UseChallengeSessionOptions {
   persist: boolean;
   /** Giáo viên bật quyền xem đáp án cho lớp */
   allowSolutionView?: boolean;
+  /** Đẩy tiến trình vừa lưu vào lớp kiểm tra quyền trước khi cho chuyển màn. */
+  onProgressChange?: (progress: LessonProgressRow) => void;
 }
 
 export function useChallengeSession({
   challenge,
   persist,
   allowSolutionView = false,
+  onProgressChange,
 }: UseChallengeSessionOptions) {
   const user = useAuthStore((state) => state.user);
   const profile = useAuthStore((state) => state.profile);
@@ -210,6 +213,9 @@ export function useChallengeSession({
         currentProgress,
       });
 
+      // useLessonAccess đã tải một snapshot khi vào màn. Nếu không cập nhật
+      // snapshot này, nút Tiếp tục sẽ sang route mới trước và khóa nhầm màn kế.
+      onProgressChange?.(outcome.progress);
       setXpAwarded(outcome.xpAwarded);
       const newGems = await awardChallengeGems(challenge.id).catch(() => 0);
       setGemsAwarded(newGems);
@@ -233,7 +239,7 @@ export function useChallengeSession({
       // học sinh, lần sau vào lại sẽ đồng bộ.
       setJustCompleted(true);
     }
-  }, [code, challenge, flush, attemptCount, persist, user, profile, hintLevel, refreshProfile]);
+  }, [code, challenge, flush, attemptCount, persist, user, profile, hintLevel, refreshProfile, onProgressChange]);
 
   // --- Gợi ý -------------------------------------------------------------
   const unlockNextHint = useCallback(() => {

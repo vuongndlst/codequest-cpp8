@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { fetchAllLessonProgress, indexProgressByLesson } from '@/services/supabase/progress.repo';
 import { fetchClassSettings } from '@/services/supabase/gamification.repo';
@@ -9,6 +9,8 @@ import type { ClassAreaControlRow, LessonProgressRow } from '@/types/database';
 
 interface LessonAccessState {
   progressByLesson: Record<string, LessonProgressRow | undefined>;
+  /** Đồng bộ ngay bản ghi vừa lưu để màn kế tiếp không đọc snapshot cũ. */
+  applyProgress: (progress: LessonProgressRow) => void;
   control: ClassAreaControlRow | null;
   controls: ClassAreaControlRow[];
   isUnlocked: boolean;
@@ -72,6 +74,14 @@ export function useLessonAccess(lessonId: string, options?: { disabled?: boolean
 
   const control = controls.find((item) => item.lesson_id === lessonId) ?? null;
   const overrides = useMemo(() => getPacingOverrides(controls), [controls]);
+  const applyProgress = useCallback((progress: LessonProgressRow) => {
+    // Không để một bản ghi của phiên cũ/người dùng khác lọt vào access state.
+    if (!user || progress.user_id !== user.id) return;
+    setProgressByLesson((current) => ({
+      ...current,
+      [progress.lesson_id]: progress,
+    }));
+  }, [user]);
   // Router bảo vệ toàn bộ /app. Khi component được render độc lập trong test/
   // Storybook không có user, không biến lớp bảo vệ dữ liệu thành màn khóa giả.
   const isUnlocked = disabled || isTeacher || !user || isLessonUnlocked(lessonId, {
@@ -81,5 +91,5 @@ export function useLessonAccess(lessonId: string, options?: { disabled?: boolean
     isTeacher,
   });
 
-  return { progressByLesson, control, controls, isUnlocked, isLoading, error };
+  return { progressByLesson, applyProgress, control, controls, isUnlocked, isLoading, error };
 }

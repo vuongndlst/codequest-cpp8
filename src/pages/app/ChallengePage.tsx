@@ -151,6 +151,7 @@ export function ChallengePage({
   const session = useChallengeSession({
     challenge: learningChallenge,
     persist,
+    onProgressChange: access.applyProgress,
   });
 
   const stageEvents = session.result?.worldEvents ?? NO_WORLD_EVENTS;
