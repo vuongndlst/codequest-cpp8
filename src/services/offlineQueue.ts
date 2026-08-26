@@ -74,6 +74,29 @@ function writeQueue(queue: QueuedOperation[]): void {
   }
 }
 
+/**
+ * Lấy các nhiệm vụ đã hoàn thành cục bộ nhưng còn chờ máy chủ xác nhận.
+ *
+ * Đây chỉ là dữ liệu mở khóa ở tầng UX. Edge Function vẫn chấm lại và database
+ * vẫn kiểm tra thứ tự nhiệm vụ, nên sửa localStorage không thể tạo XP/Gem thật.
+ */
+export function getQueuedChallengeIds(lessonId: string): string[] {
+  const ids = readQueue()
+    .filter((item) => item.type === 'submit-challenge-secure')
+    .map((item) => item.payload as {
+      lessonId?: unknown;
+      challengeId?: unknown;
+      optimisticCorrect?: unknown;
+    })
+    .filter((payload) =>
+      payload.lessonId === lessonId &&
+      typeof payload.challengeId === 'string' &&
+      payload.optimisticCorrect === true,
+    )
+    .map((payload) => payload.challengeId as string);
+  return [...new Set(ids)];
+}
+
 export function queueSize(): number {
   return readQueue().length;
 }
@@ -112,6 +135,21 @@ export function isRetriableError(error: unknown): boolean {
     message.includes('load failed') ||
     message.includes('không kết nối được') ||
     message.includes('timeout')
+  );
+}
+
+/**
+ * Phiên Supabase được khôi phục bất đồng bộ khi trang vừa mở. Nếu hàng đợi chạy
+ * sớm hơn bước đó, lỗi đăng nhập chỉ có nghĩa là "chưa sẵn sàng", không phải dữ
+ * liệu học tập hỏng. Tuyệt đối không tăng số lần thử hay xóa mục trong trường hợp này.
+ */
+export function isAuthenticationPendingError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  return (
+    message.includes('can_dang_nhap') ||
+    message.includes('cần đăng nhập') ||
+    message.includes('phiên đăng nhập') ||
+    message.includes('jwt')
   );
 }
 
@@ -169,7 +207,8 @@ export async function flushQueue(): Promise<FlushResult> {
   let succeeded = 0;
   let dropped = 0;
 
-  for (const item of queue) {
+  for (let index = 0; index < queue.length; index += 1) {
+    const item = queue[index];
     const handler = handlers.get(item.type);
 
     // Chưa có handler (vd. trang chưa nạp xong module đó) -> giữ lại chờ lần sau
@@ -182,6 +221,13 @@ export async function flushQueue(): Promise<FlushResult> {
       await handler(item.payload);
       succeeded += 1;
     } catch (error) {
+      if (isAuthenticationPendingError(error)) {
+        // Giữ nguyên mục hiện tại và toàn bộ phần sau để bảo toàn đúng thứ tự.
+        // AuthStore sẽ gọi flushQueue() lần nữa ngay khi session đã sẵn sàng.
+        stillPending.push(item, ...queue.slice(index + 1));
+        break;
+      }
+
       const attempts = item.attempts + 1;
 
       if (!isRetriableError(error) || attempts >= MAX_ATTEMPTS_PER_ITEM) {

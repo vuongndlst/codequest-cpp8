@@ -46,6 +46,7 @@ import { useStageReplay, type ReplaySpeed } from '@/components/game/useStageRepl
 import { VictoryPanel } from '@/components/game/VictoryPanel';
 import { BadgeToast } from '@/components/game/BadgeToast';
 import { Button } from '@/components/ui/Button';
+import { Alert } from '@/components/ui/Alert';
 import { ErrorState, NoAccessState, SaveIndicator, LoadingState } from '@/components/common/StateViews';
 import { NotFoundPage } from '@/pages/UpcomingPage';
 import { cn } from '@/utils/cn';
@@ -680,6 +681,18 @@ export function ChallengePage({
                 showCleanCode={challenge.kind !== 'story'}
                 expectsOutput={challenge.testCases.some((test) => test.kind === 'output')}
               />
+              {session.syncError && (
+                <Alert tone="warning" title="Kết quả chưa được lưu" live>
+                  {session.syncError} Code của em vẫn còn nguyên; sau khi mạng ổn định, em bấm
+                  Chạy code lại để mở nhiệm vụ tiếp theo.
+                </Alert>
+              )}
+              {session.pendingSync && (
+                <Alert tone="info" title="Đã lưu tạm trên máy" live>
+                  Mạng đang chập chờn. Em có thể tiếp tục; CodeQuest sẽ tự đồng bộ kết quả này
+                  ngay khi kết nối ổn định.
+                </Alert>
+              )}
             </div>
           )}
         </div>

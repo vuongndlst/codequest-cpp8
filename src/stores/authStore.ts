@@ -5,6 +5,7 @@ import { fetchProfile, touchActivity } from '@/services/supabase/profiles.repo';
 import * as authService from '@/services/supabase/auth.service';
 import { isSupabaseConfigured } from '@/lib/env';
 import type { ProfileRow } from '@/types/database';
+import { flushQueue } from '@/services/offlineQueue';
 
 export type AuthStatus =
   | 'initializing' // đang khôi phục phiên đăng nhập
@@ -55,6 +56,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       set({ status: 'authenticated', session, user: session.user });
+
+      // App đăng ký các handler hàng đợi trước khi khôi phục Auth. Một lượt
+      // flush sớm có thể phải chờ session; chạy lại ngay tại mốc này để kết quả
+      // học offline được ghi lên server trước khi học sinh mở màn tiếp theo.
+      void flushQueue();
 
       try {
         const profile = await fetchProfile(session.user.id);

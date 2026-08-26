@@ -3,6 +3,8 @@ import {
   clearQueue,
   enqueue,
   flushQueue,
+  getQueuedChallengeIds,
+  isAuthenticationPendingError,
   isRetriableError,
   queueSize,
   readQueue,
@@ -37,6 +39,12 @@ describe('Phân loại lỗi', () => {
 
   it('lỗi do RLS chặn thì KHÔNG xếp hàng — chạy lại bao nhiêu lần cũng hỏng', () => {
     expect(isRetriableError(validationError())).toBe(false);
+  });
+
+  it('nhận ra lỗi do phiên đăng nhập chưa khôi phục', () => {
+    expect(isAuthenticationPendingError(new Error('Phiên đăng nhập đã hết hạn.'))).toBe(true);
+    expect(isAuthenticationPendingError(new Error('CAN_DANG_NHAP'))).toBe(true);
+    expect(isAuthenticationPendingError(validationError())).toBe(false);
   });
 
   it('đang offline thì mọi lỗi đều coi là lỗi mạng', () => {
@@ -143,6 +151,20 @@ describe('Chạy lại hàng đợi khi có mạng', () => {
     expect(readQueue()[0].attempts).toBe(1);
   });
 
+  it('không xóa hay tăng số lần thử khi Auth chưa khôi phục xong', async () => {
+    registerOfflineHandler('submit-challenge-secure', async () => {
+      throw new Error('Phiên đăng nhập đã hết hạn. Em đăng nhập lại nhé.');
+    });
+
+    enqueue('submit-challenge-secure', { lessonId: 'a0', challengeId: 'a0-c1-first-program' });
+    enqueue('submit-challenge-secure', { lessonId: 'a0', challengeId: 'a0-c2-cout' });
+    const result = await flushQueue();
+
+    expect(result.dropped).toBe(0);
+    expect(result.remaining).toBe(2);
+    expect(readQueue().map((item) => item.attempts)).toEqual([0, 0]);
+  });
+
   /** Một mục hỏng vĩnh viễn không được phép chặn cả hàng đợi. */
   it('bỏ mục hỏng vĩnh viễn thay vì để nó kẹt mãi', async () => {
     registerOfflineHandler('save-draft', async () => {
@@ -218,5 +240,19 @@ describe('Hàng đợi sống sót qua việc đóng tab', () => {
   it('localStorage hỏng thì trả về hàng đợi rỗng chứ không làm sập ứng dụng', () => {
     localStorage.setItem('cq8:offline-queue', 'day khong phai JSON');
     expect(readQueue()).toEqual([]);
+  });
+
+  it('cung cấp node đang chờ để route mới không khóa nhầm học sinh', () => {
+    enqueue('submit-challenge-secure', {
+      lessonId: 'a0', challengeId: 'a0-c1-first-program', optimisticCorrect: true,
+    });
+    enqueue('submit-challenge-secure', {
+      lessonId: 'a0', challengeId: 'a0-c2-cout', optimisticCorrect: false,
+    });
+    enqueue('submit-challenge-secure', {
+      lessonId: 'a1', challengeId: 'a1-c1-move-right', optimisticCorrect: true,
+    });
+
+    expect(getQueuedChallengeIds('a0')).toEqual(['a0-c1-first-program']);
   });
 });

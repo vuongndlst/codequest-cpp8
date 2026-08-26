@@ -5,6 +5,7 @@ import { fetchClassSettings } from '@/services/supabase/gamification.repo';
 import { fetchAccessibleAreaControls } from '@/services/supabase/areaControls.repo';
 import { getPacingOverrides } from '@/utils/classPacing';
 import { isLessonUnlocked } from '@/utils/progression';
+import { getQueuedChallengeIds } from '@/services/offlineQueue';
 import type { ClassAreaControlRow, LessonProgressRow } from '@/types/database';
 
 interface LessonAccessState {
@@ -54,7 +55,23 @@ export function useLessonAccess(lessonId: string, options?: { disabled?: boolean
     ])
       .then(([progressRows, settings, areaControls]) => {
         if (cancelled) return;
-        setProgressByLesson(indexProgressByLesson(progressRows));
+        const indexed = indexProgressByLesson(progressRows);
+        const queuedChallengeIds = getQueuedChallengeIds(lessonId);
+        const persisted = indexed[lessonId];
+
+        // Khi Wi-Fi vừa rớt, route mới có thể mount lại trước khi Edge Function
+        // đồng bộ xong. Giữ các node đã làm trong snapshot UX để học sinh không
+        // bị đá ngược về đầu; máy chủ vẫn là nơi duy nhất cấp XP/Gem và xác nhận.
+        if (persisted && queuedChallengeIds.length > 0) {
+          indexed[lessonId] = {
+            ...persisted,
+            completed_challenges: [
+              ...new Set([...persisted.completed_challenges, ...queuedChallengeIds]),
+            ],
+          };
+        }
+
+        setProgressByLesson(indexed);
         setLegacyUnlocked(settings?.unlocked_lessons ?? []);
         setControls(areaControls);
       })
@@ -70,7 +87,7 @@ export function useLessonAccess(lessonId: string, options?: { disabled?: boolean
     return () => {
       cancelled = true;
     };
-  }, [disabled, isTeacher, profile?.class_name, user]);
+  }, [disabled, isTeacher, lessonId, profile?.class_name, user]);
 
   const control = controls.find((item) => item.lesson_id === lessonId) ?? null;
   const overrides = useMemo(() => getPacingOverrides(controls), [controls]);

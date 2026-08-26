@@ -15,7 +15,7 @@ vi.mock('@/hooks/useChallengeSession', () => ({ useChallengeSession:(options: un
   return {
     code:'', setCode:vi.fn(), isRestoring:false, result:null, isRunning:false, run:vi.fn(), reset:vi.fn(), saveState:'idle',
     hintLevel:0, unlockNextHint:vi.fn(), attemptCount:0, canViewSolution:false, solutionVisible:false, showSolution:vi.fn(),
-    highlightedLines:[], playKey:0, justCompleted:false, xpAwarded:0, gemsAwarded:0, newBadges:[], dismissBadges:vi.fn(), attemptsBeforeSolution:6,
+    highlightedLines:[], playKey:0, justCompleted:false, xpAwarded:0, gemsAwarded:0, newBadges:[], syncError:null, pendingSync:false, dismissBadges:vi.fn(), attemptsBeforeSolution:6,
   };
 } }));
 

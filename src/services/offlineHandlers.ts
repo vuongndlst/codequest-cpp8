@@ -46,7 +46,10 @@ export interface QueuedDraftPayload {
 export function initOfflineSync(): void {
   registerOfflineHandler('submit-challenge-secure', async (payload) => {
     const { submitChallengeRun } = await import('@/services/supabase/authoritative.repo');
-    await submitChallengeRun(payload as SubmitChallengeRunInput);
+    const { optimisticCorrect: _optimisticCorrect, ...input } = payload as SubmitChallengeRunInput & {
+      optimisticCorrect?: boolean;
+    };
+    await submitChallengeRun(input);
   });
 
   registerOfflineHandler('submit-checkpoint-secure', async (payload) => {

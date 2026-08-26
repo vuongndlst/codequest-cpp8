@@ -63,6 +63,8 @@ export function useChallengeSession({
   const [xpAwarded, setXpAwarded] = useState(0);
   const [gemsAwarded, setGemsAwarded] = useState(0);
   const [newBadges, setNewBadges] = useState<BadgeRow[]>([]);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [pendingSync, setPendingSync] = useState(false);
 
   const { saveState, flush, markSaved } = useAutoSave({
     userId,
@@ -84,6 +86,8 @@ export function useChallengeSession({
     setJustCompleted(false);
     setXpAwarded(0);
     setGemsAwarded(0);
+    setSyncError(null);
+    setPendingSync(false);
 
     void (async () => {
       const local = readLocalDraft(userId, challenge.id);
@@ -126,6 +130,8 @@ export function useChallengeSession({
     // Mỗi lần chạy là một bằng chứng mới. Nếu lần trước đúng nhưng lần này em
     // đang thử thay đổi code, không giữ bảng chiến thắng phủ lên kết quả mới.
     setJustCompleted(false);
+    setSyncError(null);
+    setPendingSync(false);
     setIsRunning(true);
     await flush();
 
@@ -156,8 +162,9 @@ export function useChallengeSession({
         code,
         hintLevelUsed: hintLevel,
       };
+      const queuedPayload = { ...payload, optimisticCorrect: runResult.isCorrect };
       let authoritative: SubmitChallengeRunResult | null = null;
-      const write = await runOrQueue('submit-challenge-secure', payload, async () => {
+      const write = await runOrQueue('submit-challenge-secure', queuedPayload, async () => {
         authoritative = await submitChallengeRun(payload);
       });
       if (!write.ok && !write.queued) throw write.error;
@@ -172,6 +179,7 @@ export function useChallengeSession({
             currentProgress?.completed_challenges.includes(challenge.id) ? 0 : challenge.xpReward,
           );
           setGemsAwarded(currentProgress?.completed_challenges.includes(challenge.id) ? 0 : 3);
+          setPendingSync(true);
           setJustCompleted(true);
         }
         return;
@@ -188,11 +196,17 @@ export function useChallengeSession({
       onProgressChange?.(saved.persistence.progress);
       setXpAwarded(saved.persistence.xpAwarded);
       setGemsAwarded(saved.persistence.gemsAwarded);
+      setPendingSync(false);
       setJustCompleted(true);
       await refreshProfile();
-    } catch {
+    } catch (error) {
       // Không công nhận phần thưởng nếu server từ chối. Kết quả chạy và chỉ dẫn
-      // sửa code vẫn hiển thị bình thường để không chặn việc học.
+      // sửa code vẫn hiển thị, đồng thời phải nói rõ vì sao chưa được mở màn kế.
+      setSyncError(
+        error instanceof Error
+          ? error.message
+          : 'Chưa lưu được tiến trình. Em kiểm tra mạng rồi bấm Chạy code lại nhé.',
+      );
     }
   }, [code, challenge, flush, attemptCount, persist, user, hintLevel, refreshProfile, onProgressChange, currentProgress]);
 
@@ -252,6 +266,8 @@ export function useChallengeSession({
     xpAwarded,
     gemsAwarded,
     newBadges,
+    syncError,
+    pendingSync,
     dismissBadges: () => setNewBadges([]),
     attemptsBeforeSolution: ATTEMPTS_BEFORE_SOLUTION,
   };
