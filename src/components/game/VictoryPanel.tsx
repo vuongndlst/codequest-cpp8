@@ -54,6 +54,7 @@ export function VictoryPanel({
   const dialogRef = useRef<HTMLElement>(null);
 
   const isBoss = challenge.kind === 'boss';
+  const hasNewReward = xpAwarded > 0 || gemsAwarded > 0;
   const par = result?.par ?? null;
   const levelProgress = getLevelProgress(totalXp ?? xpAwarded);
 
@@ -113,7 +114,7 @@ export function VictoryPanel({
       aria-labelledby="victory-heading"
       aria-describedby="victory-description"
     >
-      {!reducedMotion && xpAwarded > 0 && (
+      {!reducedMotion && hasNewReward && (
         <div className="cq-fireworks" aria-hidden="true">
           {Array.from({ length: 24 }, (_, index) => (
             <span key={index} style={{ '--spark': index } as CSSProperties} />
@@ -138,18 +139,24 @@ export function VictoryPanel({
         </div>
       </div>
 
-      {xpAwarded > 0 && (
-        <div className="relative z-10 mt-4 grid grid-cols-3 gap-2" aria-label="Phần thưởng nhiệm vụ">
+      <div
+        className="relative z-10 mt-4 rounded-2xl border border-treasure-400/35 bg-gradient-to-br from-treasure-400/15 via-abyss-900/80 to-quest-500/10 p-3 shadow-[0_12px_32px_rgba(0,0,0,.22)]"
+        data-testid="victory-rewards"
+      >
+        <p className="mb-2 text-center text-[11px] font-extrabold uppercase tracking-[.16em] text-treasure-200">
+          {hasNewReward ? 'Phần thưởng vừa nhận' : 'Phần thưởng đã nhận trước đó'}
+        </p>
+        <div className="grid grid-cols-3 gap-2" aria-label="Phần thưởng nhiệm vụ">
           <RewardCard
             icon={<Sparkles className="size-4" aria-hidden="true" />}
-            value={`+${shownXp}`}
-            label="XP"
+            value={xpAwarded > 0 ? `+${shownXp}` : `${totalXp ?? 0}`}
+            label={xpAwarded > 0 ? 'XP mới' : 'Tổng XP'}
             tone="cyan"
           />
           <RewardCard
             icon={<Gem className="size-4" aria-hidden="true" />}
-            value={`+${gemsAwarded}`}
-            label="Gem"
+            value={gemsAwarded > 0 ? `+${gemsAwarded}` : `${gemBalance ?? 0}`}
+            label={gemsAwarded > 0 ? 'Gem mới' : 'Gem hiện có'}
             tone="gold"
           />
           <RewardCard
@@ -159,7 +166,12 @@ export function VictoryPanel({
             tone="green"
           />
         </div>
-      )}
+        {!hasNewReward && (
+          <p className="mt-2 text-center text-xs leading-relaxed text-slate-300">
+            Đây là lượt luyện tập lại. XP và Gem đã được cộng ở lần hoàn thành đầu tiên nên không cộng lặp.
+          </p>
+        )}
+      </div>
 
       {typeof totalXp === 'number' && (
         <div className="relative z-10 mt-3 rounded-xl border border-quest-400/20 bg-quest-500/7 p-3">
@@ -179,9 +191,9 @@ export function VictoryPanel({
         </div>
       )}
 
-      {gemsAwarded > 0 && (
+      {hasNewReward && (
         <p className="relative z-10 mt-2 text-xs leading-relaxed text-treasure-200">
-          Gem dùng tại <strong>Kho trang bị</strong> để mở hiệu ứng pixel và phản hồi học tập. Số dư mới: <strong>{gemBalance ?? gemsAwarded} Gem</strong>.
+          Điểm kinh nghiệm giúp em lên cấp. Gem dùng tại <strong>Kho trang bị</strong> để mở hiệu ứng pixel và phản hồi học tập. Số dư mới: <strong>{gemBalance ?? gemsAwarded} Gem</strong>.
         </p>
       )}
 

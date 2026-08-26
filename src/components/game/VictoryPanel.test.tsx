@@ -47,9 +47,33 @@ describe('VictoryPanel popup', () => {
         onNext={vi.fn()}
       />,
     );
+    expect(screen.getByText('Phần thưởng vừa nhận')).toBeInTheDocument();
+    expect(screen.getByText('XP mới')).toBeInTheDocument();
+    expect(screen.getByText('+3')).toBeInTheDocument();
     expect(screen.getByText(/Cấp 2 · 115 XP/)).toBeInTheDocument();
-    expect(screen.getByText(/Gem dùng tại/)).toHaveTextContent('12 Gem');
+    expect(screen.getByText(/Điểm kinh nghiệm giúp em lên cấp/)).toHaveTextContent('12 Gem');
     expect(screen.getByText('Em vừa mở khóa kiến thức')).toBeInTheDocument();
     expect(screen.getByText(/Nhiệm vụ kế tiếp/)).toBeInTheDocument();
+  });
+
+  it('không làm khối thưởng biến mất khi học sinh luyện tập lại', () => {
+    render(
+      <VictoryPanel
+        challenge={challenge}
+        result={null}
+        xpAwarded={0}
+        gemsAwarded={0}
+        totalXp={115}
+        gemBalance={12}
+        nextLabel="Tiếp tục"
+        onNext={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('victory-rewards')).toBeInTheDocument();
+    expect(screen.getByText('Phần thưởng đã nhận trước đó')).toBeInTheDocument();
+    expect(screen.getByText(/Đây là lượt luyện tập lại/)).toBeInTheDocument();
+    expect(screen.getByText('Tổng XP')).toBeInTheDocument();
+    expect(screen.getByText('Gem hiện có')).toBeInTheDocument();
   });
 });

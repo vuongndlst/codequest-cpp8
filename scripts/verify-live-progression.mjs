@@ -101,6 +101,12 @@ try {
   if (!station1.persistence?.progress?.completed_challenges?.includes('a0-c1-first-program')) {
     throw new Error('Phản hồi trạm 1 chưa chứa tiến trình vừa hoàn thành.');
   }
+  if (station1.persistence.xpAwarded !== 10) {
+    throw new Error(`Trạm 1 cộng sai XP: nhận ${station1.persistence.xpAwarded}, cần 10.`);
+  }
+  if (station1.persistence.gemsAwarded !== 3) {
+    throw new Error(`Trạm 1 cộng sai Gem: nhận ${station1.persistence.gemsAwarded}, cần 3.`);
+  }
 
   const persistedRows = await requireData(
     student.from('lesson_progress').select('*').eq('lesson_id', 'a0'),
@@ -109,6 +115,31 @@ try {
   const persisted = persistedRows[0];
   if (!persisted?.completed_challenges?.includes('a0-c1-first-program')) {
     throw new Error('Database chưa lưu trạm 1 trước khi chuyển sang trạm 2.');
+  }
+
+  const profileAfterStation1 = await requireData(
+    student.from('profiles').select('total_xp,gem_balance').eq('id', temporaryUserId).single(),
+    'Không đọc được số dư sau trạm 1',
+  );
+  if (profileAfterStation1.total_xp !== 10 || profileAfterStation1.gem_balance !== 3) {
+    throw new Error(
+      `Số dư sau trạm 1 không đúng: ${profileAfterStation1.total_xp} XP, ${profileAfterStation1.gem_balance} Gem.`,
+    );
+  }
+
+  const station1Replay = await requireData(
+    student.functions.invoke('submit-challenge', {
+      body: {
+        lessonId: 'a0',
+        challengeId: 'a0-c1-first-program',
+        code: '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Xin chao ByteLand!" << endl;\n    return 0;\n}',
+        hintLevelUsed: 0,
+      },
+    }),
+    'Không nộp lại được trạm 1',
+  );
+  if (station1Replay.persistence.xpAwarded !== 0 || station1Replay.persistence.gemsAwarded !== 0) {
+    throw new Error('Làm lại trạm 1 vẫn cộng lặp XP hoặc Gem.');
   }
 
   const station2 = await requireData(
@@ -124,12 +155,30 @@ try {
   );
 
   if (!station2.grade?.isCorrect) throw new Error('Máy chủ không chấm đúng trạm 2.');
+  if (station2.persistence.xpAwarded !== 15 || station2.persistence.gemsAwarded !== 3) {
+    throw new Error(
+      `Trạm 2 cộng sai thưởng: ${station2.persistence.xpAwarded} XP, ${station2.persistence.gemsAwarded} Gem.`,
+    );
+  }
+
+  const profileAfterStation2 = await requireData(
+    student.from('profiles').select('total_xp,gem_balance').eq('id', temporaryUserId).single(),
+    'Không đọc được số dư sau trạm 2',
+  );
+  if (profileAfterStation2.total_xp !== 25 || profileAfterStation2.gem_balance !== 6) {
+    throw new Error(
+      `Số dư sau trạm 2 không đúng: ${profileAfterStation2.total_xp} XP, ${profileAfterStation2.gem_balance} Gem.`,
+    );
+  }
 
   console.log(JSON.stringify({
     ok: true,
     className: classroom.name,
     station1Persisted: true,
+    station1Reward: { xp: 10, gems: 3 },
+    replayReward: { xp: 0, gems: 0 },
     station2Accepted: true,
+    finalBalance: profileAfterStation2,
     completedChallenges: station2.persistence.progress.completed_challenges,
   }, null, 2));
 } finally {
