@@ -35,6 +35,7 @@ Thumbs.db
 
 # Bộ nhớ đệm công cụ
 .vite/
+.npm-cache/
 coverage/
 *.tsbuildinfo
 

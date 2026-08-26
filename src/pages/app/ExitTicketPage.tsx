@@ -7,8 +7,11 @@ import { getPacingOverrides } from '@/utils/classPacing';
 import { isLessonUnlocked } from '@/utils/progression';
 import { useAuthStore } from '@/stores/authStore';
 import { useLessonAccess } from '@/hooks/useLessonAccess';
-import { fetchExitTicket, submitExitTicket } from '@/services/supabase/exitTickets.repo';
-import { logActivityEvent } from '@/services/supabase/gamification.repo';
+import { fetchExitTicket } from '@/services/supabase/exitTickets.repo';
+import {
+  submitCheckpointSecure,
+  type SubmitCheckpointSecureResult,
+} from '@/services/supabase/authoritative.repo';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { ByteMascot } from '@/components/game/ByteMascot';
@@ -26,12 +29,10 @@ import {
 import {
   fetchAllLessonProgress,
   indexProgressByLesson,
-  upsertLessonProgress,
 } from '@/services/supabase/progress.repo';
 import { getRequiredChallengeIds } from '@/lessons';
 import type { LessonProgressRow } from '@/types/database';
 import { runOrQueue } from '@/services/offlineQueue';
-import { issueCertificate } from '@/services/certificateService';
 
 /**
  * Checkpoint cuối khu vực: nhiều dạng câu hỏi + một câu tự nhìn lại.
@@ -128,70 +129,36 @@ export function ExitTicketPage() {
     const outcome = scoreCheckpoint(questions, answers);
     const score = outcome.percent;
     const ticketPayload = {
-      userId: user.id,
       lessonId: lesson.id,
       answers,
-      score,
       reflection,
     };
 
     try {
-      const ticketWrite = await runOrQueue('submit-exit-ticket', ticketPayload, async () => {
-        await submitExitTicket(ticketPayload);
+      let authoritative: SubmitCheckpointSecureResult | null = null;
+      const ticketWrite = await runOrQueue('submit-checkpoint-secure', ticketPayload, async () => {
+        authoritative = await submitCheckpointSecure(ticketPayload);
       });
       if (!ticketWrite.ok && !ticketWrite.queued) throw ticketWrite.error;
       setSavedOffline(ticketWrite.queued);
 
-      let certificateProgress = progress;
-      let certificateCanSyncNow = !ticketWrite.queued;
-      if (outcome.passed && progress && progress.status !== 'completed') {
-        const progressPatch = {
-          status: 'completed',
-          progress_percent: 100,
-          stars: 3,
-          completed_at: new Date().toISOString(),
-        } as const;
-        let completedProgress: LessonProgressRow | null = null;
-        const progressWrite = await runOrQueue(
-          'upsert-lesson-progress',
-          { userId: user.id, lessonId: lesson.id, patch: progressPatch },
-          async () => {
-            completedProgress = await upsertLessonProgress(user.id, lesson.id, progressPatch);
-          },
-        );
-        if (!progressWrite.ok && !progressWrite.queued) throw progressWrite.error;
-        if (progressWrite.queued) certificateCanSyncNow = false;
-        setSavedOffline((current) => current || progressWrite.queued);
-        setProgress(
-          completedProgress ?? {
+      if (ticketWrite.queued) {
+        if (outcome.passed && progress) {
+          setProgress({
             ...progress,
-            ...progressPatch,
+            status: 'completed',
+            progress_percent: 100,
+            stars: 3,
+            completed_at: progress.completed_at ?? new Date().toISOString(),
             updated_at: new Date().toISOString(),
-          },
-        );
-        certificateProgress = completedProgress ?? {
-          ...progress,
-          ...progressPatch,
-          updated_at: new Date().toISOString(),
-        };
-        void logActivityEvent(user.id, {
-          eventType: 'lesson_completed',
-          lessonId: lesson.id,
-          metadata: { checkpointScore: score },
-        });
+          });
+        }
+        setSubmittedScore(score);
+      } else if (authoritative) {
+        const saved = authoritative as SubmitCheckpointSecureResult;
+        setProgress(saved.persistence.progress);
+        setSubmittedScore(saved.grade.percent);
       }
-      // Chứng chỉ là kết quả mặc định của checkpoint, không bắt học sinh phải
-      // tìm thêm một trang và bấm “Nhận”. Khi offline, trigger database sẽ cấp
-      // ngay lúc hàng đợi đồng bộ trạng thái completed.
-      if (outcome.passed && profile?.role === 'student' && certificateCanSyncNow) {
-        await issueCertificate(profile, lesson.id, certificateProgress);
-      }
-      setSubmittedScore(score);
-      void logActivityEvent(user.id, {
-        eventType: 'challenge_passed',
-        lessonId: lesson.id,
-        metadata: { kind: 'exit-ticket', score },
-      });
     } catch (submitError) {
       setError(
         submitError instanceof Error ? submitError.message : 'Không lưu được Exit Ticket.',

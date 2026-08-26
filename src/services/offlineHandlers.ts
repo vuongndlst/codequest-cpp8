@@ -2,6 +2,10 @@ import { registerOfflineHandler, startOfflineQueueWatcher } from './offlineQueue
 import type { LessonProgressPatch } from '@/services/supabase/progress.repo';
 import type { RecordAttemptInput } from '@/services/supabase/attempts.repo';
 import type { SubmitExitTicketInput } from '@/services/supabase/exitTickets.repo';
+import type {
+  SubmitChallengeRunInput,
+  SubmitCheckpointSecureInput,
+} from '@/services/supabase/authoritative.repo';
 
 /**
  * Nối hàng đợi offline với các repository.
@@ -40,6 +44,16 @@ export interface QueuedDraftPayload {
 }
 
 export function initOfflineSync(): void {
+  registerOfflineHandler('submit-challenge-secure', async (payload) => {
+    const { submitChallengeRun } = await import('@/services/supabase/authoritative.repo');
+    await submitChallengeRun(payload as SubmitChallengeRunInput);
+  });
+
+  registerOfflineHandler('submit-checkpoint-secure', async (payload) => {
+    const { submitCheckpointSecure } = await import('@/services/supabase/authoritative.repo');
+    await submitCheckpointSecure(payload as SubmitCheckpointSecureInput);
+  });
+
   registerOfflineHandler('record-attempt', async (payload) => {
     const { recordAttemptDirect } = await import('@/services/supabase/attempts.repo');
     await recordAttemptDirect(payload as RecordAttemptInput);

@@ -23,7 +23,7 @@ const MESSAGE_MAP: Array<{ match: RegExp; message: string }> = [
   },
   {
     match: /password should be at least/i,
-    message: 'Mật khẩu cần ít nhất 8 ký tự. Em đặt mật khẩu dài hơn một chút nhé.',
+    message: 'Mật khẩu cần ít nhất 10 ký tự. Em đặt một câu ngắn, dễ nhớ nhưng khó đoán nhé.',
   },
   {
     match: /password.*(weak|compromised|leaked|pwned)/i,
@@ -31,7 +31,15 @@ const MESSAGE_MAP: Array<{ match: RegExp; message: string }> = [
   },
   {
     match: /unable to validate email|invalid email/i,
-    message: 'Địa chỉ email chưa đúng định dạng. Ví dụ đúng: tenem@gmail.com',
+    message: 'Email trường chưa đúng. Em dùng mã học sinh 7 số, ví dụ 2406105@lsts.edu.vn.',
+  },
+  {
+    match: /mã học sinh lsts|7 chữ số/i,
+    message: 'Em dùng đúng mã học sinh gồm 7 chữ số và email @lsts.edu.vn nhé.',
+  },
+  {
+    match: /mã lớp chưa đúng|lớp đang tạm khóa/i,
+    message: 'Mã lớp chưa đúng hoặc giáo viên đang tạm khóa đăng ký. Em hỏi lại thầy cô nhé.',
   },
   {
     match: /for security purposes|rate limit|too many requests|over_email_send_rate/i,

@@ -5,13 +5,16 @@ import { getCodeRunner } from '@/services/runner/localRunner';
 import { useAuthStore } from '@/stores/authStore';
 import { useAutoSave, readLocalDraft } from './useAutoSave';
 import { fetchDraft } from '@/services/supabase/drafts.repo';
-import { countAttempts, recordAttempt } from '@/services/supabase/attempts.repo';
+import { countAttempts } from '@/services/supabase/attempts.repo';
 import { logActivityEvent } from '@/services/supabase/gamification.repo';
-import { completeChallenge } from '@/services/progressService';
-import { fetchAllLessonProgress, indexProgressByLesson } from '@/services/supabase/progress.repo';
-import { awardBadges, evaluateBadges, loadBadgeHistory } from '@/services/badgeService';
-import { fetchAllBadges, fetchUserBadges } from '@/services/supabase/gamification.repo';
-import { awardChallengeGems } from '@/services/supabase/equipment.repo';
+import {
+  fetchBadgesByCodes,
+  submitChallengeRun,
+  type SubmitChallengeRunResult,
+} from '@/services/supabase/authoritative.repo';
+import { runOrQueue } from '@/services/offlineQueue';
+import { getRequiredChallengeIds } from '@/lessons';
+import { calculateLessonPercent } from '@/utils/progression';
 import type { BadgeRow, LessonProgressRow } from '@/types/database';
 
 /**
@@ -24,35 +27,6 @@ import type { BadgeRow, LessonProgressRow } from '@/types/database';
 /** Số lần thử tối thiểu trước khi mở đáp án mẫu, khi giáo viên chưa bật quyền xem. */
 const ATTEMPTS_BEFORE_SOLUTION = 6;
 
-/**
- * Xét và trao huy hiệu.
- *
- * Tách ra khỏi hook để giữ phần `run()` dễ đọc, và để mọi lỗi ở đây đều bị
- * nuốt — huy hiệu là phần thưởng phụ, không bao giờ được phép chặn việc học.
- */
-async function checkBadges(
-  userId: string,
-  input: Omit<Parameters<typeof evaluateBadges>[0], 'history' | 'earnedCodes'>,
-): Promise<BadgeRow[]> {
-  try {
-    const [allBadges, userBadges, history] = await Promise.all([
-      fetchAllBadges(),
-      fetchUserBadges(userId),
-      loadBadgeHistory(userId),
-    ]);
-
-    const earnedIds = new Set(userBadges.map((badge) => badge.badge_id));
-    const earnedCodes = allBadges
-      .filter((badge) => earnedIds.has(badge.id))
-      .map((badge) => badge.code);
-
-    const codes = evaluateBadges({ ...input, history, earnedCodes });
-    return await awardBadges(userId, codes);
-  } catch {
-    return [];
-  }
-}
-
 interface UseChallengeSessionOptions {
   challenge: Challenge;
   /** false ở chế độ Demo — không ghi gì lên database */
@@ -61,6 +35,8 @@ interface UseChallengeSessionOptions {
   allowSolutionView?: boolean;
   /** Đẩy tiến trình vừa lưu vào lớp kiểm tra quyền trước khi cho chuyển màn. */
   onProgressChange?: (progress: LessonProgressRow) => void;
+  /** Snapshot dùng để mở màn kế tiếp ngay cả khi Wi-Fi vừa rớt. */
+  currentProgress?: LessonProgressRow | null;
 }
 
 export function useChallengeSession({
@@ -68,9 +44,9 @@ export function useChallengeSession({
   persist,
   allowSolutionView = false,
   onProgressChange,
+  currentProgress = null,
 }: UseChallengeSessionOptions) {
   const user = useAuthStore((state) => state.user);
-  const profile = useAuthStore((state) => state.profile);
   const refreshProfile = useAuthStore((state) => state.refreshProfile);
 
   const userId = persist ? (user?.id ?? null) : null;
@@ -171,75 +147,54 @@ export function useChallengeSession({
       return;
     }
 
-    if (!user || !profile) return;
-
-    // Ghi lại lần làm bài TRƯỚC khi xét huy hiệu, để thống kê lịch sử đã có
-    // lần chạy này. Hỏng thì bỏ qua, không chặn việc học.
-    await recordAttempt({
-      userId: user.id,
-      lessonId: challenge.lessonId,
-      challengeId: challenge.id,
-      code,
-      result: runResult,
-      hintLevelUsed: hintLevel,
-      attemptNumber: nextAttempt,
-    }).catch(() => undefined);
-
-    // Chưa đúng: chỉ xét huy hiệu ở lần chạy ĐẦU TIÊN của nhiệm vụ này.
-    // Giới hạn như vậy để học sinh bấm Chạy liên tục không tạo ra một loạt
-    // truy vấn database không cần thiết.
-    if (!runResult.isCorrect) {
-      if (attemptCount === 0) {
-        void checkBadges(user.id, {
-          challenge,
-          result: runResult,
-          attemptNumber: nextAttempt,
-          hintLevelUsed: hintLevel,
-          progressByLesson: {},
-        }).then(setNewBadges);
-      }
-      return;
-    }
+    if (!user) return;
 
     try {
-      const allProgress = await fetchAllLessonProgress(user.id);
-      const currentProgress = indexProgressByLesson(allProgress)[challenge.lessonId] ?? null;
-
-      const outcome = await completeChallenge({
-        userId: user.id,
-        profile,
+      const payload = {
         lessonId: challenge.lessonId,
-        challenge,
-        currentProgress,
+        challengeId: challenge.id,
+        code,
+        hintLevelUsed: hintLevel,
+      };
+      let authoritative: SubmitChallengeRunResult | null = null;
+      const write = await runOrQueue('submit-challenge-secure', payload, async () => {
+        authoritative = await submitChallengeRun(payload);
       });
+      if (!write.ok && !write.queued) throw write.error;
+
+      if (write.queued) {
+        // Local result is only an optimistic UX while offline. The queued code
+        // will be re-graded by the same interpreter on the server later.
+        if (runResult.isCorrect) {
+          const optimistic = buildOptimisticProgress(user.id, challenge, currentProgress);
+          onProgressChange?.(optimistic);
+          setXpAwarded(
+            currentProgress?.completed_challenges.includes(challenge.id) ? 0 : challenge.xpReward,
+          );
+          setGemsAwarded(currentProgress?.completed_challenges.includes(challenge.id) ? 0 : 3);
+          setJustCompleted(true);
+        }
+        return;
+      }
+
+      if (!authoritative) return;
+      const saved = authoritative as SubmitChallengeRunResult;
+      setAttemptCount(saved.persistence.attemptNumber);
+      setNewBadges(await fetchBadgesByCodes(saved.persistence.newBadgeCodes));
+      if (!saved.grade.isCorrect || !saved.persistence.progress) return;
 
       // useLessonAccess đã tải một snapshot khi vào màn. Nếu không cập nhật
       // snapshot này, nút Tiếp tục sẽ sang route mới trước và khóa nhầm màn kế.
-      onProgressChange?.(outcome.progress);
-      setXpAwarded(outcome.xpAwarded);
-      const newGems = await awardChallengeGems(challenge.id).catch(() => 0);
-      setGemsAwarded(newGems);
+      onProgressChange?.(saved.persistence.progress);
+      setXpAwarded(saved.persistence.xpAwarded);
+      setGemsAwarded(saved.persistence.gemsAwarded);
       setJustCompleted(true);
       await refreshProfile();
-
-      const awarded = await checkBadges(user.id, {
-        challenge,
-        result: runResult,
-        attemptNumber: nextAttempt,
-        hintLevelUsed: hintLevel,
-        // Dùng tiến trình VỪA cập nhật, nếu không thì huy hiệu Boss sẽ chậm một nhịp
-        progressByLesson: {
-          ...indexProgressByLesson(allProgress),
-          [challenge.lessonId]: outcome.progress,
-        },
-      });
-      setNewBadges(awarded);
     } catch {
-      // Chạy đúng rồi nhưng chưa lưu được tiến trình — vẫn báo hoàn thành cho
-      // học sinh, lần sau vào lại sẽ đồng bộ.
-      setJustCompleted(true);
+      // Không công nhận phần thưởng nếu server từ chối. Kết quả chạy và chỉ dẫn
+      // sửa code vẫn hiển thị bình thường để không chặn việc học.
     }
-  }, [code, challenge, flush, attemptCount, persist, user, profile, hintLevel, refreshProfile, onProgressChange]);
+  }, [code, challenge, flush, attemptCount, persist, user, hintLevel, refreshProfile, onProgressChange, currentProgress]);
 
   // --- Gợi ý -------------------------------------------------------------
   const unlockNextHint = useCallback(() => {
@@ -299,5 +254,34 @@ export function useChallengeSession({
     newBadges,
     dismissBadges: () => setNewBadges([]),
     attemptsBeforeSolution: ATTEMPTS_BEFORE_SOLUTION,
+  };
+}
+
+function buildOptimisticProgress(
+  userId: string,
+  challenge: Challenge,
+  current: LessonProgressRow | null,
+): LessonProgressRow {
+  const alreadyDone = current?.completed_challenges.includes(challenge.id) ?? false;
+  const completed = alreadyDone
+    ? (current?.completed_challenges ?? [])
+    : [...(current?.completed_challenges ?? []), challenge.id];
+  const required = getRequiredChallengeIds(challenge.lessonId);
+  const percent = calculateLessonPercent(completed, required);
+  const stars = percent < 70 ? 0 : percent < 100 ? 1 : 2;
+  const now = new Date().toISOString();
+
+  return {
+    id: current?.id ?? `local-${challenge.lessonId}`,
+    user_id: userId,
+    lesson_id: challenge.lessonId,
+    status: current?.status ?? 'in_progress',
+    progress_percent: percent,
+    stars: Math.max(current?.stars ?? 0, stars),
+    xp: (current?.xp ?? 0) + (alreadyDone ? 0 : challenge.xpReward),
+    completed_challenges: completed,
+    started_at: current?.started_at ?? now,
+    completed_at: current?.completed_at ?? null,
+    updated_at: now,
   };
 }

@@ -19,6 +19,8 @@ const MAX_ATTEMPTS_PER_ITEM = 5;
 
 /** Các loại thao tác được phép xếp hàng. */
 export type QueuedOperationType =
+  | 'submit-challenge-secure'
+  | 'submit-checkpoint-secure'
   | 'record-attempt'
   | 'upsert-lesson-progress'
   | 'add-experience'
@@ -106,6 +108,7 @@ export function isRetriableError(error: unknown): boolean {
     message.includes('failed to fetch') ||
     message.includes('networkerror') ||
     message.includes('network request failed') ||
+    message.includes('failed to send a request') ||
     message.includes('load failed') ||
     message.includes('không kết nối được') ||
     message.includes('timeout')

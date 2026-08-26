@@ -152,6 +152,7 @@ export function ChallengePage({
     challenge: learningChallenge,
     persist,
     onProgressChange: access.applyProgress,
+    currentProgress: access.progressByLesson[lessonId] ?? null,
   });
 
   const stageEvents = session.result?.worldEvents ?? NO_WORLD_EVENTS;

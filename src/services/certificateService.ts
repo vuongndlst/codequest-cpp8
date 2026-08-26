@@ -11,7 +11,6 @@ import { getLesson, getRequiredChallengeIds } from '@/lessons';
 import { CERTIFICATE_NAMES, COURSE_NAME, TEACHER_NAME, getLessonMeta } from '@/data/lessons.meta';
 import { requireSupabase } from '@/services/supabase/client';
 import { toRepositoryError } from '@/services/supabase/errors';
-import { logActivityEvent } from '@/services/supabase/gamification.repo';
 
 /**
  * Cấp chứng chỉ (mục 12 của đề bài).
@@ -193,40 +192,28 @@ export function syncCertificateIdentity(
 export async function issueCertificate(
   profile: ProfileRow,
   lessonId: string,
-  progress: LessonProgressRow | null,
+  _progress: LessonProgressRow | null,
 ): Promise<CertificateRow> {
   const supabase = requireSupabase();
 
   const existing = await fetchCertificate(profile.id, lessonId);
   if (existing) return existing;
 
-  const row = {
-    user_id: profile.id,
-    lesson_id: lessonId,
-    certificate_code: buildCertificateCode(lessonId, profile.id),
-    xp_at_issue: progress?.xp ?? 0,
-    stars_at_issue: progress?.stars ?? 0,
-    metadata: buildCertificateMetadata(profile, lessonId),
-  };
-
-  const { data, error } = await supabase.from('certificates').insert(row).select('*').single();
-
-  if (error) {
-    // 23505 = vi phạm ràng buộc duy nhất -> đã có người ghi trước, đọc lại bản đó
-    if (error.code === '23505') {
-      const raced = await fetchCertificate(profile.id, lessonId);
-      if (raced) return raced;
-    }
-    throw toRepositoryError(error, 'Không cấp được chứng chỉ.');
-  }
-
-  void logActivityEvent(profile.id, {
-    eventType: 'certificate_issued',
-    lessonId,
-    metadata: { certificateName: row.metadata.certificateName, code: row.certificate_code },
+  // Điều kiện và dữ liệu chứng chỉ được xác minh trong database. Trình duyệt
+  // chỉ yêu cầu đồng bộ, không được tự chọn XP, số sao hay trạng thái hoàn thành.
+  const { data, error } = await supabase.rpc('ensure_area_certificate', {
+    p_user_id: profile.id,
+    p_lesson_id: lessonId,
   });
 
-  return data as CertificateRow;
+  if (error) throw toRepositoryError(error, 'Không đồng bộ được chứng chỉ.');
+  if (data) return data as CertificateRow;
+
+  const issued = await fetchCertificate(profile.id, lessonId);
+  if (!issued) {
+    throw new Error('Khu vực chưa đủ điều kiện cấp chứng chỉ.');
+  }
+  return issued;
 }
 
 export async function fetchCertificate(

@@ -34,6 +34,9 @@ jobs:
       - name: Cài phụ thuộc
         run: npm ci
 
+      - name: Kiểm tra lỗ hổng dependency
+        run: npm audit --audit-level=high
+
       - name: Kiểm tra kiểu dữ liệu
         run: npm run typecheck
 

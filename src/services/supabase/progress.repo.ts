@@ -65,24 +65,14 @@ export async function upsertLessonProgress(
 
 /** Đánh dấu học sinh bắt đầu một bài học (chỉ tạo bản ghi nếu chưa có). */
 export async function ensureLessonStarted(
-  userId: string,
+  _userId: string,
   lessonId: string,
 ): Promise<LessonProgressRow | null> {
   try {
     const supabase = requireSupabase();
-    const { data, error } = await supabase
-      .from('lesson_progress')
-      .upsert(
-        {
-          user_id: userId,
-          lesson_id: lessonId,
-          status: 'in_progress' satisfies LessonStatus,
-          started_at: new Date().toISOString(),
-        },
-        { onConflict: 'user_id,lesson_id', ignoreDuplicates: true },
-      )
-      .select('*')
-      .maybeSingle();
+    const { data, error } = await supabase.rpc('ensure_lesson_started', {
+      p_lesson_id: lessonId,
+    });
 
     if (error) throw error;
     return (data as LessonProgressRow | null) ?? null;

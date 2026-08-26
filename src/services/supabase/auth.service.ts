@@ -20,6 +20,7 @@ export interface SignUpInput {
   password: string;
   fullName: string;
   className: string;
+  classCode: string;
   studentCode?: string;
   avatarId?: string;
 }
@@ -159,6 +160,7 @@ export async function signUp(input: SignUpInput): Promise<AuthResult<User>> {
         data: {
           full_name: input.fullName.trim(),
           class_name: input.className.trim(),
+          class_code: input.classCode.trim().toUpperCase(),
           student_code: input.studentCode?.trim() ?? '',
           avatar_id: input.avatarId ?? 'guardian-cyan',
         },

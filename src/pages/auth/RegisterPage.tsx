@@ -87,6 +87,7 @@ export function RegisterPage() {
       fullName: form.fullName,
       // Tên lớp thật sẽ được ghi đè sau khi vào lớp bằng mã
       className: '',
+      classCode: form.classCode,
       studentCode: form.studentCode,
       avatarId,
     });

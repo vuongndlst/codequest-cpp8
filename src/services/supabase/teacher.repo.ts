@@ -149,38 +149,12 @@ export async function resetChallengeForStudent(
 ): Promise<void> {
   try {
     const supabase = requireSupabase();
-
-    const { error: deleteError } = await supabase
-      .from('challenge_attempts')
-      .delete()
-      .eq('user_id', userId)
-      .eq('challenge_id', challengeId);
-
-    if (deleteError) throw deleteError;
-
-    const { data: progress, error: fetchError } = await supabase
-      .from('lesson_progress')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('lesson_id', lessonId)
-      .maybeSingle();
-
-    if (fetchError) throw fetchError;
-    if (!progress) return;
-
-    const row = progress as LessonProgressRow;
-    const remaining = row.completed_challenges.filter((id) => id !== challengeId);
-
-    const { error: updateError } = await supabase
-      .from('lesson_progress')
-      .update({
-        completed_challenges: remaining,
-        status: remaining.length === row.completed_challenges.length ? row.status : 'in_progress',
-        completed_at: null,
-      })
-      .eq('id', row.id);
-
-    if (updateError) throw updateError;
+    const { error } = await supabase.rpc('teacher_reset_challenge', {
+      p_student_id: userId,
+      p_lesson_id: lessonId,
+      p_challenge_id: challengeId,
+    });
+    if (error) throw error;
   } catch (error) {
     throw toRepositoryError(error, 'Không đặt lại được nhiệm vụ này.');
   }

@@ -86,8 +86,9 @@ describe('Ghi giao diện lên thẻ html', () => {
 });
 
 /**
- * `index.html` có một đoạn script chạy TRƯỚC React để trang không chớp sai màu
- * lúc tải. Đoạn đó phải đọc đúng khoá localStorage mà `theme.ts` ghi vào.
+ * `index.html` nạp một script chạy TRƯỚC React để trang không chớp sai màu lúc
+ * tải. File riêng giúp CSP không phải cho phép inline script, nhưng vẫn phải
+ * đọc đúng khoá localStorage mà `theme.ts` ghi vào.
  *
  * Hai nơi lệch nhau một ký tự thì lựa chọn của học sinh vẫn được lưu, vẫn được
  * đọc lại — nhưng mỗi lần mở trang sẽ chớp một nhịp màu ngược. Lỗi âm thầm,
@@ -95,20 +96,22 @@ describe('Ghi giao diện lên thẻ html', () => {
  */
 describe('Script chống nháy màu trong index.html', () => {
   const html = readFileSync(resolve(process.cwd(), 'index.html'), 'utf8');
+  const bootstrap = readFileSync(resolve(process.cwd(), 'public/theme-init.js'), 'utf8');
 
   it('dùng đúng khoá localStorage mà theme.ts ghi vào', () => {
-    expect(html).toContain(`localStorage.getItem('${THEME_STORAGE_KEY}')`);
+    expect(bootstrap).toContain(`localStorage.getItem('${THEME_STORAGE_KEY}')`);
   });
 
-  it('đặt data-theme ngay trong thẻ head, trước khi React chạy', () => {
+  it('nạp script đặt data-theme trong thẻ head, trước khi React chạy', () => {
     const headEnd = html.indexOf('</head>');
-    const script = html.indexOf('documentElement.dataset.theme');
+    const script = html.indexOf('<script src="./theme-init.js"></script>');
 
     expect(script).toBeGreaterThan(-1);
     expect(script).toBeLessThan(headEnd);
+    expect(bootstrap).toContain('document.documentElement.dataset.theme');
   });
 
   it('hỏi hệ điều hành bằng cùng một câu truy vấn với theme.ts', () => {
-    expect(html).toContain('(prefers-color-scheme: light)');
+    expect(bootstrap).toContain('(prefers-color-scheme: light)');
   });
 });

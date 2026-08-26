@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark light" />
     <meta name="theme-color" content="#070d1c" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' blob:; worker-src 'self' blob:; connect-src 'self' https://lqhxyojaysahipdmdixi.supabase.co wss://lqhxyojaysahipdmdixi.supabase.co ws://localhost:* ws://127.0.0.1:*"
+    />
     <meta
       name="description"
       content="CodeQuest C++ 8 — học C++ bằng cách điều khiển nhân vật, sửa Bug và giải cứu ByteLand. 45 nhiệm vụ tương tác dành cho học sinh lớp 8."
@@ -29,32 +34,8 @@
 
     <title>CodeQuest C++ 8 — Hành trình giải cứu ByteLand</title>
 
-    <!--
-      Đặt giao diện TRƯỚC khi trình duyệt vẽ khung hình đầu tiên.
-
-      Nếu để React làm việc này thì trang luôn chớp một nhịp màu tối rồi mới
-      chuyển sang màu sáng — trên máy phòng ICT chạy chậm, cú chớp đó kéo dài
-      nửa giây và nhìn như website bị lỗi.
-
-      Đoạn script cố ý viết thẳng ở đây, không tách file: nó phải chạy đồng bộ
-      và xong trước mọi thứ khác. Khoá lưu trữ phải khớp `src/utils/theme.ts`.
-    -->
-    <script>
-      (function () {
-        try {
-          var saved = localStorage.getItem('cq8:theme');
-          var theme =
-            saved === 'light' || saved === 'dark'
-              ? saved
-              : window.matchMedia('(prefers-color-scheme: light)').matches
-                ? 'light'
-                : 'dark';
-          document.documentElement.dataset.theme = theme;
-        } catch (error) {
-          document.documentElement.dataset.theme = 'dark';
-        }
-      })();
-    </script>
+    <!-- Chạy đồng bộ trước React để tránh chớp sai giao diện ở máy phòng ICT. -->
+    <script src="./theme-init.js"></script>
   </head>
   <body>
     <div id="root"></div>
