@@ -72,9 +72,16 @@ export function useChallengeSession({
     challengeId: challenge.id,
     code,
     enabled: persist && Boolean(user),
+    suspended: isRestoring,
   });
 
   const runnerRef = useRef(getCodeRunner());
+  const runningRef = useRef(false);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   // --- Khôi phục code đang làm dở ---------------------------------------
   useEffect(() => {
@@ -88,6 +95,8 @@ export function useChallengeSession({
     setGemsAwarded(0);
     setSyncError(null);
     setPendingSync(false);
+    setAttemptCount(0);
+    setNewBadges([]);
 
     void (async () => {
       const local = readLocalDraft(userId, challenge.id);
@@ -123,23 +132,26 @@ export function useChallengeSession({
     return () => {
       cancelled = true;
     };
-  }, [challenge.id, challenge.starterCode, persist, user, userId, markSaved]);
+  }, [challenge.id, challenge.starterCode, persist, user?.id, userId, markSaved]);
 
   // --- Chạy code ---------------------------------------------------------
   const run = useCallback(async () => {
+    if (runningRef.current || isRestoring) return;
+    runningRef.current = true;
+    try {
     // Mỗi lần chạy là một bằng chứng mới. Nếu lần trước đúng nhưng lần này em
     // đang thử thay đổi code, không giữ bảng chiến thắng phủ lên kết quả mới.
     setJustCompleted(false);
     setSyncError(null);
     setPendingSync(false);
     setIsRunning(true);
-    await flush();
+    void flush();
 
     const runResult = await runnerRef.current.run({ code, challenge });
+    if (!mountedRef.current) return;
 
     setResult(runResult);
     setPlayKey((key) => key + 1);
-    setIsRunning(false);
 
     const nextAttempt = attemptCount + 1;
     setAttemptCount(nextAttempt);
@@ -147,7 +159,7 @@ export function useChallengeSession({
     if (!persist) {
       if (runResult.isCorrect) {
         setXpAwarded(challenge.xpReward);
-        setGemsAwarded(3);
+        setGemsAwarded(challenge.kind === 'boss' ? 12 : 3);
         setJustCompleted(true);
       }
       return;
@@ -162,11 +174,12 @@ export function useChallengeSession({
         code,
         hintLevelUsed: hintLevel,
       };
-      const queuedPayload = { ...payload, optimisticCorrect: runResult.isCorrect };
+      const queuedPayload = { ...payload, userId: user.id, optimisticCorrect: runResult.isCorrect };
       let authoritative: SubmitChallengeRunResult | null = null;
       const write = await runOrQueue('submit-challenge-secure', queuedPayload, async () => {
         authoritative = await submitChallengeRun(payload);
       });
+      if (!mountedRef.current) return;
       if (!write.ok && !write.queued) throw write.error;
 
       if (write.queued) {
@@ -178,7 +191,7 @@ export function useChallengeSession({
           setXpAwarded(
             currentProgress?.completed_challenges.includes(challenge.id) ? 0 : challenge.xpReward,
           );
-          setGemsAwarded(currentProgress?.completed_challenges.includes(challenge.id) ? 0 : 3);
+          setGemsAwarded(currentProgress?.completed_challenges.includes(challenge.id) ? 0 : challenge.kind === 'boss' ? 12 : 3);
           setPendingSync(true);
           setJustCompleted(true);
         }
@@ -188,8 +201,13 @@ export function useChallengeSession({
       if (!authoritative) return;
       const saved = authoritative as SubmitChallengeRunResult;
       setAttemptCount(saved.persistence.attemptNumber);
-      setNewBadges(await fetchBadgesByCodes(saved.persistence.newBadgeCodes));
-      if (!saved.grade.isCorrect || !saved.persistence.progress) return;
+      void fetchBadgesByCodes(saved.persistence.newBadgeCodes).then(badges => {
+        if (mountedRef.current) setNewBadges(badges);
+      }).catch(() => { /* Thông báo huy hiệu không được chặn kết quả đã lưu. */ });
+      if (!saved.grade.isCorrect || !saved.persistence.progress) {
+        if (runResult.isCorrect) setSyncError('Máy chủ chưa xác nhận bài đạt. Em tải lại trang để nhận nội dung mới nhất rồi chạy lại; bản nháp của em đã được giữ.');
+        return;
+      }
 
       // useLessonAccess đã tải một snapshot khi vào màn. Nếu không cập nhật
       // snapshot này, nút Tiếp tục sẽ sang route mới trước và khóa nhầm màn kế.
@@ -200,6 +218,7 @@ export function useChallengeSession({
       setJustCompleted(true);
       await refreshProfile();
     } catch (error) {
+      if (!mountedRef.current) return;
       // Không công nhận phần thưởng nếu server từ chối. Kết quả chạy và chỉ dẫn
       // sửa code vẫn hiển thị, đồng thời phải nói rõ vì sao chưa được mở màn kế.
       setSyncError(
@@ -208,7 +227,13 @@ export function useChallengeSession({
           : 'Chưa lưu được tiến trình. Em kiểm tra mạng rồi bấm Chạy code lại nhé.',
       );
     }
-  }, [code, challenge, flush, attemptCount, persist, user, hintLevel, refreshProfile, onProgressChange, currentProgress]);
+    } catch {
+      if (mountedRef.current) setSyncError('Chưa chạy được chương trình. Code của em vẫn được giữ; em thử chạy lại nhé.');
+    } finally {
+      runningRef.current = false;
+      if (mountedRef.current) setIsRunning(false);
+    }
+  }, [code, challenge, flush, attemptCount, persist, user, hintLevel, refreshProfile, onProgressChange, currentProgress, isRestoring]);
 
   // --- Gợi ý -------------------------------------------------------------
   const unlockNextHint = useCallback(() => {

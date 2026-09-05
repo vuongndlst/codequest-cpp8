@@ -1,4 +1,5 @@
-import { registerOfflineHandler, startOfflineQueueWatcher } from './offlineQueue';
+import { registerOfflineHandler, setQueueUserResolver, startOfflineQueueWatcher } from './offlineQueue';
+import { useAuthStore } from '@/stores/authStore';
 import type { LessonProgressPatch } from '@/services/supabase/progress.repo';
 import type { RecordAttemptInput } from '@/services/supabase/attempts.repo';
 import type { SubmitExitTicketInput } from '@/services/supabase/exitTickets.repo';
@@ -44,17 +45,22 @@ export interface QueuedDraftPayload {
 }
 
 export function initOfflineSync(): void {
+  setQueueUserResolver(() => useAuthStore.getState().user?.id ?? null);
   registerOfflineHandler('submit-challenge-secure', async (payload) => {
     const { submitChallengeRun } = await import('@/services/supabase/authoritative.repo');
-    const { optimisticCorrect: _optimisticCorrect, ...input } = payload as SubmitChallengeRunInput & {
+    const { optimisticCorrect: _optimisticCorrect, userId, ...input } = payload as SubmitChallengeRunInput & {
       optimisticCorrect?: boolean;
+      userId: string;
     };
+    if (userId !== useAuthStore.getState().user?.id) throw new Error('Phiên đăng nhập đã thay đổi.');
     await submitChallengeRun(input);
   });
 
   registerOfflineHandler('submit-checkpoint-secure', async (payload) => {
     const { submitCheckpointSecure } = await import('@/services/supabase/authoritative.repo');
-    await submitCheckpointSecure(payload as SubmitCheckpointSecureInput);
+    const { userId, ...input } = payload as SubmitCheckpointSecureInput & { userId: string };
+    if (userId !== useAuthStore.getState().user?.id) throw new Error('Phiên đăng nhập đã thay đổi.');
+    await submitCheckpointSecure(input);
   });
 
   registerOfflineHandler('record-attempt', async (payload) => {

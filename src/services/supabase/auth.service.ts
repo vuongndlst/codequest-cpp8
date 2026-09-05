@@ -27,27 +27,21 @@ export interface SignUpInput {
 
 export const LSTS_EMAIL_DOMAIN = 'lsts.edu.vn';
 
-export const MIN_PASSWORD_LENGTH = 10;
+export const MIN_PASSWORD_LENGTH = 8;
 
 /**
  * Đánh giá độ mạnh mật khẩu.
  *
- * Quy tắc chọn theo hướng dẫn hiện hành của NIST: ĐỘ DÀI quan trọng hơn việc
- * bắt buộc đủ loại ký tự. Bắt học sinh lớp 8 phải có ký tự đặc biệt thường dẫn
- * tới `Abc@1234` — dài 8, đủ loại, nhưng nằm trong mọi từ điển dò mật khẩu.
- *
- * Ở đây yêu cầu tối thiểu 10 ký tự và ít nhất hai nhóm ký tự, đồng thời chặn
- * những mật khẩu quá dễ đoán.
+ * Tối thiểu 8 ký tự theo chính sách của lớp. Độ mạnh và lời khuyên chỉ để
+ * tham khảo; không ép học sinh dùng thêm nhóm ký tự hay mật khẩu dài hơn.
  */
 export type PasswordStrength = 'weak' | 'fair' | 'strong';
 
 /**
  * Những mật khẩu bị dò đầu tiên trong mọi cuộc tấn công.
  *
- * So khớp theo PHẦN LÕI chứ không theo chuỗi con: `Abc1234567` có chứa "abc123"
- * nhưng là mật khẩu hoàn toàn hợp lệ, chặn nó đi thì học sinh bực mà chẳng an
- * toàn hơn. Ngược lại `password123` phải bị chặn vì lõi của nó đúng là
- * "password".
+ * So khớp theo lõi, không theo chuỗi con. Danh sách chỉ tạo lời khuyên,
+ * không ngăn đăng ký khi mật khẩu đã đủ 8 ký tự.
  */
 const COMMON_PASSWORDS = [
   'password', 'matkhau', 'qwerty', 'qwertyuiop', 'asdfghjkl', 'iloveyou',
@@ -78,12 +72,12 @@ export function checkPassword(password: string, context: { email?: string; fullN
     return {
       error: `Mật khẩu cần ít nhất ${MIN_PASSWORD_LENGTH} ký tự (hiện có ${password.length}).`,
       strength: 'weak',
-      advice: ['Một câu ngắn dễ nhớ thường vừa dài vừa khó đoán, ví dụ: MeoCuaEmTen4Chan'],
+      advice: [],
     };
   }
 
-  if (password.length > 72) {
-    return { error: 'Mật khẩu dài tối đa 72 ký tự.', strength: 'weak', advice: [] };
+  if (new TextEncoder().encode(password).length > 72) {
+    return { error: 'Mật khẩu dài tối đa 72 byte; ký tự có dấu có thể chiếm nhiều byte.', strength: 'weak', advice: [] };
   }
 
   const lower = password.toLowerCase();
@@ -94,53 +88,30 @@ export function checkPassword(password: string, context: { email?: string; fullN
     danh sách bị đoán" thì mơ hồ hơn. Nên cái cụ thể được kiểm tra trước.
   */
   if (/^\d+$/.test(password)) {
-    return {
-      error: 'Mật khẩu toàn chữ số rất dễ đoán. Em thêm chữ cái vào nhé.',
-      strength: 'weak',
-      advice: [],
-    };
+    advice.push('Em có thể thêm chữ để mật khẩu khó đoán hơn.');
   }
 
   if (/^(.)\1+$/.test(password)) {
-    return { error: 'Mật khẩu không nên chỉ gồm một ký tự lặp lại.', strength: 'weak', advice: [] };
+    advice.push('Tránh dùng một ký tự lặp lại.');
   }
 
   const core = passwordCore(password);
   if (core.length >= 4 && COMMON_PASSWORDS.includes(core)) {
-    return {
-      error: 'Mật khẩu này nằm trong danh sách bị đoán đầu tiên. Em chọn mật khẩu khác nhé.',
-      strength: 'weak',
-      advice: [],
-    };
+    advice.push('Mật khẩu này phổ biến; em nên chọn một cụm từ riêng dễ nhớ.');
   }
 
-  // Không được chứa chính email hoặc tên của mình
+  // Khuyên tránh dùng thông tin định danh, không chặn đăng ký.
   const emailName = context.email?.split('@')[0]?.toLowerCase();
   if (emailName && emailName.length >= 4 && lower.includes(emailName)) {
-    return {
-      error: 'Mật khẩu không nên chứa tên email của em — người khác đoán ra ngay.',
-      strength: 'weak',
-      advice: [],
-    };
+    advice.push('Tránh dùng mã học sinh hoặc email làm mật khẩu.');
   }
 
   const groups = [/[a-z]/, /[A-Z]/, /\d/, /[^A-Za-z0-9]/].filter((re) => re.test(password)).length;
 
-  if (groups < 2) {
-    return {
-      error: 'Mật khẩu cần ít nhất hai loại ký tự, ví dụ chữ và số.',
-      strength: 'weak',
-      advice: [],
-    };
-  }
-
-  if (password.length < 14) advice.push('Mật khẩu dài hơn 14 ký tự sẽ an toàn hơn nhiều');
-  if (groups < 3) advice.push('Thêm chữ hoa hoặc ký tự đặc biệt để mạnh hơn');
-
   const strength: PasswordStrength =
-    password.length >= 14 && groups >= 3 ? 'strong' : 'fair';
+    advice.length > 0 ? 'weak' : password.length >= 12 && groups >= 2 ? 'strong' : 'fair';
 
-  return { error: null, strength, advice };
+  return { error: null, strength, advice: advice.slice(0, 1) };
 }
 
 /**

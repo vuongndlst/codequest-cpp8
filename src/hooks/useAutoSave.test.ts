@@ -45,6 +45,17 @@ describe('Lưu tạm trong localStorage', () => {
 });
 
 describe('Tự động lưu', () => {
+  it('không ghi đè bản nháp trong lúc đang khôi phục dù rời trang', async () => {
+    writeLocalDraft('u1', BASE.challengeId, 'bài đang làm dở');
+    const { result, unmount } = renderHook(() => useAutoSave({
+      ...BASE, code: 'starter chưa khôi phục', suspended: true,
+    }));
+    await act(async () => { await result.current.flush(); });
+    unmount();
+    expect(readLocalDraft('u1', BASE.challengeId)?.code).toBe('bài đang làm dở');
+    expect(saveDraftMock).not.toHaveBeenCalled();
+  });
+
   beforeEach(() => {
     localStorage.clear();
     saveDraftMock.mockReset();

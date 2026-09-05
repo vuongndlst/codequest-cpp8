@@ -11,10 +11,12 @@ import {
 } from './auth.service';
 
 describe('Độ dài mật khẩu', () => {
-  it('yêu cầu tối thiểu 10 ký tự', () => {
-    expect(MIN_PASSWORD_LENGTH).toBe(10);
-    expect(validatePassword('Abc12345')).toContain('ít nhất 10 ký tự');
-    expect(validatePassword('Abc123456')).toContain('ít nhất 10 ký tự');
+  it('chấp nhận từ 8 ký tự, không ép loại ký tự', () => {
+    expect(MIN_PASSWORD_LENGTH).toBe(8);
+    expect(validatePassword('Abc1234')).toContain('ít nhất 8 ký tự');
+    expect(validatePassword('Abc12345')).toBeNull();
+    expect(validatePassword('abcdefgh')).toBeNull();
+    expect(validatePassword('12345678')).toBeNull();
     expect(validatePassword('Abc1234567')).toBeNull();
   });
 
@@ -27,37 +29,39 @@ describe('Độ dài mật khẩu', () => {
   });
 });
 
-describe('Chặn mật khẩu dễ đoán', () => {
-  it('chặn các mật khẩu nằm đầu mọi danh sách dò', () => {
+describe('Lời khuyên không cản đăng ký', () => {
+  it('nhắc mật khẩu phổ biến nhưng vẫn nhận khi đủ độ dài', () => {
     for (const weak of ['password123', 'matkhau2026', 'qwertyuiop', 'codequest1']) {
-      expect(validatePassword(weak)).toContain('danh sách bị đoán đầu tiên');
+      expect(validatePassword(weak)).toBeNull();
+      expect(checkPassword(weak).advice.length).toBeGreaterThan(0);
     }
   });
 
-  it('chặn mật khẩu toàn chữ số', () => {
-    expect(validatePassword('1234567890')).toContain('toàn chữ số');
-    expect(validatePassword('9876543210')).toContain('toàn chữ số');
+  it('cho phép mật khẩu toàn chữ số', () => {
+    expect(validatePassword('1234567890')).toBeNull();
+    expect(validatePassword('9876543210')).toBeNull();
   });
 
-  it('chặn mật khẩu chỉ gồm một ký tự lặp lại', () => {
-    expect(validatePassword('aaaaaaaaaaaa')).toContain('một ký tự lặp lại');
+  it('chỉ khuyên tránh ký tự lặp lại', () => {
+    expect(validatePassword('aaaaaaaaaaaa')).toBeNull();
+    expect(checkPassword('aaaaaaaaaaaa').advice.join(' ')).toContain('lặp lại');
   });
 
   /** Mật khẩu chứa chính tên email là thứ người quen đoán ra đầu tiên. */
-  it('chặn mật khẩu chứa tên email của chính học sinh', () => {
+  it('không cấm mật khẩu chứa email của chính học sinh', () => {
     const error = validatePassword('nguyenvanan2026', { email: 'nguyenvanan@gmail.com' });
-    expect(error).toContain('tên email');
+    expect(error).toBeNull();
   });
 
-  it('yêu cầu ít nhất hai loại ký tự', () => {
-    expect(validatePassword('abcdefghijkl')).toContain('hai loại ký tự');
+  it('không bắt buộc hai loại ký tự', () => {
+    expect(validatePassword('abcdefghijkl')).toBeNull();
     expect(validatePassword('abcdefghij12')).toBeNull();
   });
 });
 
 describe('Đánh giá độ mạnh', () => {
   it('mật khẩu vừa đủ điều kiện thì xếp mức tạm ổn', () => {
-    const check = checkPassword('caycauvong26');
+    const check = checkPassword('caycau26');
     expect(check.error).toBeNull();
     expect(check.strength).toBe('fair');
   });
@@ -74,14 +78,18 @@ describe('Đánh giá độ mạnh', () => {
    * `Abc@1234` đủ bốn nhóm ký tự nhưng chỉ 8 ký tự và nằm trong mọi từ điển dò.
    */
   it('một câu dài dễ nhớ mạnh hơn một từ ngắn có ký tự đặc biệt', () => {
-    expect(validatePassword('Abc@1234')).not.toBeNull();
+    expect(validatePassword('Abc@1234')).toBeNull();
     expect(checkPassword('ConMeoNhaEmMau3Mau').strength).toBe('strong');
   });
 
   it('mật khẩu chưa đủ mạnh thì có lời khuyên cụ thể', () => {
-    const check = checkPassword('caycauvong26');
+    const check = checkPassword('12345678');
     expect(check.advice.length).toBeGreaterThan(0);
-    expect(check.advice.join(' ')).toContain('14 ký tự');
+    expect(check.error).toBeNull();
+  });
+  it('giới hạn byte UTF-8 cả với ký tự tiếng Việt', () => {
+    expect(validatePassword('ế'.repeat(25))).toContain('72 byte');
+    expect(validatePassword('ế'.repeat(8))).toBeNull();
   });
 });
 

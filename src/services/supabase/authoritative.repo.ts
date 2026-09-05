@@ -7,7 +7,7 @@ const GRADING_ERROR_MESSAGES: Record<string, string> = {
   CAN_DANG_NHAP: 'Phiên đăng nhập đã hết hạn. Em đăng nhập lại nhé.',
   NHIEM_VU_KHONG_TON_TAI: 'Nhiệm vụ này chưa có trong hệ thống chấm bài.',
   KHU_VUC_KHONG_TON_TAI: 'Khu vực này chưa có trong hệ thống.',
-  NHIEM_VU_CHUA_MO: 'Em hoàn thành nhiệm vụ ngay trước đó để mở màn này nhé.',
+  NHIEM_VU_CHUA_MO: 'Nhiệm vụ chưa mở: em cần hoàn thành phần trước và khu vực phải được thầy cô cho phép truy cập.',
   CHUA_HOAN_THANH_NHIEM_VU: 'Em cần hoàn thành đủ nhiệm vụ bắt buộc trước checkpoint.',
   QUA_NHIEU_YEU_CAU: 'Em chạy hơi nhanh. Chờ vài giây rồi thử lại nhé.',
   CODE_QUA_DAI: 'Chương trình dài quá 10.000 ký tự. Em rút gọn rồi chạy lại nhé.',

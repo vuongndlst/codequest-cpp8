@@ -33,6 +33,12 @@ export function useLessonAccess(lessonId: string, options?: { disabled?: boolean
   const [legacyUnlocked, setLegacyUnlocked] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(!disabled && !isTeacher);
   const [error, setError] = useState<string | null>(null);
+  const [syncVersion, setSyncVersion] = useState(0);
+  useEffect(() => {
+    const reload = () => setSyncVersion(version => version + 1);
+    window.addEventListener('cq8:progress-synced', reload);
+    return () => window.removeEventListener('cq8:progress-synced', reload);
+  }, []);
 
   useEffect(() => {
     if (disabled || isTeacher) {
@@ -56,7 +62,7 @@ export function useLessonAccess(lessonId: string, options?: { disabled?: boolean
       .then(([progressRows, settings, areaControls]) => {
         if (cancelled) return;
         const indexed = indexProgressByLesson(progressRows);
-        const queuedChallengeIds = getQueuedChallengeIds(lessonId);
+        const queuedChallengeIds = getQueuedChallengeIds(lessonId, user.id);
         const persisted = indexed[lessonId];
 
         // Khi Wi-Fi vừa rớt, route mới có thể mount lại trước khi Edge Function
@@ -87,7 +93,7 @@ export function useLessonAccess(lessonId: string, options?: { disabled?: boolean
     return () => {
       cancelled = true;
     };
-  }, [disabled, isTeacher, lessonId, profile?.class_name, user]);
+  }, [disabled, isTeacher, lessonId, profile?.class_name, user?.id, syncVersion]);
 
   const control = controls.find((item) => item.lesson_id === lessonId) ?? null;
   const overrides = useMemo(() => getPacingOverrides(controls), [controls]);

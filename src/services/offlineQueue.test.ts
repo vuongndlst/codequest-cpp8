@@ -10,7 +10,9 @@ import {
   readQueue,
   registerOfflineHandler,
   runOrQueue,
+  setQueueUserResolver,
 } from './offlineQueue';
+beforeEach(() => setQueueUserResolver(() => 'u1'));
 
 /** Giả lập lỗi mạng — đúng loại lỗi mà fetch ném ra khi mất kết nối. */
 function networkError(): Error {
@@ -156,8 +158,8 @@ describe('Chạy lại hàng đợi khi có mạng', () => {
       throw new Error('Phiên đăng nhập đã hết hạn. Em đăng nhập lại nhé.');
     });
 
-    enqueue('submit-challenge-secure', { lessonId: 'a0', challengeId: 'a0-c1-first-program' });
-    enqueue('submit-challenge-secure', { lessonId: 'a0', challengeId: 'a0-c2-cout' });
+    enqueue('submit-challenge-secure', { userId: 'u1', lessonId: 'a0', challengeId: 'a0-c1-first-program' });
+    enqueue('submit-challenge-secure', { userId: 'u1', lessonId: 'a0', challengeId: 'a0-c2-cout' });
     const result = await flushQueue();
 
     expect(result.dropped).toBe(0);
@@ -178,7 +180,7 @@ describe('Chạy lại hàng đợi khi có mạng', () => {
     expect(queueSize()).toBe(0);
   });
 
-  it('bỏ mục sau 5 lần thử lại không thành', async () => {
+  it('giữ bài khi mất mạng quá 5 lần', async () => {
     registerOfflineHandler('save-draft', async () => {
       throw networkError();
     });
@@ -189,10 +191,10 @@ describe('Chạy lại hàng đợi khi có mạng', () => {
       await flushQueue();
     }
 
-    expect(queueSize()).toBe(0);
+    expect(queueSize()).toBe(1);
   });
 
-  it('một mục hỏng không làm hỏng các mục khác', async () => {
+  it('mạng hỏng thì chưa nộp bước sau trước bước đang chờ', async () => {
     const ok = vi.fn().mockResolvedValue(undefined);
     registerOfflineHandler('add-experience', ok);
     registerOfflineHandler('save-draft', async () => {
@@ -204,9 +206,9 @@ describe('Chạy lại hàng đợi khi có mạng', () => {
 
     const result = await flushQueue();
 
-    expect(ok).toHaveBeenCalledOnce();
-    expect(result.succeeded).toBe(1);
-    expect(result.remaining).toBe(1);
+    expect(ok).not.toHaveBeenCalled();
+    expect(result.succeeded).toBe(0);
+    expect(result.remaining).toBe(2);
   });
 
   it('chưa có handler thì giữ lại chờ lần sau, không bỏ mất dữ liệu', async () => {
@@ -244,7 +246,7 @@ describe('Hàng đợi sống sót qua việc đóng tab', () => {
 
   it('cung cấp node đang chờ để route mới không khóa nhầm học sinh', () => {
     enqueue('submit-challenge-secure', {
-      lessonId: 'a0', challengeId: 'a0-c1-first-program', optimisticCorrect: true,
+      userId: 'u1', lessonId: 'a0', challengeId: 'a0-c1-first-program', optimisticCorrect: true,
     });
     enqueue('submit-challenge-secure', {
       lessonId: 'a0', challengeId: 'a0-c2-cout', optimisticCorrect: false,
@@ -253,6 +255,32 @@ describe('Hàng đợi sống sót qua việc đóng tab', () => {
       lessonId: 'a1', challengeId: 'a1-c1-move-right', optimisticCorrect: true,
     });
 
-    expect(getQueuedChallengeIds('a0')).toEqual(['a0-c1-first-program']);
+    expect(getQueuedChallengeIds('a0', 'u1')).toEqual(['a0-c1-first-program']);
+    expect(getQueuedChallengeIds('a0', 'u2')).toEqual([]);
+  });
+  it('không nộp bài của tài khoản trước hoặc bài chưa rõ chủ sở hữu', async () => {
+    const handler = vi.fn().mockResolvedValue(undefined);
+    registerOfflineHandler('submit-challenge-secure', handler);
+    enqueue('submit-challenge-secure', { userId: 'u2', challengeId: 'c1' });
+    enqueue('submit-challenge-secure', { challengeId: 'legacy' });
+    enqueue('submit-challenge-secure', { userId: 'u1', challengeId: 'c2' });
+    await flushQueue();
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenCalledWith({ userId: 'u1', challengeId: 'c2' });
+    expect(readQueue()).toHaveLength(2);
+  });
+  it('hai lần flush cùng lúc không nộp trùng và không xóa bài vừa thêm', async () => {
+    let release!: () => void;
+    const pending = new Promise<void>(resolve => { release = resolve; });
+    const handler = vi.fn(() => pending);
+    registerOfflineHandler('save-draft', handler);
+    enqueue('save-draft', { code: 'old' });
+    const first = flushQueue();
+    const second = flushQueue();
+    enqueue('save-draft', { code: 'new' });
+    release();
+    await Promise.all([first, second]);
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(readQueue().map(item => item.payload)).toEqual([{ code: 'new' }]);
   });
 });

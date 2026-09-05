@@ -98,7 +98,14 @@ interface ChallengePageProps {
   demo?: boolean;
 }
 
-export function ChallengePage({
+export function ChallengePage(props: ChallengePageProps = {}) {
+  const params = useParams();
+  const userId = useAuthStore(state => state.user?.id);
+  const key = `${props.demo ? 'demo' : userId}:${props.lessonIdOverride ?? params.lessonId}:${props.challengeIdOverride ?? params.challengeId}`;
+  return <ChallengeSessionPage key={key} {...props} />;
+}
+
+function ChallengeSessionPage({
   lessonIdOverride,
   challengeIdOverride,
   persist = true,
@@ -652,7 +659,9 @@ export function ChallengePage({
                       : session.result.diagnostics[0]?.message ?? 'Xem phản hồi dưới editor rồi sửa một chỗ.'
                 : currentStageEvent
                   ? `→ ${currentStageEvent.message}`
-                  : '→ Byte đang ở vị trí xuất phát. Bấm Bước tiếp để quan sát từng lệnh.'}
+                  : replaySpeed === 'step'
+                    ? '→ Byte đang ở vị trí xuất phát. Bấm Bước tiếp để quan sát từng lệnh.'
+                    : '→ Byte đang chuẩn bị thực hiện lệnh đầu tiên.'}
             </span>
             <span className="shrink-0 rounded-full border border-cyan-300/35 bg-cyan-300/10 px-2.5 py-1 font-mono text-xs font-bold tabular-nums text-cyan-100">
               {replay.total === 0 ? `${passedRequiredCount}/${requiredTests.length} mục tiêu` : `${replay.playedCount}/${replay.total} bước`}

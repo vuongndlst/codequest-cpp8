@@ -1,5 +1,16 @@
 import { readFileSync } from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
+import { build } from 'esbuild';
+import { fileURLToPath } from 'node:url';
+import { setTimeout as delay } from 'node:timers/promises';
+
+// Bundle only local curriculum data in memory; never export secrets or answers to disk.
+const bundle = await build({
+  entryPoints: [fileURLToPath(new URL('../src/lessons/index.ts', import.meta.url))],
+  bundle: true, write: false, format: 'esm', platform: 'node',
+  alias: { '@': fileURLToPath(new URL('../src', import.meta.url)) },
+});
+const { LESSONS } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
 
 function loadEnvFile(path) {
   const values = {};
@@ -80,10 +91,21 @@ try {
     auth: { autoRefreshToken: false, persistSession: false },
   });
   await requireData(student.auth.signInWithPassword({ email, password }), 'Không đăng nhập được');
+  // Public student API (not admin) verifies the actual 8-character Auth policy.
+  await requireData(student.auth.updateUser({ password: 'Test2026' }), 'Mật khẩu 8 ký tự bị từ chối');
+  await requireData(student.auth.signInWithPassword({ email, password: 'Test2026' }), 'Không đăng nhập được bằng mật khẩu 8 ký tự');
   await requireData(
     student.rpc('join_class_by_code', { p_code: classroom.join_code }),
     'Không vào được lớp kiểm thử',
   );
+
+  const lockedArea = LESSONS.find(lesson => lesson.id === 'a1').challenges[0];
+  const lockedResponse = await student.functions.invoke('submit-challenge', {
+    body: { lessonId: 'a1', challengeId: lockedArea.id, code: lockedArea.solution, hintLevelUsed: 0 },
+  });
+  if (!lockedResponse.error) throw new Error('Máy chủ cho nộp khu vực 1 khi chưa hoàn thành khu vực 0.');
+  const lockedBody = await lockedResponse.error.context?.json();
+  if (lockedBody?.error !== 'NHIEM_VU_CHUA_MO') throw new Error('Không xác nhận được cổng khóa khu vực.');
 
   const station1 = await requireData(
     student.functions.invoke('submit-challenge', {
@@ -181,9 +203,56 @@ try {
     finalBalance: profileAfterStation2,
     completedChallenges: station2.persistence.progress.completed_challenges,
   }, null, 2));
+
+  if (process.argv.includes('--all')) {
+    let expectedXp = 25;
+    let expectedGems = 6;
+    let firstCheckpointTime = null;
+    for (const lesson of LESSONS) {
+      for (const challenge of lesson.challenges) {
+        if (['a0-c1-first-program', 'a0-c2-cout'].includes(challenge.id)) continue;
+        // A single test student, well below 20 submissions/minute. Not a load test.
+        await delay(3500);
+        const saved = await requireData(student.functions.invoke('submit-challenge', {
+          body: { lessonId: lesson.id, challengeId: challenge.id, code: challenge.solution, hintLevelUsed: 0 },
+        }), `Nộp ${challenge.id}`);
+        const gems = challenge.kind === 'boss' ? 12 : 3;
+        if (!saved.grade.isCorrect || saved.persistence.xpAwarded !== challenge.xpReward || saved.persistence.gemsAwarded !== gems) {
+          throw new Error(`${challenge.id}: chấm hoặc thưởng sai: ${JSON.stringify(saved)}`);
+        }
+        expectedXp += challenge.xpReward;
+        expectedGems += gems;
+        console.log(`PASS ${challenge.id}: +${challenge.xpReward} XP, +${gems} Gem`);
+      }
+      // Checkpoint quota: 10 per 300 seconds. Wait before the 11th, without burst load.
+      if (lesson.id === 'a10' && firstCheckpointTime) {
+        const remaining = 302000 - (Date.now() - firstCheckpointTime);
+        if (remaining > 0) { console.log('Đợi cửa sổ giới hạn checkpoint, không tăng tải máy chủ.'); await delay(remaining); }
+      }
+      const answers = Object.fromEntries(lesson.exitTicket.questions.map(question => [question.id,
+        question.correctIndices ?? question.correctOrder ??
+        (question.matches ? Object.fromEntries(question.matches.map(pair => [pair.left, pair.right])) : undefined) ??
+        question.acceptedAnswers?.[0] ?? question.correctIndex ?? 0,
+      ]));
+      if (!firstCheckpointTime) firstCheckpointTime = Date.now();
+      const checkpoint = await requireData(student.functions.invoke('submit-checkpoint', {
+        body: { lessonId: lesson.id, answers, reflection: 'Kiểm thử tự động, không phải dữ liệu học sinh thật.' },
+      }), `Checkpoint ${lesson.id}`);
+      if (!checkpoint.grade.passed || checkpoint.persistence.progress.status !== 'completed' || !checkpoint.persistence.certificate) {
+        throw new Error(`Không hoàn thành/cấp chứng chỉ cho ${lesson.id}: ${JSON.stringify(checkpoint)}`);
+      }
+      console.log(`PASS checkpoint ${lesson.id}: hoàn thành khu vực, có chứng chỉ`);
+    }
+    const finalProfile = await requireData(student.from('profiles').select('total_xp,gem_balance').eq('id', temporaryUserId).single(), 'Số dư cuối');
+    if (finalProfile.total_xp !== expectedXp || finalProfile.gem_balance !== expectedGems) throw new Error('Tổng thưởng toàn khóa không khớp.');
+    const certificates = await requireData(student.from('certificates').select('lesson_id'), 'Danh sách chứng chỉ');
+    if (certificates.length !== LESSONS.length) throw new Error('Số chứng chỉ không đủ.');
+    console.log(JSON.stringify({ allPassed: true, challenges: 50, areas: LESSONS.length, certificates: certificates.length, expectedXp, expectedGems, finalProfile }));
+  }
 } finally {
   if (temporaryUserId) {
     const { error } = await admin.auth.admin.deleteUser(temporaryUserId);
-    if (error) console.error(`Cảnh báo: chưa xóa được tài khoản tạm: ${error.message}`);
+    if (error) { console.error(`Cảnh báo: chưa xóa được tài khoản tạm: ${error.message}`); process.exitCode = 1; }
+    else console.log('Đã xóa tài khoản kiểm thử tạm và dữ liệu liên quan.');
   }
 }

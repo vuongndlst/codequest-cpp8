@@ -54,6 +54,8 @@ interface UseAutoSaveOptions {
   code: string;
   /** false ở chế độ Demo — chỉ lưu localStorage, không đụng database */
   enabled: boolean;
+  /** Không ghi starter code trong lúc còn đang đọc bản nháp cũ. */
+  suspended?: boolean;
 }
 
 export function useAutoSave({
@@ -62,6 +64,7 @@ export function useAutoSave({
   challengeId,
   code,
   enabled,
+  suspended = false,
 }: UseAutoSaveOptions) {
   const [saveState, setSaveState] = useState<SaveState>('idle');
 
@@ -72,6 +75,7 @@ export function useAutoSave({
 
   const persist = useCallback(
     async (value: string) => {
+      if (suspended) return;
       if (value === lastSavedRef.current) return;
 
       // Tầng 1 luôn chạy trước, và luôn thành công về mặt trải nghiệm
@@ -94,7 +98,7 @@ export function useAutoSave({
         setSaveState(navigator.onLine ? 'failed' : 'local_only');
       }
     },
-    [userId, lessonId, challengeId, enabled],
+    [userId, lessonId, challengeId, enabled, suspended],
   );
 
   /** Lưu ngay lập tức — dùng khi bấm Chạy, chuyển challenge, rời trang. */
@@ -108,7 +112,7 @@ export function useAutoSave({
 
   // Debounce theo thay đổi của code
   useEffect(() => {
-    if (code === lastSavedRef.current) return;
+    if (suspended || code === lastSavedRef.current) return;
 
     setSaveState('editing');
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -120,13 +124,13 @@ export function useAutoSave({
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [code, persist]);
+  }, [code, persist, suspended]);
 
   // Rời trang / chuyển tab -> lưu nốt.
   // Chỉ kịp ghi localStorage một cách chắc chắn; ghi database là nỗ lực thêm.
   useEffect(() => {
     const handleLeave = () => {
-      if (codeRef.current !== lastSavedRef.current) {
+      if (!suspended && codeRef.current !== lastSavedRef.current) {
         writeLocalDraft(userId, challengeId, codeRef.current);
       }
     };
@@ -143,12 +147,12 @@ export function useAutoSave({
       document.removeEventListener('visibilitychange', handleVisibility);
       handleLeave();
     };
-  }, [userId, challengeId, flush]);
+  }, [userId, challengeId, flush, suspended]);
 
   // Có mạng lại -> đồng bộ phần chưa kịp lưu
   useEffect(() => {
     const handleOnline = () => {
-      if (codeRef.current !== lastSavedRef.current || saveState === 'local_only') {
+      if (!suspended && (codeRef.current !== lastSavedRef.current || saveState === 'local_only' || saveState === 'failed')) {
         lastSavedRef.current = '';
         void persist(codeRef.current);
       }
@@ -156,7 +160,7 @@ export function useAutoSave({
 
     window.addEventListener('online', handleOnline);
     return () => window.removeEventListener('online', handleOnline);
-  }, [persist, saveState]);
+  }, [persist, saveState, suspended]);
 
   /** Gọi khi nạp code từ nguồn khác (bản nháp trên server, nút Đặt lại). */
   const markSaved = useCallback((value: string) => {

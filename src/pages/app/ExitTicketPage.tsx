@@ -42,6 +42,12 @@ import { runOrQueue } from '@/services/offlineQueue';
  */
 export function ExitTicketPage() {
   const { lessonId = '' } = useParams();
+  const userId = useAuthStore((state) => state.user?.id);
+  return <CheckpointSessionPage key={`${userId}:${lessonId}`} />;
+}
+
+function CheckpointSessionPage() {
+  const { lessonId = '' } = useParams();
   const user = useAuthStore((state) => state.user);
   const profile = useAuthStore((state) => state.profile);
   const lesson = getLesson(lessonId);
@@ -55,6 +61,12 @@ export function ExitTicketPage() {
   const [error, setError] = useState<string | null>(null);
   const [savedOffline, setSavedOffline] = useState(false);
   const [progress, setProgress] = useState<LessonProgressRow | null>(null);
+  const [syncVersion, setSyncVersion] = useState(0);
+  useEffect(() => {
+    const synced = () => { if (savedOffline) setSyncVersion(version => version + 1); };
+    window.addEventListener('cq8:progress-synced', synced);
+    return () => window.removeEventListener('cq8:progress-synced', synced);
+  }, [savedOffline]);
 
   useEffect(() => {
     if (!user || !lesson) {
@@ -80,6 +92,7 @@ export function ExitTicketPage() {
         setAnswers(restored);
         setReflection(existing.reflection ?? '');
         setSubmittedScore(existing.score);
+        setSavedOffline(false);
       } catch {
         // Chưa làm lần nào -> để trống, không phải lỗi
       } finally {
@@ -90,7 +103,7 @@ export function ExitTicketPage() {
     return () => {
       cancelled = true;
     };
-  }, [user, lesson]);
+  }, [user?.id, lesson, syncVersion]);
 
   if (!lesson) return <NotFoundPage />;
   if (isLoading || access.isLoading) return <LoadingState label="Đang mở Exit Ticket…" />;
@@ -136,7 +149,7 @@ export function ExitTicketPage() {
 
     try {
       let authoritative: SubmitCheckpointSecureResult | null = null;
-      const ticketWrite = await runOrQueue('submit-checkpoint-secure', ticketPayload, async () => {
+      const ticketWrite = await runOrQueue('submit-checkpoint-secure', { ...ticketPayload, userId: user.id }, async () => {
         authoritative = await submitCheckpointSecure(ticketPayload);
       });
       if (!ticketWrite.ok && !ticketWrite.queued) throw ticketWrite.error;
@@ -207,7 +220,7 @@ export function ExitTicketPage() {
             const nextLesson = LESSONS.find((item) => item.order === lesson.order + 1);
             const nextControl = access.controls.find((item) => item.lesson_id === nextLesson?.id);
             const pacing = getPacingOverrides(access.controls);
-            const nextUnlocked = nextLesson ? isLessonUnlocked(nextLesson.id, {
+            const nextUnlocked = nextLesson && !savedOffline ? isLessonUnlocked(nextLesson.id, {
               progressByLesson: {
                 ...access.progressByLesson,
                 [lesson.id]: progress ?? access.progressByLesson[lesson.id],
@@ -230,12 +243,13 @@ export function ExitTicketPage() {
                         ? 'Giáo viên đang giữ khu vực này để cả lớp học cùng nhịp. Em có thể xem chứng chỉ hoặc luyện lại bài cũ.'
                         : 'Khu vực tiếp theo sẽ mở theo tiến độ của lớp.'}
                   </p>
-                  <Link
+                  {!savedOffline && <Link
                     to={`/app/certificates/${lesson.id}`}
                     className="mt-1 inline-flex text-xs font-semibold text-treasure-300 hover:text-treasure-200"
                   >
                     ✓ Chứng chỉ khu vực đã được cấp tự động · Xem ngay
-                  </Link>
+                  </Link>}
+                  {savedOffline && <p className="text-sm text-treasure-300">Kết quả đang chờ đồng bộ. Khi có mạng, máy chủ sẽ xác nhận để mở khu vực tiếp theo và cấp chứng chỉ.</p>}
                 </div>
                 <Link to={nextUnlocked ? firstChallengeHref(nextLesson.id) : '/app'}>
                   <Button trailingIcon={<ArrowRight className="size-4" aria-hidden="true" />}>

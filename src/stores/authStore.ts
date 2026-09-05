@@ -28,6 +28,7 @@ interface AuthState {
 }
 
 let unsubscribe: (() => void) | null = null;
+let syncListenerAttached = false;
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   status: 'initializing',
@@ -41,6 +42,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
    * Gọi một lần khi ứng dụng khởi động.
    */
   initialize: async () => {
+    if (!syncListenerAttached && typeof window !== 'undefined') {
+      window.addEventListener('cq8:progress-synced', () => { void get().refreshProfile(); });
+      syncListenerAttached = true;
+    }
     if (!isSupabaseConfigured || !supabase) {
       set({ status: 'not_configured', session: null, user: null, profile: null });
       return;
@@ -98,6 +103,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!user) return;
     try {
       const profile = await fetchProfile(user.id);
+      if (get().user?.id !== user.id) return;
       set({ profile, profileError: null });
     } catch (error) {
       set({

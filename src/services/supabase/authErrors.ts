@@ -23,7 +23,7 @@ const MESSAGE_MAP: Array<{ match: RegExp; message: string }> = [
   },
   {
     match: /password should be at least/i,
-    message: 'Mật khẩu cần ít nhất 10 ký tự. Em đặt một câu ngắn, dễ nhớ nhưng khó đoán nhé.',
+    message: 'Mật khẩu cần ít nhất 8 ký tự.',
   },
   {
     match: /password.*(weak|compromised|leaked|pwned)/i,

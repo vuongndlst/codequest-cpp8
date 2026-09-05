@@ -24,8 +24,7 @@ export function PasswordStrengthMeter({
   if (!password) {
     return (
       <p className="text-xs text-slate-500">
-        Ít nhất {MIN_PASSWORD_LENGTH} ký tự. Một câu ngắn dễ nhớ thường an toàn hơn một từ có ký
-        tự lạ.
+        Ít nhất {MIN_PASSWORD_LENGTH} ký tự. Không bắt buộc chữ hoa, số hoặc ký tự đặc biệt.
       </p>
     );
   }

@@ -15,7 +15,6 @@
 
 const STORAGE_KEY = 'cq8:offline-queue';
 const MAX_QUEUE_SIZE = 200;
-const MAX_ATTEMPTS_PER_ITEM = 5;
 
 /** Các loại thao tác được phép xếp hàng. */
 export type QueuedOperationType =
@@ -32,13 +31,17 @@ export interface QueuedOperation {
   type: QueuedOperationType;
   payload: unknown;
   queuedAt: string;
-  /** Số lần đã thử chạy lại — quá ngưỡng thì bỏ để hàng đợi không kẹt mãi */
+  /** Số lần đã thử; không xóa bài chỉ vì mạng hỏng nhiều lần. */
   attempts: number;
 }
 
 type OperationHandler = (payload: unknown) => Promise<void>;
 
 const handlers = new Map<QueuedOperationType, OperationHandler>();
+let currentUserId: () => string | null = () => null;
+export function setQueueUserResolver(resolve: () => string | null): void {
+  currentUserId = resolve;
+}
 
 /**
  * Đăng ký cách chạy lại một loại thao tác.
@@ -58,7 +61,11 @@ export function readQueue(): QueuedOperation[] {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as QueuedOperation[];
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed.filter(item =>
+      item && typeof item.id === 'string' && typeof item.type === 'string'
+      && item.payload && typeof item.payload === 'object'
+      && typeof item.attempts === 'number',
+    ) : [];
   } catch {
     return [];
   }
@@ -80,16 +87,18 @@ function writeQueue(queue: QueuedOperation[]): void {
  * Đây chỉ là dữ liệu mở khóa ở tầng UX. Edge Function vẫn chấm lại và database
  * vẫn kiểm tra thứ tự nhiệm vụ, nên sửa localStorage không thể tạo XP/Gem thật.
  */
-export function getQueuedChallengeIds(lessonId: string): string[] {
+export function getQueuedChallengeIds(lessonId: string, userId: string): string[] {
   const ids = readQueue()
     .filter((item) => item.type === 'submit-challenge-secure')
     .map((item) => item.payload as {
       lessonId?: unknown;
       challengeId?: unknown;
       optimisticCorrect?: unknown;
+      userId?: unknown;
     })
     .filter((payload) =>
       payload.lessonId === lessonId &&
+      payload.userId === userId &&
       typeof payload.challengeId === 'string' &&
       payload.optimisticCorrect === true,
     )
@@ -187,7 +196,7 @@ export interface FlushResult {
   processed: number;
   succeeded: number;
   remaining: number;
-  /** Số mục bị bỏ vì thử lại quá nhiều lần */
+  /** Số mục bị máy chủ từ chối vĩnh viễn (không phải lỗi mạng). */
   dropped: number;
 }
 
@@ -197,7 +206,13 @@ export interface FlushResult {
  * Thứ tự quan trọng: nếu bản ghi tiến trình được xếp trước bản ghi cộng XP thì
  * phải chạy đúng thứ tự đó, không thì số liệu sẽ lệch.
  */
-export async function flushQueue(): Promise<FlushResult> {
+let activeFlush: Promise<FlushResult> | null = null;
+export function flushQueue(): Promise<FlushResult> {
+  if (!activeFlush) activeFlush = flushQueueOnce().finally(() => { activeFlush = null; });
+  return activeFlush;
+}
+
+async function flushQueueOnce(): Promise<FlushResult> {
   const queue = readQueue();
   if (queue.length === 0) {
     return { processed: 0, succeeded: 0, remaining: 0, dropped: 0 };
@@ -210,6 +225,14 @@ export async function flushQueue(): Promise<FlushResult> {
   for (let index = 0; index < queue.length; index += 1) {
     const item = queue[index];
     const handler = handlers.get(item.type);
+    const owner = (item.payload as { userId?: string } | null)?.userId;
+    const secure = item.type === 'submit-challenge-secure' || item.type === 'submit-checkpoint-secure';
+    // Không gán bài offline cho học sinh đăng nhập sau trên cùng máy. Mục cũ
+    // chưa có chủ sở hữu được giữ lại, không tự đoán tài khoản để nộp.
+    if ((secure && (!owner || owner !== currentUserId())) || (owner && owner !== currentUserId())) {
+      stillPending.push(item);
+      continue;
+    }
 
     // Chưa có handler (vd. trang chưa nạp xong module đó) -> giữ lại chờ lần sau
     if (!handler) {
@@ -230,22 +253,36 @@ export async function flushQueue(): Promise<FlushResult> {
 
       const attempts = item.attempts + 1;
 
-      if (!isRetriableError(error) || attempts >= MAX_ATTEMPTS_PER_ITEM) {
+      if (!isRetriableError(error)) {
         // Bỏ hẳn: một mục hỏng vĩnh viễn không được phép chặn cả hàng đợi
         dropped += 1;
         continue;
       }
 
-      stillPending.push({ ...item, attempts });
+      // Dừng ở lỗi mạng: nộp node sau trước node này sẽ bị từ chối thứ tự.
+      // Không xóa bài chỉ vì Wi-Fi hỏng nhiều lần.
+      stillPending.push({ ...item, attempts }, ...queue.slice(index + 1));
+      break;
     }
   }
 
-  writeQueue(stillPending);
+  // Một lần chạy mới có thể enqueue trong lúc đang await. Giữ các mục đó.
+  const snapshotIds = new Set(queue.map(item => item.id));
+  const latest = readQueue();
+  const latestIds = new Set(latest.map(item => item.id));
+  const remaining = [
+    ...stillPending.filter(item => latestIds.has(item.id)),
+    ...latest.filter(item => !snapshotIds.has(item.id)),
+  ];
+  writeQueue(remaining);
+  if (succeeded > 0 && typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('cq8:progress-synced'));
+  }
 
   return {
     processed: queue.length,
     succeeded,
-    remaining: stillPending.length,
+    remaining: remaining.length,
     dropped,
   };
 }

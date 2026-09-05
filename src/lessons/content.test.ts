@@ -7,6 +7,20 @@ import { parse } from '@/validators/parser';
 import type { ExitTicketQuestion } from '@/types/content';
 
 describe('Curriculum Area 0–10', () => {
+  it('bài debug tìm kiếm thực sự phát hiện truy cập quá cuối mảng', () => {
+    const challenge = LESSONS.find(lesson => lesson.id === 'a9')!.challenges[2];
+    expect(analyzeChallenge(challenge.solution!, challenge).isCorrect).toBe(true);
+    const faulty = challenge.solution!.replace('i < size', 'i <= size');
+    expect(analyzeChallenge(faulty, challenge).isCorrect).toBe(false);
+    expect(analyzeChallenge(challenge.starterCode, challenge).isCorrect).toBe(false);
+  });
+
+  it('boss tìm kiếm không đạt nếu in cứng chỉ số của ví dụ', () => {
+    const challenge = LESSONS.find(lesson => lesson.id === 'a9')!.challenges[3];
+    const hardcoded = challenge.solution!.replace('cout << findFirst(codes, 6, target)', 'cout << 3');
+    expect(analyzeChallenge(hardcoded, challenge).isCorrect).toBe(false);
+  });
+
   it('có đủ mười một khu vực và 45–55 màn hoàn chỉnh', () => {
     expect(LESSONS.map((lesson) => lesson.id)).toEqual(['a0', 'a1', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8', 'a9', 'a10']);
     const total = LESSONS.reduce((sum, lesson) => sum + lesson.challenges.length, 0);
