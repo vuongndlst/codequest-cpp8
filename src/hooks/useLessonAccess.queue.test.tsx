@@ -69,4 +69,21 @@ describe('useLessonAccess với kết quả đang chờ đồng bộ', () => {
       'a0-c1-first-program',
     ]);
   });
+
+  it('tách riêng nhiệm vụ chờ xác nhận với nhiệm vụ máy chủ đã lưu', async () => {
+    fetchAllLessonProgress.mockResolvedValue([
+      { ...progress, completed_challenges: ['a0-c1-first-program'] },
+    ]);
+    fetchClassSettings.mockResolvedValue(null);
+    fetchAccessibleAreaControls.mockResolvedValue([]);
+    getQueuedChallengeIds.mockReturnValue(['a0-c1-first-program', 'a0-c2-cout']);
+    act(() => useAuthStore.setState({ user: { id: profile.id } as User, profile }));
+
+    const { result } = renderHook(() => useLessonAccess('a0'));
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    // Bài máy chủ đã xác nhận thì không còn nằm trong nhóm chờ, dù hàng đợi
+    // vẫn giữ bản sao của nó.
+    expect(result.current.pendingChallengeIds).toEqual(['a0-c2-cout']);
+  });
 });

@@ -90,6 +90,8 @@ export function isRetriableError(error: unknown): boolean {
   const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
   return ['failed to fetch', 'networkerror', 'network request failed', 'failed to send a request', 'load failed', 'không kết nối được', 'timeout'].some(part => message.includes(part));
 }
+/** Lý do giữ bài mà học sinh PHẢI thấy: hàng đợi tự thử lại cũng vô ích cho tới khi đăng nhập lại. */
+export const AUTH_PENDING_MESSAGE = 'Phiên đăng nhập đã hết hạn. Em đăng nhập lại để bài được gửi đi.';
 export function isAuthenticationPendingError(error: unknown): boolean {
   const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
   return ['can_dang_nhap', 'cần đăng nhập', 'phiên đăng nhập', 'jwt'].some(part => message.includes(part));
@@ -141,7 +143,13 @@ async function flushQueueOnce(): Promise<FlushResult> {
         localStorage.removeItem(PREFIX + item.id);
         succeeded++;
       } catch (error) {
-        if (isAuthenticationPendingError(error)) break;
+        if (isAuthenticationPendingError(error)) {
+          // Không đánh dấu `blocked`: bài sẽ tự đi tiếp khi phiên được khôi phục.
+          // Nhưng phải ghi lại lý do, nếu không banner chỉ nói "đang chờ" trong
+          // khi thứ thật sự cần là học sinh đăng nhập lại.
+          if (localStorage.getItem(PREFIX + item.id)) writeItem({ ...item, lastError: AUTH_PENDING_MESSAGE });
+          break;
+        }
         const retryable = isRetriableError(error);
         if (localStorage.getItem(PREFIX + item.id)) writeItem({ ...item, attempts: item.attempts + 1,
           blocked: !retryable, lastError: retryable ? 'Đang chờ kết nối máy chủ.' : 'Máy chủ chưa chấp nhận bài. Em kiểm tra quyền mở nhiệm vụ rồi đồng bộ lại.' });

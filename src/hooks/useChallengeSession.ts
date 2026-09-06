@@ -13,7 +13,7 @@ import {
   submitChallengeRun,
   type SubmitChallengeRunResult,
 } from '@/services/supabase/authoritative.repo';
-import { runOrQueue } from '@/services/offlineQueue';
+import { isAuthenticationPendingError, runOrQueue } from '@/services/offlineQueue';
 import { getRequiredChallengeIds } from '@/lessons';
 import { calculateLessonPercent } from '@/utils/progression';
 import type { BadgeRow, LessonProgressRow } from '@/types/database';
@@ -66,6 +66,9 @@ export function useChallengeSession({
   const [newBadges, setNewBadges] = useState<BadgeRow[]>([]);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [pendingSync, setPendingSync] = useState(false);
+  /* Bài bị giữ vì hết phiên đăng nhập, KHÔNG phải vì mạng chập chờn. Hai thứ này
+     cần hai lời nhắn khác nhau: một cái tự khỏi, một cái chờ em đăng nhập lại. */
+  const [pendingAuth, setPendingAuth] = useState(false);
 
   const { saveState, flush, markSaved } = useAutoSave({
     userId,
@@ -96,6 +99,7 @@ export function useChallengeSession({
     setGemsAwarded(0);
     setSyncError(null);
     setPendingSync(false);
+    setPendingAuth(false);
     setAttemptCount(0);
     setNewBadges([]);
 
@@ -145,6 +149,7 @@ export function useChallengeSession({
     setJustCompleted(false);
     setSyncError(null);
     setPendingSync(false);
+    setPendingAuth(false);
     setIsRunning(true);
     void flush();
 
@@ -195,6 +200,7 @@ export function useChallengeSession({
           );
           setGemsAwarded(currentProgress?.completed_challenges.includes(challenge.id) ? 0 : challenge.kind === 'boss' ? 12 : 3);
           setPendingSync(true);
+          setPendingAuth(isAuthenticationPendingError(write.error));
           setJustCompleted(true);
         }
         return;
@@ -217,6 +223,7 @@ export function useChallengeSession({
       setXpAwarded(saved.persistence.xpAwarded);
       setGemsAwarded(saved.persistence.gemsAwarded);
       setPendingSync(false);
+      setPendingAuth(false);
       setJustCompleted(true);
       await refreshProfile();
     } catch (error) {
@@ -295,6 +302,7 @@ export function useChallengeSession({
     newBadges,
     syncError,
     pendingSync,
+    pendingAuth,
     dismissBadges: () => setNewBadges([]),
     attemptsBeforeSolution: ATTEMPTS_BEFORE_SOLUTION,
   };

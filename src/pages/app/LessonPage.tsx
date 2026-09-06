@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, BookOpen, Brain, Check, Lock, Play } from 'lucide-react';
+import { ArrowLeft, BookOpen, Brain, Check, CloudUpload, Lock, Play } from 'lucide-react';
 import { getLesson } from '@/lessons';
 import { getLessonMeta } from '@/data/lessons.meta';
 import { useAuthStore } from '@/stores/authStore';
@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { StarRating } from '@/components/game/StarRating';
 import { ErrorState, LoadingState, NoAccessState } from '@/components/common/StateViews';
+import { SubmissionSyncStatus } from '@/components/common/SubmissionSyncStatus';
 import { UpcomingPage, NotFoundPage } from '@/pages/UpcomingPage';
 import { getIcon } from '@/utils/icons';
 import { canOpenCheckpoint } from '@/utils/checkpoint';
@@ -70,7 +71,11 @@ export function LessonPage() {
   }
 
   const progress = access.progressByLesson[lessonId];
+  // `completed_challenges` đã được trộn thêm các bài đang chờ đồng bộ để không
+  // khoá ngược màn kế. Sao/XP/phần trăm thì chỉ máy chủ mới cấp, nên phần hiển
+  // thị phải tách rõ hai nhóm này ra.
   const completedChallenges = progress?.completed_challenges ?? [];
+  const pendingChallenges = access.pendingChallengeIds;
   const challengeIds = lesson.challenges.map((challenge) => challenge.id);
   const requiredChallenges = lesson.challenges.filter((challenge) => !challenge.optional);
   const checkpointUnlocked = canOpenCheckpoint(
@@ -92,6 +97,8 @@ export function LessonPage() {
         <ArrowLeft className="size-4" aria-hidden="true" />
         Bản đồ ByteLand
       </Link>
+
+      <SubmissionSyncStatus />
 
       {/* --- Đầu trang khu vực --- */}
       <section className="cq-card p-5">
@@ -234,7 +241,8 @@ export function LessonPage() {
 
         <ol className="space-y-2 list-none">
           {lesson.challenges.map((challenge, index) => {
-            const isDone = completedChallenges.includes(challenge.id);
+            const isPending = pendingChallenges.includes(challenge.id);
+            const isDone = completedChallenges.includes(challenge.id) && !isPending;
             const isOpen = isChallengeUnlocked(
               index,
               challengeIds,
@@ -254,13 +262,23 @@ export function LessonPage() {
                     'grid place-items-center size-9 rounded-xl shrink-0 text-sm font-bold',
                     isDone
                       ? 'bg-verdant-500/20 text-verdant-400'
-                      : isOpen
-                        ? 'bg-abyss-700 text-slate-300'
-                        : 'bg-abyss-800 text-slate-600',
+                      : isPending
+                        ? 'bg-treasure-400/20 text-treasure-300'
+                        : isOpen
+                          ? 'bg-abyss-700 text-slate-300'
+                          : 'bg-abyss-800 text-slate-600',
                   )}
                   aria-hidden="true"
                 >
-                  {isDone ? <Check className="size-5" /> : isOpen ? index + 1 : <Lock className="size-4" />}
+                  {isDone ? (
+                    <Check className="size-5" />
+                  ) : isPending ? (
+                    <CloudUpload className="size-5" />
+                  ) : isOpen ? (
+                    index + 1
+                  ) : (
+                    <Lock className="size-4" />
+                  )}
                 </span>
 
                 <div className="min-w-0 flex-1">
@@ -285,9 +303,11 @@ export function LessonPage() {
                   <p className="text-xs text-slate-500 mt-0.5">
                     {isDone
                       ? 'Đã hoàn thành'
-                      : isOpen
-                        ? `${challenge.xpReward} XP`
-                        : 'Hoàn thành nhiệm vụ trước để mở khoá'}
+                      : isPending
+                        ? 'Chờ máy chủ xác nhận — chưa được cộng sao và XP'
+                        : isOpen
+                          ? `${challenge.xpReward} XP`
+                          : 'Hoàn thành nhiệm vụ trước để mở khoá'}
                   </p>
                 </div>
               </>

@@ -1,9 +1,13 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SubmissionSyncStatus } from './SubmissionSyncStatus';
-const mocks = vi.hoisted(() => ({ read: vi.fn(), retry: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  read: vi.fn(),
+  retry: vi.fn(),
+  authMessage: 'Phiên đăng nhập đã hết hạn. Em đăng nhập lại để bài được gửi đi.',
+}));
 vi.mock('@/stores/authStore', () => ({ useAuthStore: (selector: (state: unknown) => unknown) => selector({ user: { id: 'u1' } }) }));
-vi.mock('@/services/offlineQueue', () => ({ QUEUE_CHANGED_EVENT: 'queue-change', readQueue: mocks.read, retryCurrentUserQueue: mocks.retry }));
+vi.mock('@/services/offlineQueue', () => ({ AUTH_PENDING_MESSAGE: mocks.authMessage, QUEUE_CHANGED_EVENT: 'queue-change', readQueue: mocks.read, retryCurrentUserQueue: mocks.retry }));
 beforeEach(() => { mocks.read.mockReturnValue([]); mocks.retry.mockResolvedValue({}); });
 describe('Thông báo bài chờ đồng bộ', () => {
   it('ẩn khi không có bài của học sinh hiện tại', () => {
@@ -18,5 +22,10 @@ describe('Thông báo bài chờ đồng bộ', () => {
     expect(screen.getByRole('status')).toHaveTextContent('1 bài chờ xác nhận');
     fireEvent.click(screen.getByRole('button', { name: 'Đồng bộ lại' }));
     await waitFor(() => expect(mocks.retry).toHaveBeenCalled());
+  });
+  it('nói rõ phải đăng nhập lại thay vì chỉ báo đang chờ', () => {
+    mocks.read.mockReturnValue([{ payload: { userId: 'u1' }, lastError: mocks.authMessage }]);
+    render(<SubmissionSyncStatus />);
+    expect(screen.getByRole('status')).toHaveTextContent('Phiên đăng nhập đã hết hạn');
   });
 });

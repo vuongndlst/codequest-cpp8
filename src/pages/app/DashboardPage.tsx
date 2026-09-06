@@ -23,6 +23,7 @@ import { Card, CardHeader, StatTile } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Alert } from '@/components/ui/Alert';
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateViews';
+import { SubmissionSyncStatus } from '@/components/common/SubmissionSyncStatus';
 import { getLevelProgress, getLevelTitle } from '@/utils/xp';
 import {
   MAX_TOTAL_STARS,
@@ -78,6 +79,13 @@ export function DashboardPage() {
           {profileError}
         </Alert>
       )}
+
+      {/*
+        Bản đồ chỉ đếm sao/XP đã được máy chủ xác nhận. Nếu còn bài trong hàng
+        đợi, phải nói ra ngay ở đây — nếu không học sinh thấy khu vực "đã xong"
+        mà bản đồ vẫn 0 sao và tưởng bài của mình bị mất.
+      */}
+      <SubmissionSyncStatus />
 
       <ClassBanner />
 

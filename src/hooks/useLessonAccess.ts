@@ -10,6 +10,15 @@ import type { ClassAreaControlRow, LessonProgressRow } from '@/types/database';
 
 interface LessonAccessState {
   progressByLesson: Record<string, LessonProgressRow | undefined>;
+  /**
+   * Các nhiệm vụ đang nằm trong hàng đợi: học sinh đã chạy đúng nhưng máy chủ
+   * CHƯA xác nhận, nên chưa có sao / XP / phần trăm nào được cộng.
+   *
+   * Trang khu vực phải phân biệt nhóm này với nhóm đã lưu thật, nếu không màn
+   * hình sẽ nói "Đã hoàn thành" trong khi bản đồ vẫn hiện 0 sao — đúng thứ làm
+   * học sinh tưởng mình mất bài.
+   */
+  pendingChallengeIds: string[];
   /** Đồng bộ ngay bản ghi vừa lưu để màn kế tiếp không đọc snapshot cũ. */
   applyProgress: (progress: LessonProgressRow) => void;
   control: ClassAreaControlRow | null;
@@ -29,6 +38,7 @@ export function useLessonAccess(lessonId: string, options?: { disabled?: boolean
   const isTeacher = profile?.role === 'teacher';
 
   const [progressByLesson, setProgressByLesson] = useState(EMPTY_PROGRESS);
+  const [pendingChallengeIds, setPendingChallengeIds] = useState<string[]>([]);
   const [controls, setControls] = useState<ClassAreaControlRow[]>([]);
   const [legacyUnlocked, setLegacyUnlocked] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(!disabled && !isTeacher);
@@ -77,6 +87,11 @@ export function useLessonAccess(lessonId: string, options?: { disabled?: boolean
           };
         }
 
+        setPendingChallengeIds(
+          queuedChallengeIds.filter(
+            (challengeId) => !(persisted?.completed_challenges.includes(challengeId) ?? false),
+          ),
+        );
         setProgressByLesson(indexed);
         setLegacyUnlocked(settings?.unlocked_lessons ?? []);
         setControls(areaControls);
@@ -114,5 +129,14 @@ export function useLessonAccess(lessonId: string, options?: { disabled?: boolean
     isTeacher,
   });
 
-  return { progressByLesson, applyProgress, control, controls, isUnlocked, isLoading, error };
+  return {
+    progressByLesson,
+    pendingChallengeIds,
+    applyProgress,
+    control,
+    controls,
+    isUnlocked,
+    isLoading,
+    error,
+  };
 }

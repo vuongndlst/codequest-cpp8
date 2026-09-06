@@ -709,12 +709,17 @@ function ChallengeSessionPage({
                   Chạy code lại để mở nhiệm vụ tiếp theo.
                 </Alert>
               )}
-              {session.pendingSync && (
+              {session.pendingSync && (session.pendingAuth ? (
+                <Alert tone="warning" title="Phiên đăng nhập đã hết hạn" live>
+                  Bài của em được giữ nguyên trên máy nhưng CHƯA gửi lên máy chủ được, nên
+                  chưa có sao và XP. Em đăng nhập lại, rồi bấm "Đồng bộ lại" ở đầu bản đồ.
+                </Alert>
+              ) : (
                 <Alert tone="info" title="Đã lưu tạm trên máy" live>
                   Mạng đang chập chờn. Em có thể tiếp tục; CodeQuest sẽ tự đồng bộ kết quả này
                   ngay khi kết nối ổn định.
                 </Alert>
-              )}
+              ))}
             </div>
           )}
         </div>
