@@ -170,7 +170,7 @@ export interface CoutStatement extends Position {
 /** `cin >> score;` */
 export interface CinStatement extends Position {
   kind: 'CinStatement';
-  targets: Identifier[];
+  targets: (Identifier | ArrayAccessExpression)[];
 }
 
 export interface EmptyStatement extends Position {

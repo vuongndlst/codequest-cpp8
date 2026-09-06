@@ -1,0 +1,1413 @@
+{
+  "generatedAt": "2026-09-05T13:26:26.486Z",
+  "method": "Local interpreter, every sample solution and empty-program negative control. Not a browser visual audit.",
+  "total": 50,
+  "passed": 50,
+  "rows": [
+    {
+      "area": "a0",
+      "challenge": "a0-c1-first-program",
+      "title": "Tín hiệu đầu tiên",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": true,
+      "observation": true,
+      "requiredTests": 1,
+      "passedTests": 1,
+      "dataSets": 1,
+      "events": 1,
+      "actions": [
+        "print"
+      ],
+      "finalPosition": [
+        2,
+        4
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a0",
+      "challenge": "a0-c2-cout",
+      "title": "Mật khẩu của người gác trạm",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 1,
+      "passedTests": 1,
+      "dataSets": 1,
+      "events": 1,
+      "actions": [
+        "print"
+      ],
+      "finalPosition": [
+        2,
+        4
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a0",
+      "challenge": "a0-c3-debug-semicolon",
+      "title": "Debug Lab: Dấu chấm phẩy thất lạc",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 1,
+      "passedTests": 1,
+      "dataSets": 1,
+      "events": 2,
+      "actions": [
+        "print"
+      ],
+      "finalPosition": [
+        2,
+        4
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a0",
+      "challenge": "a0-c4-system-start",
+      "title": "BOSS: Mở cổng ByteLand",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 2,
+      "actions": [
+        "print"
+      ],
+      "finalPosition": [
+        2,
+        4
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a1",
+      "challenge": "a1-c1-move-right",
+      "title": "Ba bước sang phải",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": true,
+      "observation": true,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 5,
+      "actions": [
+        "move",
+        "collect-gem",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        7,
+        2
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a1",
+      "challenge": "a1-c2-change-direction",
+      "title": "Rẽ xuống thung lũng",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 6,
+      "actions": [
+        "move",
+        "collect-gem",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        6,
+        4
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a1",
+      "challenge": "a1-c3-obstacle-route",
+      "title": "Vòng qua hồ độc",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 11,
+      "actions": [
+        "move",
+        "collect-gem",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        8,
+        2
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a1",
+      "challenge": "a1-c4-debug-order",
+      "title": "Debug Lab: Đúng lệnh, sai thứ tự",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 12,
+      "actions": [
+        "move",
+        "collect-gem",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        8,
+        3
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a1",
+      "challenge": "a1-c5-portal",
+      "title": "BOSS: Cổng dịch chuyển",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 15,
+      "actions": [
+        "move",
+        "collect-gem",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        9,
+        1
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a2",
+      "challenge": "a2-c1-variable",
+      "title": "Chiếc hộp có tên",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": true,
+      "observation": true,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 8,
+      "actions": [
+        "declare-var",
+        "move",
+        "collect-gem",
+        "reach-goal",
+        "print"
+      ],
+      "finalPosition": [
+        7,
+        2
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a2",
+      "challenge": "a2-c2-data-types",
+      "title": "Bốn loại dữ liệu",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 10,
+      "actions": [
+        "declare-var",
+        "print",
+        "move",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        6,
+        3
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a2",
+      "challenge": "a2-c3-collect-count",
+      "title": "Nhặt Gem và cập nhật",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 11,
+      "actions": [
+        "declare-var",
+        "move",
+        "collect-gem",
+        "assign-var",
+        "print",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        8,
+        4
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a2",
+      "challenge": "a2-c4-debug-update",
+      "title": "Debug Lab: Giá trị cũ",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 14,
+      "actions": [
+        "declare-var",
+        "move",
+        "collect-gem",
+        "reach-goal",
+        "assign-var",
+        "print"
+      ],
+      "finalPosition": [
+        9,
+        5
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a2",
+      "challenge": "a2-c5-vault",
+      "title": "BOSS: Kho Gem ký ức",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 16,
+      "actions": [
+        "declare-var",
+        "move",
+        "collect-gem",
+        "assign-var",
+        "print",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        8,
+        4
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a3",
+      "challenge": "a3-c1-forge-energy",
+      "title": "Mẻ năng lượng đầu tiên",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": true,
+      "observation": true,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 11,
+      "actions": [
+        "declare-var",
+        "move",
+        "collect-gem",
+        "reach-goal",
+        "charge-machine",
+        "print"
+      ],
+      "finalPosition": [
+        8,
+        2
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a3",
+      "challenge": "a3-c2-crystal-balance",
+      "title": "Cân tinh thể",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 13,
+      "actions": [
+        "declare-var",
+        "move",
+        "collect-gem",
+        "reach-goal",
+        "charge-machine",
+        "print"
+      ],
+      "finalPosition": [
+        8,
+        4
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a3",
+      "challenge": "a3-c3-compare-switch",
+      "title": "Công tắc ngưỡng an toàn",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 14,
+      "actions": [
+        "declare-var",
+        "set-switch",
+        "print",
+        "move",
+        "collect-gem",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        8,
+        2
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a3",
+      "challenge": "a3-c4-debug-logic",
+      "title": "Debug Lab: Tinh thể bị đảo dấu",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 16,
+      "actions": [
+        "declare-var",
+        "move",
+        "collect-gem",
+        "reach-goal",
+        "set-switch",
+        "print"
+      ],
+      "finalPosition": [
+        9,
+        5
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a3",
+      "challenge": "a3-c5-triple-core",
+      "title": "BOSS: Ba lõi năng lượng",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 27,
+      "actions": [
+        "declare-var",
+        "move",
+        "collect-gem",
+        "charge-machine",
+        "set-switch",
+        "print",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        10,
+        2
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a4",
+      "challenge": "a4-c1-first-if",
+      "title": "Công tắc biết nghe điều kiện",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": true,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 9,
+      "actions": [
+        "declare-var",
+        "set-switch",
+        "move",
+        "collect-gem",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        8,
+        2
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a4",
+      "challenge": "a4-c2-two-branches",
+      "title": "Hai nhánh năng lượng",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 5,
+      "passedTests": 5,
+      "dataSets": 3,
+      "events": 12,
+      "actions": [
+        "declare-var",
+        "set-switch",
+        "print",
+        "move",
+        "collect-gem",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        7,
+        4
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a4",
+      "challenge": "a4-c3-key-sensor",
+      "title": "Chìa khóa biết trả lời",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 12,
+      "actions": [
+        "move",
+        "collect-gem",
+        "collect-key",
+        "open-door",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        9,
+        2
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a4",
+      "challenge": "a4-c4-debug-equality",
+      "title": "Debug Lab: Một dấu hay hai dấu",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 5,
+      "passedTests": 5,
+      "dataSets": 3,
+      "events": 17,
+      "actions": [
+        "declare-var",
+        "assign-var",
+        "print",
+        "set-switch",
+        "move",
+        "collect-gem",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        8,
+        3
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a4",
+      "challenge": "a4-c5-decision-gate",
+      "title": "BOSS: Cổng kiểm định kép",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 5,
+      "passedTests": 5,
+      "dataSets": 3,
+      "events": 22,
+      "actions": [
+        "declare-var",
+        "move",
+        "collect-gem",
+        "collect-key",
+        "turn",
+        "open-door",
+        "print",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        11,
+        2
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a5",
+      "challenge": "a5-c1-first-loop",
+      "title": "Sáu nhịp trên đường vọng âm",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": true,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 11,
+      "actions": [
+        "declare-var",
+        "move",
+        "collect-gem",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        10,
+        2
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a5",
+      "challenge": "a5-c2-lantern-line",
+      "title": "Dãy đèn theo từng lượt",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 18,
+      "actions": [
+        "move",
+        "declare-var",
+        "turn-on-light",
+        "collect-gem",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        10,
+        2
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a5",
+      "challenge": "a5-c3-counter-trail",
+      "title": "Biến đếm để lại dấu vết",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 3,
+      "passedTests": 3,
+      "dataSets": 1,
+      "events": 20,
+      "actions": [
+        "move",
+        "collect-gem",
+        "declare-var",
+        "print",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        10,
+        2
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a5",
+      "challenge": "a5-c4-debug-off-by-one",
+      "title": "Debug Lab: Bước thứ bảy vô hình",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 3,
+      "passedTests": 3,
+      "dataSets": 1,
+      "events": 24,
+      "actions": [
+        "move",
+        "collect-gem",
+        "declare-var",
+        "assign-var",
+        "reach-goal",
+        "print"
+      ],
+      "finalPosition": [
+        10,
+        6
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a5",
+      "challenge": "a5-c5-armor-loop",
+      "title": "BOSS: Năm lớp giáp vọng âm",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 3,
+      "passedTests": 3,
+      "dataSets": 1,
+      "events": 29,
+      "actions": [
+        "declare-var",
+        "move",
+        "collect-gem",
+        "attack-bug",
+        "turn",
+        "open-door",
+        "print",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        10,
+        2
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a6",
+      "challenge": "a6-c1-first-function",
+      "title": "Mô-đun ánh sáng đầu tiên",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": true,
+      "requiredTests": 3,
+      "passedTests": 3,
+      "dataSets": 1,
+      "events": 19,
+      "actions": [
+        "declare-func",
+        "call-func",
+        "declare-var",
+        "move",
+        "turn-on-light",
+        "collect-gem",
+        "reach-goal",
+        "return-func"
+      ],
+      "finalPosition": [
+        10,
+        2
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a6",
+      "challenge": "a6-c2-parameters",
+      "title": "Một mô-đun, hai độ dài",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 3,
+      "passedTests": 3,
+      "dataSets": 1,
+      "events": 21,
+      "actions": [
+        "declare-func",
+        "call-func",
+        "declare-var",
+        "move",
+        "collect-gem",
+        "return-func",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        10,
+        5
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a6",
+      "challenge": "a6-c3-return-energy",
+      "title": "Giá trị trở về từ lõi tính toán",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 3,
+      "passedTests": 3,
+      "dataSets": 1,
+      "events": 21,
+      "actions": [
+        "declare-func",
+        "declare-var",
+        "move",
+        "collect-gem",
+        "reach-goal",
+        "call-func",
+        "return-func",
+        "print",
+        "charge-machine"
+      ],
+      "finalPosition": [
+        8,
+        2
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a6",
+      "challenge": "a6-c4-debug-parameter",
+      "title": "Debug Lab: Tham số bị phớt lờ",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 21,
+      "actions": [
+        "declare-func",
+        "call-func",
+        "declare-var",
+        "move",
+        "collect-gem",
+        "return-func",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        10,
+        5
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a6",
+      "challenge": "a6-c5-factory-core",
+      "title": "BOSS: Lõi Xưởng sáu lớp",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 3,
+      "passedTests": 3,
+      "dataSets": 1,
+      "events": 38,
+      "actions": [
+        "declare-func",
+        "declare-var",
+        "move",
+        "collect-gem",
+        "call-func",
+        "return-func",
+        "attack-bug",
+        "turn",
+        "open-door",
+        "print",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        10,
+        2
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a7",
+      "challenge": "a7-c1-value-copy",
+      "title": "Bản sao năng lượng",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": true,
+      "observation": true,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 14,
+      "actions": [
+        "declare-func",
+        "declare-var",
+        "call-func",
+        "assign-var",
+        "return-func",
+        "print",
+        "move",
+        "collect-gem",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        4,
+        3
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a7",
+      "challenge": "a7-c2-reference-charge",
+      "title": "Kênh truyền chung",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 14,
+      "actions": [
+        "declare-func",
+        "declare-var",
+        "call-func",
+        "assign-var",
+        "return-func",
+        "print",
+        "move",
+        "collect-gem",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        5,
+        2
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a7",
+      "challenge": "a7-c3-debug-swap",
+      "title": "Debug Lab: Hai lõi chưa đổi chỗ",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 17,
+      "actions": [
+        "declare-func",
+        "declare-var",
+        "call-func",
+        "assign-var",
+        "return-func",
+        "print",
+        "move",
+        "collect-gem",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        3,
+        2
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a7",
+      "challenge": "a7-c4-mirror-boss",
+      "title": "BOSS: Người Gác Phòng Gương",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 19,
+      "actions": [
+        "declare-func",
+        "declare-var",
+        "call-func",
+        "assign-var",
+        "return-func",
+        "print",
+        "move",
+        "collect-gem",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        7,
+        1
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a8",
+      "challenge": "a8-c1-indexed-vault",
+      "title": "Kho ô đánh số",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": true,
+      "observation": true,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 10,
+      "actions": [
+        "declare-var",
+        "print",
+        "move",
+        "collect-gem",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        3,
+        4
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a8",
+      "challenge": "a8-c2-repair-slot",
+      "title": "Sửa ô rune hỏng",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 12,
+      "actions": [
+        "declare-var",
+        "assign-var",
+        "print",
+        "move",
+        "collect-gem",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        5,
+        3
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a8",
+      "challenge": "a8-c3-debug-bound",
+      "title": "Debug Lab: Bước khỏi mép kho",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 18,
+      "actions": [
+        "declare-var",
+        "assign-var",
+        "print",
+        "move",
+        "collect-gem",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        5,
+        4
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a8",
+      "challenge": "a8-c4-route-array-boss",
+      "title": "BOSS: Mê cung Mã Hướng",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 14,
+      "actions": [
+        "declare-var",
+        "move",
+        "collect-gem",
+        "reach-goal",
+        "print"
+      ],
+      "finalPosition": [
+        5,
+        1
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a9",
+      "challenge": "a9-c1-aggregate",
+      "title": "Tổng năng lượng đoàn tàu",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": true,
+      "observation": true,
+      "requiredTests": 8,
+      "passedTests": 8,
+      "dataSets": 4,
+      "events": 22,
+      "actions": [
+        "declare-func",
+        "declare-var",
+        "call-func",
+        "assign-var",
+        "return-func",
+        "print",
+        "move",
+        "collect-gem",
+        "charge-machine",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        4,
+        3
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a9",
+      "challenge": "a9-c2-maximum",
+      "title": "Tìm lõi mạnh nhất",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 10,
+      "passedTests": 10,
+      "dataSets": 5,
+      "events": 16,
+      "actions": [
+        "declare-var",
+        "assign-var",
+        "print",
+        "move",
+        "collect-gem",
+        "charge-machine",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        5,
+        3
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a9",
+      "challenge": "a9-c3-debug-search",
+      "title": "Debug Lab: Máy quét quá giới hạn",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 4,
+      "passedTests": 4,
+      "dataSets": 3,
+      "events": 18,
+      "actions": [
+        "declare-func",
+        "declare-var",
+        "call-func",
+        "return-func",
+        "print",
+        "move",
+        "collect-gem",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        6,
+        4
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a9",
+      "challenge": "a9-c4-scout-boss",
+      "title": "BOSS: Mắt Quét Hư Không",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 5,
+      "passedTests": 5,
+      "dataSets": 4,
+      "events": 21,
+      "actions": [
+        "declare-func",
+        "declare-var",
+        "call-func",
+        "return-func",
+        "print",
+        "move",
+        "collect-gem",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        8,
+        1
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a10",
+      "challenge": "a10-c1-bubble-pass",
+      "title": "Một lượt đẩy nổi",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": true,
+      "observation": true,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 22,
+      "actions": [
+        "declare-func",
+        "declare-var",
+        "call-func",
+        "assign-var",
+        "return-func",
+        "print",
+        "move",
+        "collect-gem",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        5,
+        2
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a10",
+      "challenge": "a10-c2-select-min",
+      "title": "Chọn rune nhỏ nhất",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 20,
+      "actions": [
+        "declare-func",
+        "declare-var",
+        "assign-var",
+        "call-func",
+        "return-func",
+        "print",
+        "move",
+        "collect-gem",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        4,
+        4
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a10",
+      "challenge": "a10-c3-debug-inner-bound",
+      "title": "Debug Lab: Cặp cuối không tồn tại",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 39,
+      "actions": [
+        "declare-func",
+        "declare-var",
+        "call-func",
+        "assign-var",
+        "return-func",
+        "print",
+        "move",
+        "collect-gem",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        7,
+        4
+      ],
+      "dangerHits": 0,
+      "errors": []
+    },
+    {
+      "area": "a10",
+      "challenge": "a10-c4-algorithm-core",
+      "title": "BOSS: Lõi Thuật Toán",
+      "hasMap": true,
+      "samplePasses": true,
+      "emptyProgramRejected": true,
+      "starterPasses": false,
+      "observation": false,
+      "requiredTests": 2,
+      "passedTests": 2,
+      "dataSets": 1,
+      "events": 71,
+      "actions": [
+        "declare-func",
+        "declare-var",
+        "call-func",
+        "assign-var",
+        "return-func",
+        "print",
+        "move",
+        "collect-gem",
+        "reach-goal"
+      ],
+      "finalPosition": [
+        9,
+        1
+      ],
+      "dangerHits": 0,
+      "errors": []
+    }
+  ]
+}

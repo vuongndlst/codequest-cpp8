@@ -1,305 +1,182 @@
-/**
- * Hàng đợi ghi dữ liệu khi mất mạng (mục 23 của đề bài).
- *
- * VẤN ĐỀ CẦN GIẢI: Wi-Fi phòng máy hay chập chờn. Nếu học sinh vừa hoàn thành
- * Boss Challenge mà đúng lúc đó mạng rớt, công sức cả tiết học biến mất — và
- * các em sẽ không bao giờ tin cái website này nữa.
- *
- * CÁCH LÀM: mọi thao tác ghi đều đi qua `runOrQueue`. Ghi được thì thôi; ghi
- * hỏng vì mạng thì xếp vào hàng đợi trong localStorage và tự chạy lại khi có
- * mạng. Hàng đợi sống sót qua cả việc đóng tab hay tắt máy.
- *
- * PHẠM VI: chỉ xếp hàng những thao tác GHI mà mất đi thì học sinh thiệt thòi.
- * Việc ĐỌC thì không xếp hàng — đọc hỏng chỉ cần thử lại là xong.
- */
-
-const STORAGE_KEY = 'cq8:offline-queue';
+/** Per-item persistent outbox: no whole-array overwrites and no silent eviction.
+ * Old queues migrate only after every item has been written successfully. */
+const LEGACY_KEY = 'cq8:offline-queue';
+const PREFIX = 'cq8:outbox:v2:';
 const MAX_QUEUE_SIZE = 200;
-
-/** Các loại thao tác được phép xếp hàng. */
-export type QueuedOperationType =
-  | 'submit-challenge-secure'
-  | 'submit-checkpoint-secure'
-  | 'record-attempt'
-  | 'upsert-lesson-progress'
-  | 'add-experience'
-  | 'submit-exit-ticket'
-  | 'save-draft';
-
+export const QUEUE_CHANGED_EVENT = 'cq8:queue-changed';
+export type QueuedOperationType = 'submit-challenge-secure' | 'submit-checkpoint-secure'
+  | 'record-attempt' | 'upsert-lesson-progress' | 'add-experience' | 'submit-exit-ticket' | 'save-draft';
 export interface QueuedOperation {
   id: string;
   type: QueuedOperationType;
   payload: unknown;
   queuedAt: string;
-  /** Số lần đã thử; không xóa bài chỉ vì mạng hỏng nhiều lần. */
   attempts: number;
+  blocked?: boolean;
+  lastError?: string;
 }
-
 type OperationHandler = (payload: unknown) => Promise<void>;
-
 const handlers = new Map<QueuedOperationType, OperationHandler>();
 let currentUserId: () => string | null = () => null;
-export function setQueueUserResolver(resolve: () => string | null): void {
-  currentUserId = resolve;
+export function setQueueUserResolver(resolve: () => string | null): void { currentUserId = resolve; }
+export function registerOfflineHandler(type: QueuedOperationType, handler: OperationHandler): void { handlers.set(type, handler); }
+function valid(value: unknown): value is QueuedOperation {
+  const item = value as QueuedOperation | null;
+  return Boolean(item && typeof item.id === 'string' && typeof item.type === 'string'
+    && typeof item.queuedAt === 'string' && item.payload && typeof item.payload === 'object' && typeof item.attempts === 'number');
 }
-
-/**
- * Đăng ký cách chạy lại một loại thao tác.
- *
- * Đăng ký thay vì import trực tiếp để tránh phụ thuộc vòng tròn: các repository
- * cần gọi `runOrQueue`, mà hàng đợi lại cần gọi ngược về repository.
- */
-export function registerOfflineHandler(
-  type: QueuedOperationType,
-  handler: OperationHandler,
-): void {
-  handlers.set(type, handler);
+function legacyItems(): QueuedOperation[] {
+  try {
+    const data: unknown = JSON.parse(localStorage.getItem(LEGACY_KEY) ?? '[]');
+    return Array.isArray(data) ? data.filter(valid) : [];
+  } catch { return []; }
 }
-
 export function readQueue(): QueuedOperation[] {
+  const items = new Map(legacyItems().map(item => [item.id, item]));
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as QueuedOperation[];
-    return Array.isArray(parsed) ? parsed.filter(item =>
-      item && typeof item.id === 'string' && typeof item.type === 'string'
-      && item.payload && typeof item.payload === 'object'
-      && typeof item.attempts === 'number',
-    ) : [];
-  } catch {
-    return [];
-  }
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key?.startsWith(PREFIX)) continue;
+      try {
+        const item: unknown = JSON.parse(localStorage.getItem(key) ?? 'null');
+        if (valid(item)) items.set(item.id, item);
+      } catch { /* Preserve malformed items, don't crash the page. */ }
+    }
+  } catch { /* Storage may be disabled. */ }
+  return [...items.values()].sort((a, b) => a.queuedAt.localeCompare(b.queuedAt) || a.id.localeCompare(b.id));
 }
-
-function writeQueue(queue: QueuedOperation[]): void {
-  try {
-    // Giữ lại các mục MỚI NHẤT khi tràn: dữ liệu học tập gần đây có giá trị hơn
-    const trimmed = queue.slice(-MAX_QUEUE_SIZE);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
-  } catch {
-    // localStorage đầy hoặc bị chặn — không làm gì được thêm
-  }
+function changed() { if (typeof window !== 'undefined') window.dispatchEvent(new Event(QUEUE_CHANGED_EVENT)); }
+function writeItem(item: QueuedOperation): void { localStorage.setItem(PREFIX + item.id, JSON.stringify(item)); }
+function migrateLegacy(): void {
+  for (const item of legacyItems()) if (!localStorage.getItem(PREFIX + item.id)) writeItem(item);
+  // If a write throws, the source remains untouched.
+  if (legacyItems().length) localStorage.removeItem(LEGACY_KEY);
 }
-
-/**
- * Lấy các nhiệm vụ đã hoàn thành cục bộ nhưng còn chờ máy chủ xác nhận.
- *
- * Đây chỉ là dữ liệu mở khóa ở tầng UX. Edge Function vẫn chấm lại và database
- * vẫn kiểm tra thứ tự nhiệm vụ, nên sửa localStorage không thể tạo XP/Gem thật.
- */
+function ownerOf(item: QueuedOperation) { return (item.payload as { userId?: string })?.userId; }
+function secure(type: QueuedOperationType) { return type.endsWith('-secure'); }
+function storageError() { return new Error('Chưa lưu được bài chờ gửi vì bộ nhớ trình duyệt đầy hoặc bị chặn. Em giữ trang này mở, kết nối mạng rồi chạy lại; chưa có xác nhận lưu bài.'); }
 export function getQueuedChallengeIds(lessonId: string, userId: string): string[] {
-  const ids = readQueue()
-    .filter((item) => item.type === 'submit-challenge-secure')
-    .map((item) => item.payload as {
-      lessonId?: unknown;
-      challengeId?: unknown;
-      optimisticCorrect?: unknown;
-      userId?: unknown;
-    })
-    .filter((payload) =>
-      payload.lessonId === lessonId &&
-      payload.userId === userId &&
-      typeof payload.challengeId === 'string' &&
-      payload.optimisticCorrect === true,
-    )
-    .map((payload) => payload.challengeId as string);
-  return [...new Set(ids)];
+  return [...new Set(readQueue().filter(item => !item.blocked && item.type === 'submit-challenge-secure' && ownerOf(item) === userId)
+    .map(item => item.payload as { lessonId?: string; challengeId?: string; optimisticCorrect?: boolean })
+    .filter(p => p.lessonId === lessonId && typeof p.challengeId === 'string' && p.optimisticCorrect === true)
+    .map(p => p.challengeId!))];
 }
-
-export function queueSize(): number {
-  return readQueue().length;
-}
-
+export function queueSize() { return readQueue().length; }
+let sequence = 0;
 export function enqueue(type: QueuedOperationType, payload: unknown): void {
-  const queue = readQueue();
-  queue.push({
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-    type,
-    payload,
-    queuedAt: new Date().toISOString(),
-    attempts: 0,
-  });
-  writeQueue(queue);
+  try {
+    migrateLegacy();
+    if (readQueue().length >= MAX_QUEUE_SIZE) throw storageError();
+    writeItem({ id: Date.now() + '-' + String(sequence++).padStart(6, '0') + '-' + crypto.randomUUID(),
+      type, payload, queuedAt: new Date().toISOString(), attempts: 0 });
+    changed();
+    scheduleRetry();
+  } catch { throw storageError(); }
 }
-
+/** Only for tests / explicit clearing; never called on logout. */
 export function clearQueue(): void {
   try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    /* bỏ qua */
-  }
+    const keys = Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i));
+    keys.filter((key): key is string => Boolean(key?.startsWith(PREFIX))).forEach(key => localStorage.removeItem(key));
+    localStorage.removeItem(LEGACY_KEY);
+    changed();
+  } catch { /* no removal possible */ }
 }
-
-/** Lỗi do mạng thì đáng xếp hàng; lỗi do dữ liệu sai thì xếp hàng cũng vô ích. */
 export function isRetriableError(error: unknown): boolean {
+  const typed = error as { retryable?: boolean; isOffline?: boolean } | null;
+  if (typed?.retryable || typed?.isOffline) return true;
   if (typeof navigator !== 'undefined' && !navigator.onLine) return true;
   if (error instanceof TypeError) return true;
-
   const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
-  return (
-    message.includes('failed to fetch') ||
-    message.includes('networkerror') ||
-    message.includes('network request failed') ||
-    message.includes('failed to send a request') ||
-    message.includes('load failed') ||
-    message.includes('không kết nối được') ||
-    message.includes('timeout')
-  );
+  return ['failed to fetch', 'networkerror', 'network request failed', 'failed to send a request', 'load failed', 'không kết nối được', 'timeout'].some(part => message.includes(part));
 }
-
-/**
- * Phiên Supabase được khôi phục bất đồng bộ khi trang vừa mở. Nếu hàng đợi chạy
- * sớm hơn bước đó, lỗi đăng nhập chỉ có nghĩa là "chưa sẵn sàng", không phải dữ
- * liệu học tập hỏng. Tuyệt đối không tăng số lần thử hay xóa mục trong trường hợp này.
- */
 export function isAuthenticationPendingError(error: unknown): boolean {
   const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
-  return (
-    message.includes('can_dang_nhap') ||
-    message.includes('cần đăng nhập') ||
-    message.includes('phiên đăng nhập') ||
-    message.includes('jwt')
-  );
+  return ['can_dang_nhap', 'cần đăng nhập', 'phiên đăng nhập', 'jwt'].some(part => message.includes(part));
 }
-
-export interface RunOrQueueResult {
-  ok: boolean;
-  /** true nếu thao tác đã được xếp hàng để chạy lại sau */
-  queued: boolean;
-  error?: unknown;
-}
-
-/**
- * Chạy một thao tác ghi; hỏng vì mạng thì xếp hàng để chạy lại.
- *
- * Trả về kết quả thay vì ném lỗi, vì với hầu hết thao tác thì "đã xếp hàng"
- * cũng coi như thành công dưới góc nhìn của học sinh.
- */
-export async function runOrQueue(
-  type: QueuedOperationType,
-  payload: unknown,
-  operation: () => Promise<void>,
-): Promise<RunOrQueueResult> {
-  try {
-    await operation();
-    return { ok: true, queued: false };
-  } catch (error) {
-    if (isRetriableError(error)) {
-      enqueue(type, payload);
-      return { ok: false, queued: true, error };
+export interface RunOrQueueResult { ok: boolean; queued: boolean; error?: unknown; }
+export async function runOrQueue(type: QueuedOperationType, payload: unknown, operation: () => Promise<void>): Promise<RunOrQueueResult> {
+  const owner = (payload as { userId?: string })?.userId;
+  // New submissions cannot overtake earlier offline prerequisites.
+  if (secure(type) && owner && readQueue().some(item => secure(item.type) && ownerOf(item) === owner)) {
+    try { enqueue(type, payload); setTimeout(() => { void flushQueue(); }, 0); return { ok: false, queued: true }; }
+    catch (error) { return { ok: false, queued: false, error }; }
+  }
+  try { await operation(); return { ok: true, queued: false }; }
+  catch (error) {
+    if (isRetriableError(error) || isAuthenticationPendingError(error)) {
+      try { enqueue(type, payload); return { ok: false, queued: true, error }; }
+      catch (storageFailure) { return { ok: false, queued: false, error: storageFailure }; }
     }
     return { ok: false, queued: false, error };
   }
 }
-
-export interface FlushResult {
-  processed: number;
-  succeeded: number;
-  remaining: number;
-  /** Số mục bị máy chủ từ chối vĩnh viễn (không phải lỗi mạng). */
-  dropped: number;
-}
-
-/**
- * Chạy lại toàn bộ hàng đợi theo đúng thứ tự đã xếp.
- *
- * Thứ tự quan trọng: nếu bản ghi tiến trình được xếp trước bản ghi cộng XP thì
- * phải chạy đúng thứ tự đó, không thì số liệu sẽ lệch.
- */
+export interface FlushResult { processed: number; succeeded: number; remaining: number; /** Rejections retained for review, not deleted. */ dropped: number; }
 let activeFlush: Promise<FlushResult> | null = null;
 export function flushQueue(): Promise<FlushResult> {
-  if (!activeFlush) activeFlush = flushQueueOnce().finally(() => { activeFlush = null; });
+  if (!activeFlush) {
+    // Browser-managed lock is released automatically if a tab closes.
+    const work = (async () => typeof navigator !== 'undefined' && navigator.locks
+      ? await navigator.locks.request('cq8:outbox-sync', () => flushQueueOnce()) : await flushQueueOnce())();
+    // A denied browser lock must not become an unhandled rejection or trigger an unlocked flush.
+    activeFlush = work.catch(() => ({ processed: 0, succeeded: 0, remaining: queueSize(), dropped: 0 }))
+      .finally(() => { activeFlush = null; scheduleRetry(); });
+  }
   return activeFlush;
 }
-
 async function flushQueueOnce(): Promise<FlushResult> {
-  const queue = readQueue();
-  if (queue.length === 0) {
-    return { processed: 0, succeeded: 0, remaining: 0, dropped: 0 };
-  }
-
-  const stillPending: QueuedOperation[] = [];
-  let succeeded = 0;
-  let dropped = 0;
-
-  for (let index = 0; index < queue.length; index += 1) {
-    const item = queue[index];
-    const handler = handlers.get(item.type);
-    const owner = (item.payload as { userId?: string } | null)?.userId;
-    const secure = item.type === 'submit-challenge-secure' || item.type === 'submit-checkpoint-secure';
-    // Không gán bài offline cho học sinh đăng nhập sau trên cùng máy. Mục cũ
-    // chưa có chủ sở hữu được giữ lại, không tự đoán tài khoản để nộp.
-    if ((secure && (!owner || owner !== currentUserId())) || (owner && owner !== currentUserId())) {
-      stillPending.push(item);
-      continue;
-    }
-
-    // Chưa có handler (vd. trang chưa nạp xong module đó) -> giữ lại chờ lần sau
-    if (!handler) {
-      stillPending.push(item);
-      continue;
-    }
-
-    try {
-      await handler(item.payload);
-      succeeded += 1;
-    } catch (error) {
-      if (isAuthenticationPendingError(error)) {
-        // Giữ nguyên mục hiện tại và toàn bộ phần sau để bảo toàn đúng thứ tự.
-        // AuthStore sẽ gọi flushQueue() lần nữa ngay khi session đã sẵn sàng.
-        stillPending.push(item, ...queue.slice(index + 1));
-        break;
+  let succeeded = 0, dropped = 0, processed = 0;
+  try {
+    migrateLegacy();
+    const heldOwners = new Set<string>();
+    for (const item of readQueue()) {
+      const owner = ownerOf(item);
+      if ((secure(item.type) && (!owner || owner !== currentUserId())) || (owner && owner !== currentUserId())) continue;
+      if (owner && heldOwners.has(owner)) continue;
+      if (item.blocked || !handlers.has(item.type)) { if (owner) heldOwners.add(owner); continue; }
+      if (!localStorage.getItem(PREFIX + item.id)) continue;
+      processed++;
+      try {
+        await handlers.get(item.type)!(item.payload);
+        localStorage.removeItem(PREFIX + item.id);
+        succeeded++;
+      } catch (error) {
+        if (isAuthenticationPendingError(error)) break;
+        const retryable = isRetriableError(error);
+        if (localStorage.getItem(PREFIX + item.id)) writeItem({ ...item, attempts: item.attempts + 1,
+          blocked: !retryable, lastError: retryable ? 'Đang chờ kết nối máy chủ.' : 'Máy chủ chưa chấp nhận bài. Em kiểm tra quyền mở nhiệm vụ rồi đồng bộ lại.' });
+        if (!retryable) dropped++;
+        break; // Preserve submission order, including when a teacher closes a gate.
       }
-
-      const attempts = item.attempts + 1;
-
-      if (!isRetriableError(error)) {
-        // Bỏ hẳn: một mục hỏng vĩnh viễn không được phép chặn cả hàng đợi
-        dropped += 1;
-        continue;
-      }
-
-      // Dừng ở lỗi mạng: nộp node sau trước node này sẽ bị từ chối thứ tự.
-      // Không xóa bài chỉ vì Wi-Fi hỏng nhiều lần.
-      stillPending.push({ ...item, attempts }, ...queue.slice(index + 1));
-      break;
     }
-  }
-
-  // Một lần chạy mới có thể enqueue trong lúc đang await. Giữ các mục đó.
-  const snapshotIds = new Set(queue.map(item => item.id));
-  const latest = readQueue();
-  const latestIds = new Set(latest.map(item => item.id));
-  const remaining = [
-    ...stillPending.filter(item => latestIds.has(item.id)),
-    ...latest.filter(item => !snapshotIds.has(item.id)),
-  ];
-  writeQueue(remaining);
-  if (succeeded > 0 && typeof window !== 'undefined') {
-    window.dispatchEvent(new Event('cq8:progress-synced'));
-  }
-
-  return {
-    processed: queue.length,
-    succeeded,
-    remaining: remaining.length,
-    dropped,
-  };
+  } catch { /* Original persisted items remain; storage failure is not an acknowledgement. */ }
+  changed();
+  if (succeeded > 0 && typeof window !== 'undefined') window.dispatchEvent(new Event('cq8:progress-synced'));
+  return { processed, succeeded, remaining: queueSize(), dropped };
 }
-
+export async function retryCurrentUserQueue(): Promise<FlushResult> {
+  try {
+    migrateLegacy();
+    for (const item of readQueue()) if (ownerOf(item) === currentUserId()) writeItem({ ...item, blocked: false });
+  } catch { throw storageError(); }
+  changed();
+  return flushQueue();
+}
 let listenerAttached = false;
-
-/** Tự chạy lại hàng đợi khi có mạng trở lại. Gọi một lần lúc khởi động ứng dụng. */
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
+function scheduleRetry() {
+  if (!listenerAttached || retryTimer || !navigator.onLine) return;
+  const pending = readQueue().filter(item => !item.blocked && ownerOf(item) === currentUserId());
+  if (!pending.length) return;
+  const delay = Math.min(300_000, 15_000 * 2 ** Math.min(5, pending[0].attempts));
+  retryTimer = setTimeout(() => { retryTimer = null; void flushQueue(); }, delay);
+}
 export function startOfflineQueueWatcher(): void {
   if (listenerAttached || typeof window === 'undefined') return;
   listenerAttached = true;
-
-  window.addEventListener('online', () => {
-    void flushQueue();
-  });
-
-  // Thử ngay lúc khởi động: có thể tiết trước học sinh đã tắt máy khi đang offline
-  if (navigator.onLine) {
-    void flushQueue();
-  }
+  const reconnect = () => { if (navigator.onLine) void flushQueue(); };
+  window.addEventListener('online', reconnect);
+  window.addEventListener('focus', reconnect);
+  window.addEventListener('storage', event => { if (event.key?.startsWith(PREFIX)) changed(); });
+  reconnect();
 }

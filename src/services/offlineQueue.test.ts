@@ -11,6 +11,7 @@ import {
   registerOfflineHandler,
   runOrQueue,
   setQueueUserResolver,
+  retryCurrentUserQueue,
 } from './offlineQueue';
 beforeEach(() => setQueueUserResolver(() => 'u1'));
 
@@ -56,6 +57,19 @@ describe('Phân loại lỗi', () => {
 });
 
 describe('runOrQueue', () => {
+  it('không báo đã xếp hàng khi trình duyệt từ chối lưu', async () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('Full', 'QuotaExceededError'); });
+    const result = await runOrQueue('save-draft', { code: 'important' }, async () => { throw networkError(); });
+    expect(result.queued).toBe(false);
+    expect(String(result.error)).toContain('bộ nhớ');
+  });
+
+  it('không âm thầm xóa bài đầu tiên khi hàng đợi đủ 200 mục', () => {
+    for (let i = 0; i < 200; i++) enqueue('save-draft', { code: String(i) });
+    expect(() => enqueue('save-draft', { code: 'new' })).toThrow('bộ nhớ');
+    expect(queueSize()).toBe(200);
+    expect(readQueue()[0].payload).toEqual({ code: '0' });
+  });
   beforeEach(() => {
     clearQueue();
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
@@ -168,7 +182,7 @@ describe('Chạy lại hàng đợi khi có mạng', () => {
   });
 
   /** Một mục hỏng vĩnh viễn không được phép chặn cả hàng đợi. */
-  it('bỏ mục hỏng vĩnh viễn thay vì để nó kẹt mãi', async () => {
+  it('giữ mục bị từ chối để học sinh có thể xem và gửi lại', async () => {
     registerOfflineHandler('save-draft', async () => {
       throw validationError();
     });
@@ -177,7 +191,8 @@ describe('Chạy lại hàng đợi khi có mạng', () => {
     const result = await flushQueue();
 
     expect(result.dropped).toBe(1);
-    expect(queueSize()).toBe(0);
+    expect(queueSize()).toBe(1);
+    expect(readQueue()[0].blocked).toBe(true);
   });
 
   it('giữ bài khi mất mạng quá 5 lần', async () => {
@@ -227,6 +242,34 @@ describe('Chạy lại hàng đợi khi có mạng', () => {
 });
 
 describe('Hàng đợi sống sót qua việc đóng tab', () => {
+  it('di chuyển hàng đợi cũ mà không đánh mất bài', async () => {
+    const legacy = { id: 'legacy', type: 'save-draft', payload: { userId: 'u1', code: 'old' }, queuedAt: '2026-01-01', attempts: 0 };
+    localStorage.setItem('cq8:offline-queue', JSON.stringify([legacy]));
+    registerOfflineHandler('save-draft', vi.fn().mockRejectedValue(networkError()));
+    await flushQueue();
+    expect(localStorage.getItem('cq8:offline-queue')).toBeNull();
+    expect(readQueue()[0].payload).toEqual(legacy.payload);
+  });
+
+  it('nút đồng bộ lại cho phép thử bài đang bị khóa, không sửa chủ tài khoản', async () => {
+    const handler = vi.fn().mockRejectedValue(validationError());
+    registerOfflineHandler('submit-challenge-secure', handler);
+    enqueue('submit-challenge-secure', { userId: 'u1', challengeId: 'c1' });
+    await flushQueue();
+    handler.mockResolvedValue(undefined);
+    await retryCurrentUserQueue();
+    expect(queueSize()).toBe(0);
+    expect(handler).toHaveBeenCalledTimes(2);
+  });
+
+  it('dùng Web Locks của trình duyệt để điều phối các tab', async () => {
+    const request = vi.fn(async (_name: string, callback: () => Promise<unknown>) => callback());
+    vi.stubGlobal('navigator', { onLine: true, locks: { request } });
+    try {
+      await flushQueue();
+      expect(request).toHaveBeenCalledWith('cq8:outbox-sync', expect.any(Function));
+    } finally { vi.unstubAllGlobals(); }
+  });
   beforeEach(() => clearQueue());
   afterEach(() => clearQueue());
 
@@ -234,9 +277,9 @@ describe('Hàng đợi sống sót qua việc đóng tab', () => {
     enqueue('record-attempt', { challengeId: 'l3-c9-boss' });
 
     // Đọc thẳng từ localStorage, mô phỏng việc mở lại trang
-    const raw = localStorage.getItem('cq8:offline-queue');
+    const raw = localStorage.getItem('cq8:outbox:v2:' + readQueue()[0].id);
     expect(raw).toBeTruthy();
-    expect(JSON.parse(raw!)[0].payload).toEqual({ challengeId: 'l3-c9-boss' });
+    expect(JSON.parse(raw!).payload).toEqual({ challengeId: 'l3-c9-boss' });
   });
 
   it('localStorage hỏng thì trả về hàng đợi rỗng chứ không làm sập ứng dụng', () => {

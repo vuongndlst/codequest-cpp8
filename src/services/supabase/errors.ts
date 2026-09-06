@@ -4,12 +4,14 @@ import { isNetworkError, SupabaseNotConfiguredError } from './client';
 export class RepositoryError extends Error {
   readonly isOffline: boolean;
   readonly needsAuth: boolean;
+  readonly retryable: boolean;
 
-  constructor(message: string, isOffline = false, needsAuth = false) {
+  constructor(message: string, isOffline = false, needsAuth = false, retryable = false) {
     super(message);
     this.name = 'RepositoryError';
     this.isOffline = isOffline;
     this.needsAuth = needsAuth;
+    this.retryable = retryable;
   }
 }
 

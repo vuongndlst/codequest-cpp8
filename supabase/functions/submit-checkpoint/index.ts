@@ -51,7 +51,7 @@ Deno.serve(async (request) => {
         ? 429
         : message === 'CHUA_HOAN_THANH_NHIEM_VU'
           ? 403
-          : 400;
+          : message === 'KHONG_THE_XU_LY_YEU_CAU' ? 500 : 400;
     return json(request, { error: message }, status);
   }
 });

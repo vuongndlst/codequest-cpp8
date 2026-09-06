@@ -17,6 +17,9 @@ const GRADING_ERROR_MESSAGES: Record<string, string> = {
 async function toAuthoritativeError(error: unknown, fallback: string) {
   const context = (error as { context?: unknown } | null)?.context;
   if (typeof Response !== 'undefined' && context instanceof Response) {
+    if (context.status === 429 || context.status >= 500) {
+      return new RepositoryError('Máy chủ đang bận. Bài được giữ để tự gửi lại sau.', false, false, true);
+    }
     try {
       const body = await context.clone().json() as { error?: string };
       if (body.error && GRADING_ERROR_MESSAGES[body.error]) {

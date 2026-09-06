@@ -6,8 +6,7 @@ import type { SaveState } from '@/components/common/StateViews';
  * Tự động lưu code (mục 23 của đề bài).
  *
  * Kiến trúc hai tầng:
- *   · Tầng 1 — localStorage: ghi ngay khi hết debounce. KHÔNG BAO GIỜ mất code,
- *     kể cả khi mất mạng, sập nguồn máy hay đóng nhầm tab.
+ *   · Tầng 1 — localStorage: ghi khi hết debounce; báo lỗi nếu storage bị chặn.
  *   · Tầng 2 — Supabase: ghi khi có mạng, một bản ghi cho mỗi challenge.
  *
  * KHÔNG tạo bản ghi database cho từng phím gõ. Chỉ ghi khi:
@@ -36,14 +35,15 @@ export function readLocalDraft(userId: string | null, challengeId: string): Loca
   }
 }
 
-export function writeLocalDraft(userId: string | null, challengeId: string, code: string): void {
+export function writeLocalDraft(userId: string | null, challengeId: string, code: string): boolean {
   try {
     localStorage.setItem(
       draftStorageKey(userId, challengeId),
       JSON.stringify({ code, updatedAt: new Date().toISOString() } satisfies LocalDraft),
     );
+    return true;
   } catch {
-    // localStorage đầy hoặc bị chặn — bỏ qua, tầng Supabase vẫn hoạt động
+    return false;
   }
 }
 
@@ -78,12 +78,11 @@ export function useAutoSave({
       if (suspended) return;
       if (value === lastSavedRef.current) return;
 
-      // Tầng 1 luôn chạy trước, và luôn thành công về mặt trải nghiệm
-      writeLocalDraft(userId, challengeId, value);
+      const localSaved = writeLocalDraft(userId, challengeId, value);
 
       if (!enabled || !userId) {
-        lastSavedRef.current = value;
-        setSaveState('local_only');
+        if (localSaved) lastSavedRef.current = value;
+        setSaveState(localSaved ? 'local_only' : 'failed');
         return;
       }
 
@@ -93,9 +92,9 @@ export function useAutoSave({
         lastSavedRef.current = value;
         setSaveState('saved');
       } catch {
-        // Code vẫn nằm an toàn trong localStorage -> báo trạng thái nhẹ nhàng
-        lastSavedRef.current = value;
-        setSaveState(navigator.onLine ? 'failed' : 'local_only');
+        // Chỉ xác nhận bản lưu cục bộ khi thao tác ghi thực sự thành công.
+        if (localSaved) lastSavedRef.current = value;
+        setSaveState(localSaved && !navigator.onLine ? 'local_only' : 'failed');
       }
     },
     [userId, lessonId, challengeId, enabled, suspended],

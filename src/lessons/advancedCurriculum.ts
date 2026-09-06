@@ -90,6 +90,26 @@ const searchTests = (id: string, moves: string, cases: [string, string][]) => [
   })),
 ];
 
+/** Check computation AND the physical machine for every supplied data set. */
+function energyTests(id: string, moves: string, cases: [string, number][]) {
+  const [col, row] = routeFrom(moves).at(-1)!;
+  return cases.flatMap(([input, energy], index) => [
+    { id: `${id}-data-${index}`, name: `Dữ liệu ${input}: in ${energy}`, kind: 'output' as const,
+      input, expectedOutput: String(energy), required: true, visible: true },
+    { id: `${id}-machine-${index}`, name: `Nạp đúng ${energy} năng lượng vào máy rồi tới portal`, kind: 'world' as const,
+      input, expectedWorld: { col, row, dangerHits: 0, chargedMachineIds: [`${id}-core`], totalCharge: energy }, required: true, visible: true },
+  ]);
+}
+
+function energyWorld(id: string, moves: string): WorldSpec {
+  const world = advancedWorld(id, moves, 'crystal');
+  const [col, row] = routeFrom(moves).at(-2)!;
+  return { ...world, props: [...(world.props ?? []), { id: `${id}-core`, type: 'machine', col, row }] };
+}
+
+const readCells = (size: number) => `    int cells[${size}];\n    for (int i = 0; i < ${size}; i++) cin >> cells[i];`;
+const deliverEnergy = (moves: string, value: string) => `${moveCalls(moves.slice(0, -1))}\n    chargeMachine(${value});\n${moveCalls(moves.slice(-1))}`;
+
 const guide = (lessonId: string, question: string, painful: string, clean: string, idea: string): ConceptGuide => ({
   lessonId,
   bigQuestion: question,
@@ -199,10 +219,28 @@ const a8Challenges: Challenge[] = [
 const a9Moves = ['RRRDD', 'DDRRRR', 'RRRDDDRR', 'RRDDRRUURRR'];
 const a9Challenges: Challenge[] = [
   {
-    id:'a9-c1-aggregate', lessonId:'a9', kind:'story', title:'Tổng năng lượng đoàn tàu', story:'Bốn toa năng lượng phải được cộng bằng một thuật toán duyệt chung, không phải bốn biểu thức viết tay riêng lẻ.', instructions:['Theo dõi total sau mỗi lượt.','Xác nhận hàm trả về 14.','Đưa Byte tới trạm cuối mà không chạm lính gác.'], starterCode:cpp(`    int cells[4] = {2, 5, 3, 4};\n    cout << sumEnergy(cells, 4) << endl;\n${moveCalls(a9Moves[0])}`, 'int sumEnergy(int values[], int size) {\n    int total = 0;\n    for (int i = 0; i < size; i++) total += values[i];\n    return total;\n}'), requiredPatterns:['decl:array:int','stmt:for','access:array','stmt:return'], testCases:tests('a9-c1',a9Moves[0],'14'), commonMistakes:[], hints:hints('total cần bắt đầu ở giá trị trung hòa nào của phép cộng?','Duyệt từ 0 đến size - 1 và tích lũy từng phần tử.','```cpp\nint total = ___;\nfor (...) total += values[___];\n```'), cleanCodeRules:CLEAN_CODE_WITH_FUNCTIONS, xpReward:40, world:advancedWorld('a9-c1',a9Moves[0],'crystal'), solution:cpp(`    int cells[4] = {2, 5, 3, 4};\n    cout << sumEnergy(cells, 4) << endl;\n${moveCalls(a9Moves[0])}`, 'int sumEnergy(int values[], int size) {\n    int total = 0;\n    for (int i = 0; i < size; i++) total += values[i];\n    return total;\n}'), thinkingPrompt:'Bất biến của total sau i lượt là gì?', whyThisMatters:'Tích lũy là mẫu thuật toán nền tảng trong xử lý dữ liệu.',
+    id: 'a9-c1-aggregate', lessonId: 'a9', kind: 'story', title: 'Tổng năng lượng đoàn tàu',
+    story: 'Đoàn tàu có bốn toa. Bảng Input cho biết năng lượng từng toa; mỗi lượt kiểm tra có thể dùng số liệu khác. Byte cần tính tổng rồi chuyển chính kết quả đó vào máy tiếp năng lượng trước portal.',
+    instructions: ['Đọc bốn số nguyên không âm từ Input vào cells. Ví dụ 2 5 3 4 có tổng 14.', 'Quan sát hàm sumEnergy: total bắt đầu bằng 0 và cộng lần lượt từng phần tử.', 'In tổng, đi sang phải 3 ô rồi xuống 1 ô tới máy, gọi chargeMachine(total), sau đó xuống 1 ô tới portal. Mức 0 là hợp lệ khi cả bốn toa đều rỗng.'],
+    starterCode: cpp(`${readCells(4)}\n    int total = sumEnergy(cells, 4);\n    cout << total << endl;\n${deliverEnergy(a9Moves[0], 'total')}`, 'int sumEnergy(int values[], int size) {\n    int total = 0;\n    for (int i = 0; i < size; i++) total += values[i];\n    return total;\n}'),
+    requiredPatterns: ['decl:array:int', 'stmt:for', 'access:array', 'stmt:return'],
+    testCases: energyTests('a9-c1', a9Moves[0], [['2 5 3 4', 14], ['0 0 0 0', 0], ['7 0 0 1', 8], ['3 3 3 3', 12]]),
+    commonMistakes: [], hints: hints('Nếu các toa đều rỗng, tổng phải bằng bao nhiêu?', 'Duyệt từ 0 đến size - 1. Biến total vừa dùng để in, vừa là đối số của chargeMachine.', '```cpp\nint total = ___;\nfor (...) total += values[___];\n// Khi Byte tới máy:\nchargeMachine(total);\n```'),
+    cleanCodeRules: CLEAN_CODE_WITH_FUNCTIONS, xpReward: 40, world: energyWorld('a9-c1', a9Moves[0]),
+    solution: cpp(`${readCells(4)}\n    int total = sumEnergy(cells, 4);\n    cout << total << endl;\n${deliverEnergy(a9Moves[0], 'total')}`, 'int sumEnergy(int values[], int size) {\n    int total = 0;\n    for (int i = 0; i < size; i++) total += values[i];\n    return total;\n}'),
+    thinkingPrompt: 'Sau i lượt, total là tổng của những phần tử nào?', whyThisMatters: 'Một thuật toán tích lũy phải đúng với nhiều bộ dữ liệu, không chỉ ví dụ 14.',
   },
   {
-    id:'a9-c2-maximum', lessonId:'a9', kind:'mission', title:'Tìm lõi mạnh nhất', story:'Cửa chống nhiễu chỉ chấp nhận mức năng lượng lớn nhất trong dãy. Em phải quét từng phần tử và giữ ứng viên tốt nhất đã thấy.', instructions:['Khởi tạo strongest từ phần tử đầu tiên.','So sánh từng phần tử còn lại và cập nhật khi lớn hơn.','In 9 rồi hoàn thiện tuyến sáng.'], starterCode:cpp('    int cells[5] = {4, 9, 3, 7, 6};\n    // Tìm max, in kết quả và di chuyển'), requiredPatterns:['decl:array:int','stmt:for','stmt:if','access:array'], testCases:tests('a9-c2',a9Moves[1],'9'), commonMistakes:[], hints:hints('Ứng viên ban đầu nào chắc chắn thuộc mảng?','Bắt đầu strongest = cells[0], rồi duyệt từ chỉ số 1.','```cpp\nint strongest = cells[0];\nfor (int i = ___; i < 5; i++) if (cells[i] > strongest) ___;\n```'), cleanCodeRules:STANDARD_CLEAN_CODE, xpReward:50, world:advancedWorld('a9-c2',a9Moves[1],'crystal'), solution:cpp(`    int cells[5] = {4, 9, 3, 7, 6};\n    int strongest = cells[0];\n    for (int i = 1; i < 5; i++) {\n        if (cells[i] > strongest) strongest = cells[i];\n    }\n    cout << strongest << endl;\n${moveCalls(a9Moves[1])}`), thinkingPrompt:'Sau mỗi lượt, strongest đại diện cho phần nào của mảng?', whyThisMatters:'Giữ ứng viên tốt nhất là tư duy dùng trong tối ưu và tìm kiếm.',
+    id: 'a9-c2-maximum', lessonId: 'a9', kind: 'mission', title: 'Tìm lõi mạnh nhất',
+    story: 'Máy quét nhận năng lượng của năm lõi từ Input. Hãy tìm giá trị lớn nhất rồi nạp đúng mức đó vào máy chọn lõi trên bản đồ. Dữ liệu năng lượng là các số nguyên không âm, có thể bằng nhau hoặc bằng 0.',
+    instructions: ['Đọc năm số vào cells. Ví dụ 4 9 3 7 6 cho kết quả 9, nhưng các lượt kiểm tra dùng dữ liệu khác.', 'Khởi tạo strongest từ cells[0]. Duyệt bốn phần tử còn lại và cập nhật khi gặp giá trị lớn hơn; in strongest.', 'Đi xuống 2 ô, sang phải 3 ô tới máy. Gọi chargeMachine(strongest), rồi sang phải 1 ô tới portal. Không nạp một con số cố định.'],
+    starterCode: cpp(`${readCells(5)}\n    // Tìm giá trị lớn nhất, in kết quả và đưa năng lượng tới máy.`),
+    requiredPatterns: ['decl:array:int', 'stmt:for', 'stmt:if', 'access:array'],
+    testCases: energyTests('a9-c2', a9Moves[1], [['4 9 3 7 6', 9], ['12 1 0 2 3', 12], ['0 2 4 6 11', 11], ['0 0 0 0 0', 0], ['5 5 5 5 5', 5]]),
+    commonMistakes: [], hints: hints('Nếu lõi mạnh nhất ở cuối mảng, vòng lặp của em có kiểm tra tới nó không?', 'strongest giữ giá trị lớn nhất đã gặp. Dùng chính biến này khi in và khi gọi chargeMachine tại máy.', '```cpp\nint strongest = cells[0];\nfor (int i = ___; i < 5; i++) {\n    if (cells[i] > strongest) ___;\n}\n// Khi Byte tới máy:\nchargeMachine(___);\n```'),
+    cleanCodeRules: STANDARD_CLEAN_CODE, xpReward: 50, world: energyWorld('a9-c2', a9Moves[1]),
+    solution: cpp(`${readCells(5)}\n    int strongest = cells[0];\n    for (int i = 1; i < 5; i++) {\n        if (cells[i] > strongest) strongest = cells[i];\n    }\n    cout << strongest << endl;\n${deliverEnergy(a9Moves[1], 'strongest')}`),
+    thinkingPrompt: 'Sau mỗi lượt, strongest là giá trị lớn nhất trong phần nào của mảng?', whyThisMatters: 'Kết quả thuật toán điều khiển thiết bị trong game, thay vì chỉ xuất hiện trên màn hình.',
   },
   {
     id:'a9-c3-debug-search', lessonId:'a9', kind:'debug', title:'Debug Lab: Máy quét quá giới hạn', story:'Máy quét tìm được mã 7 nên tưởng như đã đúng. Khi nhận mã 6 không có trong mảng, nó đọc vượt ô cuối. Em sửa điều kiện dừng để cả hai tình huống đều an toàn.', instructions:['Xác định chỉ số hợp lệ cuối của mảng năm phần tử.','Sửa đúng điều kiện vòng lặp.','Đọc target bằng cin. Kiểm tra: 7 → 3; 6 → -1; 1 → 4. Đường di chuyển đã có sẵn.'], starterCode:cpp(`    int codes[5] = {8, 2, 5, 7, 1};\n    int target;\n    cin >> target;\n    cout << findFirst(codes, 5, target) << endl;\n${moveCalls(a9Moves[2])}`, 'int findFirst(int values[], int size, int target) {\n    for (int i = 0; i <= size; i++) {\n        if (values[i] == target) return i;\n    }\n    return -1;\n}'), requiredPatterns:['stmt:cin','call:findFirst','stmt:for','stmt:if','access:array','stmt:return'], testCases:searchTests('a9-c3',a9Moves[2], [['7','3'], ['6','-1'], ['1','4']]), commonMistakes:[], hints:hints('Khi i bằng size, đó còn là một ô hợp lệ không?','Chỉ duyệt khi i nhỏ hơn size.','```cpp\nfor (int i = 0; i ___ size; i++) {\n  if (values[i] == target) return i;\n}\n// R,R,R,D,D,D,R,R\n```'), cleanCodeRules:CLEAN_CODE_WITH_FUNCTIONS, xpReward:60, world:advancedWorld('a9-c3',a9Moves[2],'archive'), solution:cpp(`    int codes[5] = {8, 2, 5, 7, 1};\n    int target;\n    cin >> target;\n    cout << findFirst(codes, 5, target) << endl;\n${moveCalls(a9Moves[2])}`, 'int findFirst(int values[], int size, int target) {\n    for (int i = 0; i < size; i++) {\n        if (values[i] == target) return i;\n    }\n    return -1;\n}'), thinkingPrompt:'Thuật toán dừng sớm ở chỉ số nào, và vì sao không cần đọc phần còn lại?', whyThisMatters:'Tìm kiếm tuyến tính là mốc đầu để phân tích số phép so sánh.',

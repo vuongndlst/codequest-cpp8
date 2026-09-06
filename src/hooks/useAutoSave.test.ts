@@ -45,6 +45,17 @@ describe('Lưu tạm trong localStorage', () => {
 });
 
 describe('Tự động lưu', () => {
+  it('không báo đã lưu trong Demo khi bộ nhớ trình duyệt từ chối ghi', async () => {
+    const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('full'); });
+    try {
+      const { result, rerender } = renderHook((props) => useAutoSave(props), {
+        initialProps: { ...BASE, enabled: false, code: 'old' },
+      });
+      rerender({ ...BASE, enabled: false, code: 'new' });
+      await act(async () => { await result.current.flush(); });
+      expect(result.current.saveState).toBe('failed');
+    } finally { write.mockRestore(); }
+  });
   it('không ghi đè bản nháp trong lúc đang khôi phục dù rời trang', async () => {
     writeLocalDraft('u1', BASE.challengeId, 'bài đang làm dở');
     const { result, unmount } = renderHook(() => useAutoSave({

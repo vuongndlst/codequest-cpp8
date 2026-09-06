@@ -138,6 +138,11 @@ export function ResultPanel({
                   {!test.passed && test.message && (
                     <p className="text-xs text-slate-500">{test.message}</p>
                   )}
+                  {!test.passed && test.visible && test.expected !== undefined && (
+                    <pre className="mt-1 whitespace-pre-wrap break-words rounded-md bg-abyss-950 p-2 font-mono text-sm text-slate-200">
+                      {`${test.input ? `Input: ${test.input}\n` : ''}Cần in: ${test.expected}\nEm in: ${test.actual || '(chưa có)'}`}
+                    </pre>
+                  )}
                 </div>
               </li>
             ))}

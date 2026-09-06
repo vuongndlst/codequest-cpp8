@@ -893,13 +893,16 @@ class Interpreter {
       case 'CinStatement': {
         for (const target of statement.targets) {
           const raw = this.inputQueue.shift() ?? '';
-          const existing = scope.get(target.name);
-          const type = (existing?.type ?? 'int') as TypeKeyword;
+          const destination = this.resolveLValue(target, scope);
+          const type = destination.get().type;
+          if (type === 'array') {
+            throw new RuntimeErrorSignal({ code: 'UNKNOWN', message: 'Em nhập từng phần tử mảng bằng `cin >> cells[i]`, không nhập cả mảng một lần.', line: target.line, severity: 'error' });
+          }
           const parsed: CppValue =
             type === 'string' || type === 'char'
               ? { type: 'string', value: raw }
               : { type: 'double', value: Number(raw) || 0 };
-          scope.assign(target.name, parsed);
+          destination.set(parsed);
         }
         return;
       }

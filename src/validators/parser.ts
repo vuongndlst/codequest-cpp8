@@ -5,7 +5,6 @@ import type {
   BlockStatement,
   Expression,
   FunctionDeclaration,
-  Identifier,
   Parameter,
   Program,
   Statement,
@@ -496,7 +495,7 @@ class Parser {
 
   private parseCin(): Statement {
     const token = this.advance();
-    const targets: Identifier[] = [];
+    const targets: Extract<Expression, { kind: 'Identifier' | 'ArrayAccessExpression' }>[] = [];
 
     if (!this.check('>>')) {
       throw new ParseError(
@@ -516,13 +515,11 @@ class Parser {
           this.peek().column,
         );
       }
-      const name = this.advance();
-      targets.push({
-        kind: 'Identifier',
-        name: name.value,
-        line: name.line,
-        column: name.column,
-      });
+      const target = this.parsePostfix();
+      if (target.kind !== 'Identifier' && target.kind !== 'ArrayAccessExpression') {
+        throw new ParseError('UNKNOWN', 'Sau `cin >>` cần là biến hoặc phần tử mảng, ví dụ `cells[i]`.', target.line, target.column);
+      }
+      targets.push(target);
     }
 
     this.expectSemicolon('câu lệnh `cin`');

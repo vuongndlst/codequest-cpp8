@@ -33,6 +33,7 @@ import {
 import { getRequiredChallengeIds } from '@/lessons';
 import type { LessonProgressRow } from '@/types/database';
 import { runOrQueue } from '@/services/offlineQueue';
+import { SubmissionSyncStatus } from '@/components/common/SubmissionSyncStatus';
 
 /**
  * Checkpoint cuối khu vực: nhiều dạng câu hỏi + một câu tự nhìn lại.
@@ -183,6 +184,7 @@ function CheckpointSessionPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
+      <SubmissionSyncStatus />
       <Link
         to={`/app/lesson/${lessonId}`}
         className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-slate-200"

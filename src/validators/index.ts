@@ -279,7 +279,7 @@ export function analyzeChallenge(code: string, challenge: Challenge): RunResult 
     if (firstFailing) {
       diagnostics.unshift({
         code: 'OUTPUT_MISMATCH',
-        message: buildTestFailureMessage(firstFailing, primaryRun),
+        message: buildTestFailureMessage(firstFailing),
         line: 0,
         severity: 'error',
         suggestHintLevel: 1,
@@ -314,6 +314,7 @@ function evaluateTestCase(
     name: test.name,
     required: test.required,
     visible: test.visible,
+    input: test.visible ? test.input : undefined,
   };
 
   if (test.kind === 'structure') {
@@ -328,6 +329,8 @@ function evaluateTestCase(
   }
 
   const run = runWith(test.input ?? '');
+  const runtimeError = run.diagnostics.find(diagnostic => diagnostic.severity === 'error');
+  if (runtimeError) return { ...base, passed: false, message: runtimeError.message };
 
   if (test.kind === 'world') {
     const passed = test.expectedWorld
@@ -348,11 +351,13 @@ function evaluateTestCase(
   };
 }
 
-function buildTestFailureMessage(test: TestResult, run: InterpretResult): string {
+function buildTestFailureMessage(test: TestResult): string {
+  if (test.message) return `${test.input ? `Với Input "${test.input}": ` : ''}${test.message}`;
   if (test.visible && test.expected !== undefined) {
-    const actual = run.stdout.length > 0 ? run.stdout.join(' ⏎ ') : '(chưa in ra gì cả)';
+    const actual = test.actual?.replace(/\n/g, ' ⏎ ') || '(chưa in ra gì cả)';
     return (
       `Chưa hoàn tất — kết quả in ra chưa khớp với mong đợi. ` +
+      (test.input ? `Với Input "${test.input}": ` : '') +
       `Cần: "${test.expected.replace(/\n/g, ' ⏎ ')}" · Em đang in ra: "${actual}"`
     );
   }

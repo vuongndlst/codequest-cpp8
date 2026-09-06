@@ -23,6 +23,8 @@ import { guidedHintsForChallenge, newGameApiForChallenge } from '@/data/challeng
 import { useChallengeSession } from '@/hooks/useChallengeSession';
 import { useLessonAccess } from '@/hooks/useLessonAccess';
 import { useAuthStore } from '@/stores/authStore';
+import { useDemoRewardsStore } from '@/stores/demoRewardsStore';
+import { getLevelProgress } from '@/utils/xp';
 import { useUiStore } from '@/stores/uiStore';
 import { updateProfile } from '@/services/supabase/profiles.repo';
 import {
@@ -43,6 +45,7 @@ import { GameStage } from '@/components/game/GameStage';
 import { ZoneSceneStage } from '@/components/game/ZoneSceneStage';
 import { MapSettingsMenu } from '@/components/game/MapSettingsMenu';
 import { useStageReplay, type ReplaySpeed } from '@/components/game/useStageReplay';
+import { SubmissionSyncStatus } from '@/components/common/SubmissionSyncStatus';
 import { VictoryPanel } from '@/components/game/VictoryPanel';
 import { BadgeToast } from '@/components/game/BadgeToast';
 import { Button } from '@/components/ui/Button';
@@ -116,6 +119,8 @@ function ChallengeSessionPage({
   const challengeId = challengeIdOverride ?? params.challengeId ?? '';
   const navigate = useNavigate();
   const profile = useAuthStore((state) => state.profile);
+  const demoTotalXp = useDemoRewardsStore(state => state.totalXp);
+  const demoGems = useDemoRewardsStore(state => state.gems);
   const user = useAuthStore((state) => state.user);
   const setProfile = useAuthStore((state) => state.setProfile);
   const refreshProfile = useAuthStore((state) => state.refreshProfile);
@@ -379,6 +384,14 @@ function ChallengeSessionPage({
         </div>
       </div>
 
+      {!demo && <SubmissionSyncStatus />}
+      {challenge.testCases.some(test => test.input) && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-quest-500/30 bg-quest-500/10 px-3 py-2 text-sm text-slate-200" aria-label="Input hệ thống cung cấp">
+          <span className="font-bold text-quest-300">Input</span>
+          <code className="whitespace-pre-wrap break-words font-mono">{challenge.testCases.find(test => test.input)?.input}</code>
+          <span className="text-xs text-slate-400">cin đọc dữ liệu này; hệ thống còn kiểm tra các bộ khác trong nhiệm vụ.</span>
+        </div>
+      )}
       {session.isRestoring ? (
         <LoadingState label="Đang mở lại code em viết dở…" />
       ) : (
@@ -597,9 +610,9 @@ function ChallengeSessionPage({
                   name: profile?.full_name ?? 'Học viên ByteLand',
                   className: profile?.class_name,
                   studentCode: profile?.student_code,
-                  level: profile?.level ?? 1,
-                  totalXp: profile?.total_xp ?? 0,
-                  gems: profile?.gem_balance ?? 0,
+                  level: demo ? getLevelProgress(demoTotalXp).level : profile?.level ?? 1,
+                  totalXp: demo ? demoTotalXp : profile?.total_xp ?? 0,
+                  gems: demo ? demoGems : profile?.gem_balance ?? 0,
                 }}
                 soundEnabled={soundEnabled}
                 onToggleSound={toggleSound}
@@ -715,8 +728,9 @@ function ChallengeSessionPage({
           result={session.result}
           xpAwarded={session.xpAwarded}
           gemsAwarded={session.gemsAwarded}
-          totalXp={demo ? session.xpAwarded : profile?.total_xp}
-          gemBalance={demo ? session.gemsAwarded : profile?.gem_balance}
+          totalXp={demo ? demoTotalXp : profile?.total_xp}
+          gemBalance={demo ? demoGems : profile?.gem_balance}
+          demo={demo}
           nextTitle={nextChallenge?.title ?? (demo ? nextLesson?.challenges[0]?.title : 'Checkpoint cuối khu vực')}
           nextLabel="Tiếp tục"
           onNext={() =>

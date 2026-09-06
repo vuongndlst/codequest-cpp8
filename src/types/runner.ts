@@ -21,6 +21,7 @@ export interface TestResult {
   visible: boolean;
   /** Chỉ hiện với test `visible`, để học sinh tự so sánh */
   expected?: string;
+  input?: string;
   actual?: string;
   message?: string;
 }

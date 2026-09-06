@@ -21,6 +21,7 @@ interface VictoryPanelProps {
   nextTitle?: string;
   totalXp?: number;
   gemBalance?: number;
+  demo?: boolean;
   /** Nút phụ, ví dụ quay về danh sách nhiệm vụ */
   secondaryAction?: React.ReactNode;
 }
@@ -46,6 +47,7 @@ export function VictoryPanel({
   nextTitle,
   totalXp,
   gemBalance,
+  demo = false,
   secondaryAction,
 }: VictoryPanelProps) {
   const reducedMotion = useUiStore((state) => state.reducedMotion);
@@ -161,7 +163,7 @@ export function VictoryPanel({
           />
           <RewardCard
             icon={<Star className="size-4" aria-hidden="true" />}
-            value="1/1"
+            value={`${result?.passedRequired ?? 1}/${result?.totalRequired ?? 1}`}
             label="Mục tiêu"
             tone="green"
           />
@@ -191,7 +193,8 @@ export function VictoryPanel({
         </div>
       )}
 
-      {hasNewReward && (
+      {demo && <p className="relative z-10 mt-2 text-sm text-slate-300">Phần thưởng Demo cộng dồn trong phiên chơi này, không chuyển vào tài khoản thật. Tải lại trang sẽ bắt đầu phiên mới.</p>}
+      {hasNewReward && !demo && (
         <p className="relative z-10 mt-2 text-xs leading-relaxed text-treasure-200">
           Điểm kinh nghiệm giúp em lên cấp. Gem dùng tại <strong>Kho trang bị</strong> để mở hiệu ứng pixel và phản hồi học tập. Số dư mới: <strong>{gemBalance ?? gemsAwarded} Gem</strong>.
         </p>

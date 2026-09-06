@@ -3,6 +3,7 @@ import type { Challenge } from '@/types/content';
 import type { RunResult } from '@/types/runner';
 import { getCodeRunner } from '@/services/runner/localRunner';
 import { useAuthStore } from '@/stores/authStore';
+import { useDemoRewardsStore } from '@/stores/demoRewardsStore';
 import { useAutoSave, readLocalDraft } from './useAutoSave';
 import { fetchDraft } from '@/services/supabase/drafts.repo';
 import { countAttempts } from '@/services/supabase/attempts.repo';
@@ -158,8 +159,9 @@ export function useChallengeSession({
 
     if (!persist) {
       if (runResult.isCorrect) {
-        setXpAwarded(challenge.xpReward);
-        setGemsAwarded(challenge.kind === 'boss' ? 12 : 3);
+        const reward = useDemoRewardsStore.getState().award(challenge.id, challenge.xpReward, challenge.kind === 'boss' ? 12 : 3);
+        setXpAwarded(reward.xp);
+        setGemsAwarded(reward.gems);
         setJustCompleted(true);
       }
       return;
