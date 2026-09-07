@@ -19,11 +19,19 @@ export function SubmissionSyncStatus() {
   if (!entries.length) return null;
   const blocked = entries.some(item => item.blocked);
   const needsAuth = entries.some(item => item.lastError === AUTH_PENDING_MESSAGE);
+  // Im lặng là thứ đã gây ra cả vụ này: một bài bị giữ mà không nói vì sao thì
+  // không ai biết đường mà sửa. Luôn hiện lý do gần nhất, kể cả lỗi mạng.
+  const lastError = entries.find(item => item.lastError)?.lastError;
+  const untried = entries.every(item => item.attempts === 0 && !item.lastError);
   const reason = needsAuth
     ? ' · Phiên đăng nhập đã hết hạn, em đăng nhập lại'
     : blocked
       ? ' · Cần kiểm tra quyền mở nhiệm vụ'
-      : '';
+      : lastError
+        ? ` · ${lastError}`
+        : untried
+          ? ' · Chưa thử gửi lần nào — em bấm Đồng bộ lại'
+          : '';
   return <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-400/50 bg-amber-100 px-3 py-2 text-sm font-semibold text-amber-950" role="status">
     <CloudUpload className="size-4 shrink-0" aria-hidden="true" />
     <span>{entries.length} bài chờ xác nhận{reason}</span>
